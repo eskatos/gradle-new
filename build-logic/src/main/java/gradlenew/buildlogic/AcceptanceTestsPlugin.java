@@ -28,6 +28,7 @@ public abstract class AcceptanceTestsPlugin implements Plugin<Project> {
         });
 
         Provider<String> target = project.getProviders().gradleProperty("acceptance.target").orElse("image");
+        OfferedVersions offered = OfferedVersions.of(project.getProviders());
         Provider<String> dockerHost = project.getProviders().environmentVariable("DOCKER_HOST")
             .orElse(project.getProviders().environmentVariable("XDG_RUNTIME_DIR")
                 .map(dir -> dir + "/podman/podman.sock")
@@ -36,6 +37,10 @@ public abstract class AcceptanceTestsPlugin implements Plugin<Project> {
 
         project.getTasks().named("test", Test.class, test -> {
             test.systemProperty("acceptance.target", target.get());
+            test.systemProperty("acceptance.offered.stable", offered.stable().get());
+            if (offered.rc().isPresent()) {
+                test.systemProperty("acceptance.offered.rc", offered.rc().get());
+            }
             ImageReferenceArgumentProvider imageReference = project.getObjects().newInstance(ImageReferenceArgumentProvider.class);
             imageReference.getImageReferenceFiles().setFrom(image);
             test.getJvmArgumentProviders().add(imageReference);
