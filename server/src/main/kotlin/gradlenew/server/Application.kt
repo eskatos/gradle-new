@@ -16,6 +16,10 @@ fun Application.gradleNew(site: File) {
             call.response.header(HttpHeaders.CacheControl, "public, max-age=60")
             call.respondFile(File(site, "versions.json"))
         }
+        staticFiles("/v", File(site, "v")) {
+            contentType { ContentType.Application.Json }
+            modify { _, call -> call.response.header(HttpHeaders.CacheControl, "public, max-age=31536000, immutable") }
+        }
         staticFiles("/", site, index = "index.html") {
             contentType { file -> if (file.name.endsWith(".json")) ContentType.Application.Json else null }
         }

@@ -42,22 +42,38 @@ class NativeImageServerPluginTest {
     }
 
     @Test
-    void runsOnTheJvmWithTheSiteDirectory(@TempDir Path dir) throws IOException {
+    void runsOnTheJvmWithTheMergedSiteTree(@TempDir Path dir) throws IOException {
         TestProject project = serverWithSite(dir);
 
         BuildResult result = project.run(":server:run", "-q");
 
-        assertTrue(result.getOutput().contains("site has {\"stable\":\"9.8.2\"}"));
+        assertTrue(result.getOutput().contains("site has {\"stable\":\"9.8.2\"} and extra"), result.getOutput());
+    }
+
+    @Test
+    void mergesEverySiteContributorIntoTheImageContext(@TempDir Path dir) throws IOException {
+        TestProject project = serverWithSite(dir)
+            .file("server/Dockerfile", "FROM scratch\n");
+
+        project.run(":server:assembleImageContext", "-q");
+
+        assertTrue(Files.exists(dir.resolve("server/build/image/context/site/versions.json")));
+        assertTrue(Files.exists(dir.resolve("server/build/image/context/site/extra.txt")));
     }
 
     private static TestProject serverWithSite(Path dir) throws IOException {
         return TestProject.in(dir)
-            .file("settings.gradle.kts", TestProject.settings() + "include(\"ui\", \"server\")\n")
+            .file("settings.gradle.kts", TestProject.settings() + "include(\"ui\", \"extra\", \"server\")\n")
             .file("ui/build.gradle.kts", "plugins { id(\"gradlenew.static-site\") }")
             .file("ui/src/site/versions.json", "{\"stable\":\"9.8.2\"}")
+            .file("extra/build.gradle.kts", "plugins { id(\"gradlenew.static-site\") }")
+            .file("extra/src/site/extra.txt", "extra")
             .file("server/build.gradle.kts", """
                 plugins { id("gradlenew.native-image-server") }
-                dependencies { site(project(":ui")) }
+                dependencies {
+                    site(project(":ui"))
+                    site(project(":extra"))
+                }
                 """)
             .file("server/src/main/kotlin/gradlenew/server/Main.kt", """
                 package gradlenew.server
@@ -65,7 +81,8 @@ class NativeImageServerPluginTest {
                 import java.io.File
 
                 fun main() {
-                    println("site has " + File(System.getenv("SITE_DIR"), "versions.json").readText())
+                    val site = File(System.getenv("SITE_DIR"))
+                    println("site has " + site.resolve("versions.json").readText() + " and " + site.resolve("extra.txt").readText())
                 }
                 """);
     }

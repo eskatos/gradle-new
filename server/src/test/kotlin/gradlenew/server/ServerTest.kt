@@ -17,6 +17,21 @@ class ServerTest {
     private val site: File = Files.createTempDirectory("site").toFile().apply {
         resolve("index.html").writeText("<!doctype html><title>test site</title>")
         resolve("versions.json").writeText("""{"stable":"9.8.2","rc":null}""")
+        resolve("v/9.8.2").mkdirs()
+        resolve("v/9.8.2/model.json").writeText("""{"gradleVersion":"9.8.2"}""")
+    }
+
+    @Test
+    fun servesPerVersionFilesAsImmutableJson() = testApplication {
+        application { gradleNew(site) }
+
+        val response = client.get("/v/9.8.2/model.json")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(ContentType.Application.Json, response.contentType()?.withoutParameters())
+        assertEquals("public, max-age=31536000, immutable", response.headers[HttpHeaders.CacheControl])
+        assertEquals("""{"gradleVersion":"9.8.2"}""", response.bodyAsText())
+        assertEquals(HttpStatusCode.NotFound, client.get("/v/9.8.1/model.json").status)
     }
 
     @Test

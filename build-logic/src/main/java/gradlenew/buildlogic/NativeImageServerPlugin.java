@@ -24,10 +24,15 @@ public abstract class NativeImageServerPlugin implements Plugin<Project> {
             configuration.setCanBeResolved(true);
             ContainerImageAttributes.site(configuration.getAttributes());
         });
-        Provider<String> siteDir = site.getElements()
-            .map(elements -> elements.iterator().next().getAsFile().getAbsolutePath());
+        TaskProvider<Sync> assembleSite = project.getTasks()
+            .register("assembleSite", Sync.class, task -> {
+                task.setDescription("Merges every site contributor into one site tree.");
+                task.from(site);
+                task.into(project.getLayout().getBuildDirectory().dir("site"));
+            });
+        Provider<String> siteDir = assembleSite.map(task -> task.getDestinationDir().getAbsolutePath());
         project.getTasks().named("run", JavaExec.class, run -> {
-            run.getInputs().files(site);
+            run.getInputs().files(assembleSite);
             run.doFirst(task -> ((JavaExec) task).environment("SITE_DIR", siteDir.get()));
         });
 
@@ -38,7 +43,7 @@ public abstract class NativeImageServerPlugin implements Plugin<Project> {
                 task.from(project.getTasks().named("installDist", Sync.class).map(Sync::getDestinationDir),
                     copy -> copy.include("lib/**"));
                 task.from(project.getLayout().getProjectDirectory().file("Dockerfile"));
-                task.from(site, copy -> copy.into("site"));
+                task.from(assembleSite, copy -> copy.into("site"));
             });
 
         TaskProvider<BuildContainerImageTask> buildImage = project.getTasks()
