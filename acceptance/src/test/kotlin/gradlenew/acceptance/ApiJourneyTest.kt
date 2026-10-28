@@ -11,8 +11,8 @@ import kotlin.test.assertTrue
 
 class ApiJourneyTest {
 
-    private val pinnedStable = System.getProperty("acceptance.offered.stable") ?: error("acceptance.offered.stable is not set")
-    private val pinnedRc: String? = System.getProperty("acceptance.offered.rc")
+    private val pinnedStable = System.getProperty("gradlenew.offered.stable") ?: error("gradlenew.offered.stable is not set")
+    private val pinnedRc: String? = System.getProperty("gradlenew.offered.rc")
 
     @Test
     fun apiJourney() {
@@ -55,8 +55,9 @@ class ApiJourneyTest {
         val java = model.buildType("java-application")
         assertFalse(cpp.supportsPackage)
         assertTrue(java.supportsPackage)
-        assertFalse(oracle.initAccepts(listOf("--type", "cpp-application", "--package", "org.example")))
-        assertTrue(oracle.initAccepts(listOf("--type", "java-application", "--package", "org.example")))
+        val cppFailure = oracle.initFailure(listOf("--type", "cpp-application", "--package", "org.example"))
+        assertTrue(cppFailure != null && cppFailure.contains("Package name is not supported for 'cpp-application'"), cppFailure)
+        assertEquals(null, oracle.initFailure(listOf("--type", "java-application", "--package", "org.example")))
     }
 
     private fun assertJson(response: HttpResponse<String>) {

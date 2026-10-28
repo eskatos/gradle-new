@@ -14,12 +14,12 @@ class GradleOracle(version: String) {
         return parseOptionValues(help)
     }
 
-    fun initAccepts(arguments: List<String>): Boolean =
+    fun initFailure(arguments: List<String>): String? =
         try {
-            gradle.runTasks(emptyBuild(), listOf("init", "--quiet", "--offline", "--use-defaults", "--project-name", "probe") + arguments)
-            true
+            gradle.runTasks(emptyBuild(), listOf("init", "--quiet", "--offline", "--overwrite", "--use-defaults", "--project-name", "probe") + arguments)
+            null
         } catch (failure: GradleBuildFailed) {
-            false
+            failure.output
         }
 
     private fun emptyBuild(): File =
