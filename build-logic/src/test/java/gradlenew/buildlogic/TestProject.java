@@ -41,6 +41,11 @@ final class TestProject {
                 }
             }
             rootProject.name = "test-project"
+            buildCache {
+                local {
+                    directory = File(rootDir, ".build-cache")
+                }
+            }
             """.formatted(catalogPath());
     }
 
