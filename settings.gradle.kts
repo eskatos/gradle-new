@@ -18,6 +18,8 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 rootProject.name = "gradle-new"
 
+includeBuild("builder")
+
 include(
     "substitution",
     "domain",
