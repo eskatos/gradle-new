@@ -19,5 +19,14 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 rootProject.name = "gradle-new"
 
 include(
+    "substitution",
+    "domain",
+    "versions",
+    "verification",
+    "adapter-json",
+    "adapter-zip",
+    "adapter-feeds",
+    "adapter-tooling-api",
+    "publisher",
     "acceptance",
 )
