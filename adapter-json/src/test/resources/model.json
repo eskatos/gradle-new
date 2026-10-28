@@ -1,0 +1,140 @@
+{
+    "gradleVersion": "9.8.2",
+    "componentTypes": [
+        {
+            "id": "application",
+            "displayName": "Application",
+            "defaultProjectNames": [
+                "app",
+                "list",
+                "utilities"
+            ]
+        },
+        {
+            "id": "basic",
+            "displayName": "Basic (build structure only)",
+            "defaultProjectNames": []
+        }
+    ],
+    "languages": [
+        {
+            "id": "java",
+            "displayName": "Java"
+        }
+    ],
+    "dsls": [
+        {
+            "id": "kotlin",
+            "displayName": "Kotlin",
+            "fileExtension": ".gradle.kts"
+        },
+        {
+            "id": "groovy",
+            "displayName": "Groovy",
+            "fileExtension": ".gradle"
+        }
+    ],
+    "modularizationOptions": [
+        {
+            "id": "single-project",
+            "displayName": "Single application project"
+        },
+        {
+            "id": "with-library-projects",
+            "displayName": "Application and library project"
+        }
+    ],
+    "testFrameworks": [
+        {
+            "id": "junit-jupiter",
+            "displayName": "JUnit Jupiter"
+        },
+        {
+            "id": "spock",
+            "displayName": "Spock"
+        }
+    ],
+    "buildTypes": [
+        {
+            "id": "java-application",
+            "componentType": "application",
+            "language": "java",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project",
+                    "with-library-projects"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "junit-jupiter",
+                        "spock"
+                    ],
+                    "default": "junit-jupiter"
+                },
+                {
+                    "modularization": "with-library-projects",
+                    "values": [
+                        "junit-jupiter"
+                    ],
+                    "default": "junit-jupiter"
+                }
+            ],
+            "supportsPackage": true,
+            "supportsJavaVersion": true,
+            "supportsProjectName": true,
+            "furtherReading": "https://docs.gradle.org/9.8.2/samples/sample_building_java_applications.html"
+        },
+        {
+            "id": "basic",
+            "componentType": "basic",
+            "language": null,
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [],
+                    "default": null
+                }
+            ],
+            "supportsPackage": false,
+            "supportsJavaVersion": false,
+            "supportsProjectName": true,
+            "furtherReading": null
+        }
+    ],
+    "javaVersion": {
+        "minimum": 7,
+        "default": 21
+    },
+    "packageName": {
+        "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*(\\.[A-Za-z_$][A-Za-z0-9_$]*)*$",
+        "default": "org.example"
+    },
+    "projectName": {
+        "pattern": null,
+        "default": null
+    }
+}
