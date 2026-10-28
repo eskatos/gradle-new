@@ -7,5 +7,6 @@ public abstract class KotlinJvmLibraryPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project project) {
+        JvmConventions.applyKotlinJvm(project, Catalog.of(project));
     }
 }
