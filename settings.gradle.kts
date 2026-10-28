@@ -9,6 +9,14 @@ plugins {
 dependencyResolutionManagement {
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
     repositories {
+        exclusiveContent {
+            forRepository {
+                maven("https://repo.gradle.org/gradle/libs-releases")
+            }
+            filter {
+                includeModule("org.gradle", "gradle-tooling-api")
+            }
+        }
         mavenCentral()
         gradlePluginPortal()
     }

@@ -35,6 +35,30 @@ class KotlinJvmPluginsTest {
     }
 
     @Test
+    void testsOfEveryJvmModuleSeeThePinnedGradleVersions(@TempDir Path dir) throws IOException {
+        TestProject project = TestProject.in(dir)
+            .buildScript("plugins { id(\"gradlenew.kotlin-jvm-library\") }")
+            .file("src/test/kotlin/probe/PinnedTest.kt", """
+                package probe
+
+                import kotlin.test.Test
+                import kotlin.test.assertEquals
+
+                class PinnedTest {
+                    @Test
+                    fun seesPinnedVersions() {
+                        assertEquals("9.8.2", System.getProperty("gradlenew.offered.stable"))
+                        assertEquals("9.9.0-rc-1", System.getProperty("gradlenew.offered.rc"))
+                    }
+                }
+                """);
+
+        BuildResult result = project.run("test", "-Pgradlenew.offered.stable=9.8.2", "-Pgradlenew.offered.rc=9.9.0-rc-1");
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test").getOutcome());
+    }
+
+    @Test
     void applicationDerivesMainClassFromProjectName(@TempDir Path dir) throws IOException {
         TestProject project = TestProject.in(dir)
             .file("settings.gradle.kts", TestProject.settings() + "include(\"my-tool\")\n")
