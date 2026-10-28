@@ -17,9 +17,13 @@ final class TestProject {
     static TestProject in(Path dir) throws IOException {
         TestProject project = new TestProject(dir);
         project.file("settings.gradle.kts", """
+            plugins {
+                id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+            }
             dependencyResolutionManagement {
                 repositories {
                     mavenCentral()
+                    gradlePluginPortal()
                 }
                 versionCatalogs {
                     create("libs") {
