@@ -4,4 +4,8 @@ plugins {
 
 dependencies {
     site(projects.ui)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.cio)
+    runtimeOnly(libs.slf4j.simple)
+    testImplementation(libs.ktor.server.test.host)
 }
