@@ -18,7 +18,7 @@ final class TestProject {
         TestProject project = new TestProject(dir);
         project.file("settings.gradle.kts", settings());
         project.file("gradle.properties", """
-            org.gradle.unsafe.isolated-projects=true
+            org.gradle.isolated-projects=true
             org.gradle.jvmargs=-Xmx512m
             """);
         return project;
