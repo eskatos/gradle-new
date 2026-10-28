@@ -12,13 +12,10 @@ import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.DirectoryProperty;
-import org.gradle.api.file.FileSystemOperations;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputDirectory;
-import org.gradle.api.tasks.InputFile;
-import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
@@ -27,17 +24,12 @@ import org.gradle.process.ExecOperations;
 
 public abstract class BuildContainerImageTask extends DefaultTask {
 
-    @InputFile
-    @PathSensitive(PathSensitivity.NONE)
-    public abstract RegularFileProperty getBinary();
-
     @InputDirectory
     @PathSensitive(PathSensitivity.RELATIVE)
-    public abstract DirectoryProperty getSite();
+    public abstract DirectoryProperty getContextDirectory();
 
-    @InputFile
-    @PathSensitive(PathSensitivity.NONE)
-    public abstract RegularFileProperty getDockerfile();
+    @Input
+    public abstract Property<String> getMainClass();
 
     @Input
     public abstract Property<String> getRepository();
@@ -45,36 +37,29 @@ public abstract class BuildContainerImageTask extends DefaultTask {
     @Input
     public abstract Property<String> getTool();
 
-    @OutputDirectory
-    public abstract DirectoryProperty getContextDirectory();
-
     @OutputFile
     public abstract RegularFileProperty getImageReferenceFile();
 
     @Inject
     protected abstract ExecOperations getExecOperations();
 
-    @Inject
-    protected abstract FileSystemOperations getFileSystemOperations();
-
     @TaskAction
     public void build() throws IOException {
         Path context = getContextDirectory().get().getAsFile().toPath();
-        getFileSystemOperations().sync(spec -> {
-            spec.into(context);
-            spec.from(getBinary(), copy -> copy.rename(name -> "server"));
-            spec.from(getSite(), copy -> copy.into("site"));
-            spec.from(getDockerfile(), copy -> copy.rename(name -> "Dockerfile"));
-        });
-        String reference = getRepository().get() + ":" + contentHash(context);
+        String reference = getRepository().get() + ":" + contentHash(context, getMainClass().get());
         getExecOperations().exec(exec -> exec.commandLine(
-            getTool().get(), "build", "--quiet", "--tag", reference, "--file", context.resolve("Dockerfile").toString(), context.toString()));
+            getTool().get(), "build", "--quiet",
+            "--build-arg", "MAIN_CLASS=" + getMainClass().get(),
+            "--tag", reference,
+            "--file", context.resolve("Dockerfile").toString(),
+            context.toString()));
         Files.writeString(getImageReferenceFile().get().getAsFile().toPath(), reference + "\n");
     }
 
-    private static String contentHash(Path root) throws IOException {
+    private static String contentHash(Path root, String mainClass) throws IOException {
         try (Stream<Path> files = Files.walk(root)) {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update(mainClass.getBytes(StandardCharsets.UTF_8));
             files.filter(Files::isRegularFile).sorted().forEach(file -> {
                 try {
                     digest.update(root.relativize(file).toString().getBytes(StandardCharsets.UTF_8));

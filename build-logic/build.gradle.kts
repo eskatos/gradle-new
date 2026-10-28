@@ -9,7 +9,6 @@ tasks.withType<JavaCompile>().configureEach {
 dependencies {
     implementation(libs.kotlin.gradle.plugin)
     implementation(libs.kotlinx.serialization.gradle.plugin)
-    implementation(libs.graalvm.buildtools.gradle.plugin)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
