@@ -2,10 +2,8 @@ plugins {
     `java-gradle-plugin`
 }
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(libs.versions.jdk.get())
-    }
+tasks.withType<JavaCompile>().configureEach {
+    options.release = 17
 }
 
 dependencies {

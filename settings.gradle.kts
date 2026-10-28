@@ -17,3 +17,7 @@ dependencyResolutionManagement {
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 rootProject.name = "gradle-new"
+
+include(
+    "acceptance",
+)
