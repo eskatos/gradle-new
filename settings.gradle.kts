@@ -30,6 +30,7 @@ include(
     "adapter-feeds",
     "adapter-tooling-api",
     "publisher",
+    "server",
     "ui",
     "acceptance",
 )
