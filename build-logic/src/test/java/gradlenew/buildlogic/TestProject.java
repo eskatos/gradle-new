@@ -16,7 +16,16 @@ final class TestProject {
 
     static TestProject in(Path dir) throws IOException {
         TestProject project = new TestProject(dir);
-        project.file("settings.gradle.kts", """
+        project.file("settings.gradle.kts", settings());
+        project.file("gradle.properties", """
+            org.gradle.unsafe.isolated-projects=true
+            org.gradle.jvmargs=-Xmx512m
+            """);
+        return project;
+    }
+
+    static String settings() {
+        return """
             plugins {
                 id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
             }
@@ -32,12 +41,7 @@ final class TestProject {
                 }
             }
             rootProject.name = "test-project"
-            """.formatted(catalogPath()));
-        project.file("gradle.properties", """
-            org.gradle.unsafe.isolated-projects=true
-            org.gradle.jvmargs=-Xmx512m
-            """);
-        return project;
+            """.formatted(catalogPath());
     }
 
     private static String catalogPath() {
