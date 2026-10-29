@@ -4,6 +4,7 @@ import gradlenew.adapterjson.InitModelJson
 import gradlenew.adapterjson.VersionsJson
 import gradlenew.domain.generation.TemplateCatalog
 import gradlenew.domain.model.InitModel
+import gradlenew.domain.model.OfferedVersions
 import java.net.URLEncoder
 import java.net.http.HttpResponse
 import kotlin.test.Test
@@ -19,23 +20,25 @@ class ApiJourneyTest {
     @Test
     fun apiJourney() {
         Target.open().use { target ->
-            val stable = readOfferedVersions(target)
-            val model = readModel(target, stable)
-            val oracle = GradleOracle(stable)
+            val offered = readOfferedVersions(target)
+            val model = readModel(target, offered.stable)
+            val oracle = GradleOracle(offered.stable)
             compareWithGradle(model, oracle)
             generateBuilds(target, model, oracle)
+            rejectInvalidRequest(target, model, oracle)
+            offered.rc?.let { rc -> generateApplication(target, readModel(target, rc), GradleOracle(rc), "rc") }
             templatesAreNotServed(target, model)
         }
     }
 
-    private fun readOfferedVersions(target: Target): String {
+    private fun readOfferedVersions(target: Target): OfferedVersions {
         val response = target.get("/api/versions")
         assertEquals(200, response.statusCode())
         assertJson(response)
         val versions = VersionsJson.decode(response.body())
         assertEquals(pinnedStable, versions.stable)
         assertEquals(pinnedRc, versions.rc)
-        return versions.stable
+        return versions
     }
 
     private fun readModel(target: Target, version: String): InitModel {
@@ -55,37 +58,20 @@ class ApiJourneyTest {
         assertEquals(optionValues.getValue("dsl"), model.dsls.map { it.id }.toSet())
         assertEquals(optionValues.getValue("test-framework"), model.testFrameworks.map { it.id }.toSet())
 
-        val cpp = model.buildType("cpp-application")
-        val java = model.buildType("java-application")
-        assertFalse(cpp.supportsPackage)
-        assertTrue(java.supportsPackage)
-        val cppFailure = oracle.initFailure(listOf("--type", "cpp-application", "--package", "org.example"))
-        assertTrue(cppFailure != null && cppFailure.contains("Package name is not supported for 'cpp-application'"), cppFailure)
-        assertEquals(null, oracle.initFailure(listOf("--type", "java-application", "--package", "org.example")))
+        val withoutPackage = model.buildTypes.first { !it.supportsPackage }
+        val withPackage = model.buildTypes.first { it.supportsPackage }
+        assertTrue(oracle.initRejection(listOf("--type", withoutPackage.id, "--package", "org.example")) != null, withoutPackage.id)
+        assertEquals(null, oracle.initRejection(listOf("--type", withPackage.id, "--package", "org.example")))
     }
 
     private fun generateBuilds(target: Target, model: InitModel, oracle: GradleOracle) {
-        val application = model.buildType("java-application")
-        generateAndCompare(
-            target, oracle, "stable", "demo-app",
-            listOf(
-                "type" to application.id,
-                "dsl" to "kotlin",
-                "test-framework" to "junit-jupiter",
-                "split-project" to "false",
-                "incubating" to "false",
-                "comments" to "true",
-                "project-name" to "demo-app",
-                "package" to "com.acme.demo",
-                "java-version" to "17",
-            ),
-        )
-        val plugin = model.buildType("kotlin-gradle-plugin")
+        generateApplication(target, model, oracle, "stable")
+        val plugin = model.buildTypes.first { it.componentType == "gradle-plugin" && it.supportsPackage }
         generateAndCompare(
             target, oracle, model.gradleVersion, "my-cool-thing",
             listOf(
                 "type" to plugin.id,
-                "dsl" to "groovy",
+                "dsl" to plugin.dsls.values.last(),
                 "test-framework" to plugin.testFrameworksFor(plugin.modularization.default).default!!,
                 "incubating" to "true",
                 "comments" to "false",
@@ -94,7 +80,25 @@ class ApiJourneyTest {
                 "java-version" to "17",
             ),
         )
-        rejectInvalidRequest(target, oracle)
+    }
+
+    private fun generateApplication(target: Target, model: InitModel, oracle: GradleOracle, version: String) {
+        val application = model.buildTypes.first { it.componentType == "application" && it.supportsPackage && it.supportsJavaVersion }
+        val modularization = application.modularization.default
+        generateAndCompare(
+            target, oracle, version, "demo-app",
+            listOf(
+                "type" to application.id,
+                "dsl" to application.dsls.values.first(),
+                "test-framework" to application.testFrameworksFor(modularization).values.last(),
+                "split-project" to "false",
+                "incubating" to "false",
+                "comments" to "true",
+                "project-name" to "demo-app",
+                "package" to "com.acme.demo",
+                "java-version" to "17",
+            ),
+        )
     }
 
     private fun generateAndCompare(target: Target, oracle: GradleOracle, version: String, projectName: String, options: List<Pair<String, String>>) {
@@ -116,13 +120,13 @@ class ApiJourneyTest {
         assertTrue(response.body().contentEquals(again.body()), "two identical requests returned different archives")
     }
 
-    private fun rejectInvalidRequest(target: Target, oracle: GradleOracle) {
-        val initMessage = oracle.initFailure(listOf("--type", "cpp-application", "--package", "org.example"))!!
-            .lines().map { it.removePrefix("> ").trim() }.first { it.startsWith("Package name is not supported") }
-        val response = target.get("/api/generate?type=cpp-application&package=org.example&project-name=demo")
+    private fun rejectInvalidRequest(target: Target, model: InitModel, oracle: GradleOracle) {
+        val type = model.buildTypes.first { !it.supportsPackage }
+        val initMessage = oracle.initRejection(listOf("--type", type.id, "--package", "org.example"))!!.lines().first()
+        val response = target.get("/api/generate?type=${type.id}&package=org.example&project-name=demo")
         assertEquals(400, response.statusCode())
         assertJson(response)
-        assertTrue(response.body().contains(initMessage), response.body())
+        assertTrue(response.body().contains(initMessage), "${response.body()}\n--- init said: $initMessage")
     }
 
     private fun templatesAreNotServed(target: Target, model: InitModel) {

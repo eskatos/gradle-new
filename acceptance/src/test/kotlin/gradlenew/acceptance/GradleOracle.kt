@@ -1,7 +1,8 @@
 package gradlenew.acceptance
 
-import gradlenew.adaptertoolingapi.GradleBuildFailed
 import gradlenew.adaptertoolingapi.GradleDistribution
+import gradlenew.adaptertoolingapi.InitRejected
+import gradlenew.adaptertoolingapi.InitRunner
 import java.io.File
 import java.nio.file.Files
 
@@ -14,12 +15,12 @@ class GradleOracle(version: String) {
         return parseOptionValues(help)
     }
 
-    fun initFailure(arguments: List<String>): String? =
+    fun initRejection(arguments: List<String>): String? =
         try {
-            gradle.runTasks(emptyBuild(), listOf("init", "--quiet", "--offline", "--overwrite", "--use-defaults", "--project-name", "probe") + arguments)
+            InitRunner(gradle).run(listOf("--project-name", "probe") + arguments)
             null
-        } catch (failure: GradleBuildFailed) {
-            failure.output
+        } catch (rejected: InitRejected) {
+            rejected.reason
         }
 
     fun init(options: List<Pair<String, String>>): Map<String, GeneratedFile> {
