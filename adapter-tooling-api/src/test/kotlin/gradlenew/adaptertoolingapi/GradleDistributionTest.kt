@@ -23,6 +23,14 @@ class GradleDistributionTest {
     }
 
     @Test
+    fun runsAGivenDistributionInsteadOfDownloadingByVersion() {
+        val distribution = java.net.URI("https://services.gradle.org/distributions/gradle-${Pinned.stable}-bin.zip")
+        val gradle = GradleDistribution(Pinned.stable, distribution = distribution)
+        assertEquals(distribution, gradle.distribution)
+        assertTrue(gradle.runTasks(emptyBuild(), listOf("--version", "--quiet")).contains("Gradle ${Pinned.stable}"))
+    }
+
+    @Test
     fun everyBuildCarriesTheDaemonIdleTimeout() {
         val build = emptyBuild()
         val initScript = build.resolve("print-idle-timeout.gradle.kts").apply {

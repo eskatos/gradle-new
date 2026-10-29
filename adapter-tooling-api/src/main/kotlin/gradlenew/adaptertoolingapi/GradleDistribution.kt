@@ -2,6 +2,7 @@ package gradlenew.adaptertoolingapi
 
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.net.URI
 import kotlin.time.Duration.Companion.minutes
 import org.gradle.tooling.BuildException
 import org.gradle.tooling.GradleConnector
@@ -9,7 +10,7 @@ import org.gradle.tooling.ProjectConnection
 
 class GradleBuildFailed(val output: String, cause: Throwable) : RuntimeException("Gradle build failed:\n$output", cause)
 
-class GradleDistribution(val version: String, val extraArguments: List<String> = emptyList()) {
+class GradleDistribution(val version: String, val extraArguments: List<String> = emptyList(), val distribution: URI? = null) {
 
     fun runTasks(projectDir: File, arguments: List<String>): String {
         val output = ByteArrayOutputStream()
@@ -38,7 +39,7 @@ class GradleDistribution(val version: String, val extraArguments: List<String> =
 
     private fun <T> connect(projectDir: File, action: (ProjectConnection) -> T): T =
         GradleConnector.newConnector()
-            .useGradleVersion(version)
+            .let { if (distribution != null) it.useDistribution(distribution) else it.useGradleVersion(version) }
             .forProjectDirectory(projectDir)
             .connect()
             .use(action)
