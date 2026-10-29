@@ -10,7 +10,12 @@ fun interface TemplateSink {
     fun write(entry: CatalogEntry, files: FileSet): Long
 }
 
-class Verification(private val init: InitGenerator, private val sink: TemplateSink, private val budgetBytes: Long) {
+class Verification(
+    private val init: InitGenerator,
+    private val sink: TemplateSink,
+    private val budgetBytes: Long,
+    private val sizeOf: (FileSet) -> Long = { files -> files.entries.sumOf { it.content.size.toLong() } },
+) {
 
     fun verify(model: InitModel): VersionReport {
         val generations = Generations(init)
@@ -25,10 +30,24 @@ class Verification(private val init: InitGenerator, private val sink: TemplateSi
             return VersionReport(model.gradleVersion, sampled + CheckResult.skipped(Check.BUDGET), java.enumeratedTypes)
         }
 
+        val catalog = TemplateCatalog.of(model, java.enumeratedTypes.toSet())
+        val projectedBytes = sample.sumOf { entry ->
+            val template = generations.template(entry) ?: return@sumOf 0L
+            catalog.count { it.spec.type == entry.spec.type } * sizeOf(template)
+        }
+        if (projectedBytes > budgetBytes) {
+            val budget = CheckResult.of(
+                Check.BUDGET,
+                catalog.size,
+                listOf(Failure(model.gradleVersion, "${catalog.size} templates would take about $projectedBytes bytes, over the budget of $budgetBytes bytes")),
+            )
+            return VersionReport(model.gradleVersion, sampled + budget, java.enumeratedTypes)
+        }
+
         val inspected = mutableListOf<Pair<CatalogEntry, FileSet>>()
         var totalBytes = 0L
         val hygieneFailures = mutableListOf<Failure>()
-        for (entry in TemplateCatalog.of(model, java.enumeratedTypes.toSet())) {
+        for (entry in catalog) {
             val files = generations.cachedOrFresh(entry) ?: continue
             hygieneFailures += hygieneOf(model, entry, files)
             inspected += entry to files
@@ -38,7 +57,7 @@ class Verification(private val init: InitGenerator, private val sink: TemplateSi
         val budget = CheckResult.of(
             Check.BUDGET,
             inspected.size,
-            if (totalBytes > budgetBytes) listOf(Failure(model.gradleVersion, "templates take $totalBytes bytes, over the budget of $budgetBytes bytes")) else emptyList(),
+            if (totalBytes > budgetBytes) listOf(Failure(model.gradleVersion, "${inspected.size} templates take $totalBytes bytes, over the budget of $budgetBytes bytes")) else emptyList(),
         )
         return VersionReport(
             model.gradleVersion,
