@@ -29,6 +29,7 @@ public abstract class AcceptanceTestsPlugin implements Plugin<Project> {
             configuration.getAttributes().addAllLater(testRuntimeClasspath.getAttributes());
         }).get();
         Directory rootDir = project.getLayout().getSettingsDirectory();
+        OfferedVersions offered = OfferedVersions.of(project);
 
         Provider<String> target = project.getProviders().gradleProperty("acceptance.target").orElse("image");
         Provider<String> dockerHost = project.getProviders().environmentVariable("DOCKER_HOST")
@@ -50,6 +51,10 @@ public abstract class AcceptanceTestsPlugin implements Plugin<Project> {
             publisherInputs.getVersionCatalog().set(rootDir.file("gradle/libs.versions.toml"));
             publisherInputs.getVersionCatalogFiles().setFrom(rootDir.file("gradle/libs.versions.toml"));
             test.getJvmArgumentProviders().add(publisherInputs);
+            OfferedVersionsArgumentProvider versions = project.getObjects().newInstance(OfferedVersionsArgumentProvider.class);
+            versions.getStable().set(offered.stable());
+            versions.getRc().set(offered.rc());
+            test.getJvmArgumentProviders().add(versions);
             if (dockerHost.isPresent()) {
                 test.environment("DOCKER_HOST", dockerHost.get());
                 test.environment("TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED", "true");

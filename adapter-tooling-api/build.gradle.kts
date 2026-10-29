@@ -2,6 +2,10 @@ plugins {
     id("gradlenew.kotlin-jvm-library")
 }
 
+jvmLibrary {
+    testsUseOfferedGradleVersions = true
+}
+
 dependencies {
     api(projects.domain)
     api(projects.substitution)

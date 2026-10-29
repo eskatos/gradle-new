@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.TaskOutcome;
@@ -35,28 +36,48 @@ class KotlinJvmPluginsTest {
     }
 
     @Test
-    void testsOfEveryJvmModuleSeeThePinnedGradleVersions(@TempDir Path dir) throws IOException {
+    void testsOfALibraryThatOptsInSeeTheOfferedGradleVersions(@TempDir Path dir) throws IOException {
         TestProject project = TestProject.in(dir)
-            .buildScript("plugins { id(\"gradlenew.kotlin-jvm-library\") }")
-            .file("src/test/kotlin/probe/PinnedTest.kt", """
-                package probe
+            .buildScript("""
+                plugins { id("gradlenew.kotlin-jvm-library") }
+                jvmLibrary { testsUseOfferedGradleVersions = true }
+                """)
+            .file("offered-gradle-versions.properties", "stable=9.8.2\nrc=9.9.0-rc-1\n")
+            .file("src/test/kotlin/probe/PinnedTest.kt", PINNED_PROBE);
 
-                import kotlin.test.Test
-                import kotlin.test.assertEquals
-
-                class PinnedTest {
-                    @Test
-                    fun seesPinnedVersions() {
-                        assertEquals("9.8.2", System.getProperty("gradlenew.offered.stable"))
-                        assertEquals("9.9.0-rc-1", System.getProperty("gradlenew.offered.rc"))
-                    }
-                }
-                """);
-
-        BuildResult result = project.run("test", "-Pgradlenew.offered.stable=9.8.2", "-Pgradlenew.offered.rc=9.9.0-rc-1");
+        BuildResult result = project.run("test");
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":test").getOutcome());
+        assertEquals("9.8.2|9.9.0-rc-1", Files.readString(project.path("probe.txt")));
     }
+
+    @Test
+    void testsOfALibraryWithoutTheOptInNeitherSeeNorDependOnTheOfferedVersions(@TempDir Path dir) throws IOException {
+        TestProject project = TestProject.in(dir)
+            .buildScript("plugins { id(\"gradlenew.kotlin-jvm-library\") }")
+            .file("offered-gradle-versions.properties", "stable=9.8.2\nrc=\n")
+            .file("src/test/kotlin/probe/PinnedTest.kt", PINNED_PROBE);
+
+        project.run("test");
+        assertEquals("null|null", Files.readString(project.path("probe.txt")));
+
+        project.file("offered-gradle-versions.properties", "stable=9.9.0\nrc=9.10.0-rc-1\n");
+        assertEquals(TaskOutcome.UP_TO_DATE, project.run("test").task(":test").getOutcome());
+    }
+
+    private static final String PINNED_PROBE = """
+        package probe
+
+        import java.io.File
+        import kotlin.test.Test
+
+        class PinnedTest {
+            @Test
+            fun recordsOfferedVersions() {
+                File("probe.txt").writeText(System.getProperty("gradlenew.offered.stable") + "|" + System.getProperty("gradlenew.offered.rc"))
+            }
+        }
+        """;
 
     @Test
     void applicationDerivesMainClassFromProjectName(@TempDir Path dir) throws IOException {
