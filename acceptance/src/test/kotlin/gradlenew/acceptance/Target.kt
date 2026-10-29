@@ -17,6 +17,10 @@ class Target private constructor(val baseUrl: String, private val container: Gen
     fun getBytes(path: String): HttpResponse<ByteArray> =
         client.send(HttpRequest.newBuilder(URI.create(baseUrl + path)).GET().build(), HttpResponse.BodyHandlers.ofByteArray())
 
+    fun hasShell(): Boolean? = container?.let {
+        runCatching { it.execInContainer("sh", "-c", "true").exitCode == 0 }.getOrDefault(false)
+    }
+
     override fun close() {
         container?.stop()
     }

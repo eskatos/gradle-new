@@ -28,6 +28,7 @@ class ApiJourneyTest {
             rejectInvalidRequest(target, model, oracle)
             offered.rc?.let { rc -> generateApplication(target, readModel(target, rc), GradleOracle(rc), "rc") }
             templatesAreNotServed(target, model)
+            target.hasShell()?.let { assertEquals(false, it, "the image has no shell") }
         }
     }
 
