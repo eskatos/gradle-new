@@ -1,0 +1,11 @@
+gradle.rootProject { root ->
+    def dir = root.projectDir
+    root.tasks.matching { it.name == 'init' }.configureEach { task ->
+        task.doLast {
+            if (task.type == 'groovy-library') {
+                def script = ['lib/build.gradle', 'lib/build.gradle.kts'].collect { new File(dir, it) }.find { it.exists() }
+                script << "// targets Java ${task.javaVersion.get()}\n"
+            }
+        }
+    }
+}

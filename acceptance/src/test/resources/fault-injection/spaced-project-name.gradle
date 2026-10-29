@@ -1,0 +1,8 @@
+gradle.rootProject { root ->
+    def dir = root.projectDir
+    root.tasks.matching { it.name == 'init' }.configureEach { task ->
+        task.doLast {
+            new File(dir, 'PROJECT.txt').text = task.projectName.replaceAll('[-_.]', ' ') + '\n'
+        }
+    }
+}
