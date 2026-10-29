@@ -8,26 +8,21 @@ import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.CacheableTask;
-import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.IgnoreEmptyDirectories;
-import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.JavaExec;
-import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 
 @CacheableTask
-public abstract class PublishSiteTask extends JavaExec {
+public abstract class PublishVersionTask extends JavaExec {
 
     @Input
-    public abstract Property<String> getStable();
-
-    @Input
-    @Optional
-    public abstract Property<String> getRc();
+    public abstract Property<String> getGradleVersion();
 
     @Internal
     public abstract DirectoryProperty getBuilderSources();
@@ -41,17 +36,17 @@ public abstract class PublishSiteTask extends JavaExec {
     @PathSensitive(PathSensitivity.NONE)
     public abstract RegularFileProperty getVersionCatalog();
 
-    @OutputDirectory
-    public abstract DirectoryProperty getOutputDirectory();
+    @Input
+    public abstract Property<Integer> getTemplateBudgetMegabytes();
 
     @OutputDirectory
-    public abstract DirectoryProperty getTemplatesOutputDirectory();
+    public abstract DirectoryProperty getSiteDirectory();
+
+    @OutputDirectory
+    public abstract DirectoryProperty getTemplatesDirectory();
 
     @OutputDirectory
     public abstract DirectoryProperty getReportDirectory();
-
-    @Input
-    public abstract Property<Integer> getTemplateBudgetMegabytes();
 
     @Internal
     public abstract DirectoryProperty getWorkDirectory();
@@ -59,12 +54,12 @@ public abstract class PublishSiteTask extends JavaExec {
     @Override
     public void exec() {
         List<String> arguments = new ArrayList<>(List.of(
-            "--stable", getStable().get(),
-            "--rc", getRc().getOrElse(""),
+            "publish",
+            "--version", getGradleVersion().get(),
             "--builder-dir", getBuilderSources().get().getAsFile().getAbsolutePath(),
             "--catalog", getVersionCatalog().get().getAsFile().getAbsolutePath(),
-            "--output", getOutputDirectory().get().getAsFile().getAbsolutePath(),
-            "--templates-output", getTemplatesOutputDirectory().get().getAsFile().getAbsolutePath(),
+            "--output", getSiteDirectory().get().getAsFile().getAbsolutePath(),
+            "--templates-output", getTemplatesDirectory().get().getAsFile().getAbsolutePath(),
             "--work-dir", getWorkDirectory().get().getAsFile().getAbsolutePath(),
             "--report-output", getReportDirectory().get().getAsFile().getAbsolutePath(),
             "--template-budget-mb", String.valueOf(getTemplateBudgetMegabytes().get())));
@@ -73,7 +68,8 @@ public abstract class PublishSiteTask extends JavaExec {
         super.exec();
         int exitValue = getExecutionResult().get().getExitValue();
         if (exitValue != 0) {
-            throw new GradleException("The publisher exited with " + exitValue + "; see the verification report at "
+            throw new GradleException("The publisher exited with " + exitValue + " for Gradle " + getGradleVersion().get()
+                + "; see the verification report at "
                 + getReportDirectory().file("verification-report.json").get().getAsFile().getAbsolutePath());
         }
     }
