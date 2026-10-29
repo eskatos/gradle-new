@@ -1,6 +1,8 @@
 package gradlenew.publisher
 
+import gradlenew.versions.Checksums
 import java.io.File
+import java.net.URI
 
 data class Arguments(
     val version: String,
@@ -12,6 +14,9 @@ data class Arguments(
     val workDir: File,
     val templateBudgetBytes: Long,
     val gradleArguments: List<String>,
+    val checksums: Checksums?,
+    val distributionCache: File,
+    val distributionsUrl: URI,
 ) {
     companion object {
         private const val MEGABYTE = 1024L * 1024
@@ -34,6 +39,9 @@ data class Arguments(
                 i += 2
             }
             fun required(name: String) = requireNotNull(options[name]?.takeIf { it.isNotBlank() }) { "Missing --$name" }
+            val distributionSha256 = options["distribution-sha256"]
+            val wrapperSha256 = options["wrapper-sha256"]
+            require((distributionSha256 == null) == (wrapperSha256 == null)) { "--distribution-sha256 and --wrapper-sha256 go together" }
             val budget = options["template-budget-mb"]?.let { requireNotNull(it.toLongOrNull()) { "--template-budget-mb must be a number of megabytes, got '$it'" } }
             return Arguments(
                 version = required("version"),
@@ -45,6 +53,9 @@ data class Arguments(
                 workDir = File(required("work-dir")),
                 templateBudgetBytes = (budget ?: DEFAULT_BUDGET_MEGABYTES) * MEGABYTE,
                 gradleArguments = gradleArguments,
+                checksums = if (distributionSha256 != null && wrapperSha256 != null) Checksums(distributionSha256, wrapperSha256) else null,
+                distributionCache = File(required("distribution-cache")),
+                distributionsUrl = options["distributions-url"]?.let(::URI) ?: Distributions.DEFAULT_BASE_URL,
             )
         }
     }

@@ -27,15 +27,22 @@ private fun publish(args: List<String>) {
     val arguments = Arguments.parse(args)
     val started = TimeSource.Monotonic.markNow()
     var inits = 0
+    val distributions = Distributions(arguments.distributionCache, arguments.distributionsUrl)
     val publisher = SitePublisher(
-        modelFor = { version ->
-            val gradle = GradleDistribution(version, arguments.gradleArguments)
-            val workDir = arguments.workDir.resolve("model/$version")
+        distributionFor = { version ->
+            val obtained = TimeSource.Monotonic.markNow()
+            distributions.obtain(version, arguments.checksums).also {
+                println("Obtained and verified the Gradle $version distribution in ${obtained.elapsedNow().inWholeMilliseconds} ms")
+            }
+        },
+        modelFor = { distribution ->
+            val gradle = GradleDistribution(distribution.version, arguments.gradleArguments, distribution.zip)
+            val workDir = arguments.workDir.resolve("model/${distribution.version}")
             val jars = BuilderCompiler.compile(gradle, arguments.builderSources, arguments.versionCatalog, workDir)
             InitModelRequest.request(gradle, jars, workDir)
         },
-        initFor = { version ->
-            val init = InitRunner(GradleDistribution(version, arguments.gradleArguments))
+        initFor = { distribution ->
+            val init = InitRunner(GradleDistribution(distribution.version, arguments.gradleArguments, distribution.zip))
             InitGenerator { spec, inputs ->
                 inits++
                 try {

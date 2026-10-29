@@ -8,12 +8,14 @@ import gradlenew.domain.generation.TemplateIndex
 import gradlenew.domain.model.InitModel
 import gradlenew.verification.Check
 import gradlenew.verification.CheckResult
+import gradlenew.verification.DistributionCheck
 import gradlenew.verification.InitGenerator
 import gradlenew.verification.ModelCheck
 import gradlenew.verification.TemplateSink
 import gradlenew.verification.Verification
 import gradlenew.verification.VerificationReport
 import gradlenew.verification.VersionReport
+import gradlenew.verification.WrapperDigest
 import java.io.File
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
@@ -22,8 +24,9 @@ import java.nio.file.StandardCopyOption
 data class PublishResult(val exitCode: Int, val report: VerificationReport, val summary: String)
 
 class SitePublisher(
-    private val modelFor: (version: String) -> InitModel,
-    private val initFor: (version: String) -> InitGenerator,
+    private val distributionFor: (version: String) -> DistributionOutcome,
+    private val modelFor: (VerifiedDistribution) -> InitModel,
+    private val initFor: (VerifiedDistribution) -> InitGenerator,
     private val templateBudgetBytes: Long,
 ) {
 
@@ -45,10 +48,15 @@ class SitePublisher(
     }
 
     private fun verify(version: String, staging: File): VersionReport {
+        val distribution = when (val outcome = distributionFor(version)) {
+            is DistributionOutcome.Rejected -> return VersionReport(version, listOf(outcome.check) + Check.entries.drop(1).map { CheckResult.skipped(it) }, emptyList())
+            is DistributionOutcome.Verified -> outcome.distribution
+        }
+        val distributionCheck = DistributionCheck.of(version, distribution.checksums.distribution, distribution.checksums.distribution)
         val model = try {
-            modelFor(version).also { require(it.gradleVersion == version) { "the model reports Gradle ${it.gradleVersion}, expected $version" } }
+            modelFor(distribution).also { require(it.gradleVersion == version) { "the model reports Gradle ${it.gradleVersion}, expected $version" } }
         } catch (failure: Exception) {
-            return unavailable(version, failure.message ?: failure.toString())
+            return unavailable(version, distributionCheck, distribution, failure.message ?: failure.toString())
         }
         val site = staging.resolve("site").apply { mkdirs() }
         val templates = staging.resolve("templates").apply { mkdirs() }
@@ -57,7 +65,9 @@ class SitePublisher(
             templates.resolve("${entry.spec.key}.zip").writeBytes(zip)
             zip.size.toLong()
         }
-        val report = Verification(initFor(version), sink, templateBudgetBytes, sizeOf = { Zip.write(it).size.toLong() }).verify(model)
+        val wrapper = WrapperDigest(distribution.checksums.wrapper, Sha256::hex)
+        val verified = Verification(initFor(distribution), sink, templateBudgetBytes, wrapper, sizeOf = { Zip.write(it).size.toLong() }).verify(model)
+        val report = VersionReport(version, listOf(distributionCheck) + verified.checks, verified.javaEnumeratedTypes, distribution.source)
         if (report.passed) {
             site.resolve("model.json").writeText(InitModelJson.encode(model) + "\n")
             templates.resolve("index.json").writeText(TemplateIndexJson.encode(TemplateIndex(report.javaEnumeratedTypes.toSet())) + "\n")
@@ -65,10 +75,11 @@ class SitePublisher(
         return report
     }
 
-    private fun unavailable(version: String, reason: String) = VersionReport(
+    private fun unavailable(version: String, distributionCheck: CheckResult, distribution: VerifiedDistribution, reason: String) = VersionReport(
         version,
-        listOf(ModelCheck.unavailable(version, reason)) + Check.entries.drop(1).map { CheckResult.skipped(it) },
+        listOf(distributionCheck, ModelCheck.unavailable(version, reason)) + Check.entries.drop(2).map { CheckResult.skipped(it) },
         emptyList(),
+        distribution.source,
     )
 
     private fun move(from: File, to: File) {

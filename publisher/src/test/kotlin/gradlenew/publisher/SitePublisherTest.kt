@@ -20,10 +20,14 @@ import gradlenew.domain.model.TextParameter
 import gradlenew.substitution.FileEntry
 import gradlenew.substitution.FileSet
 import gradlenew.substitution.ProjectInputs
+import gradlenew.versions.Checksums
 import gradlenew.verification.Check
+import gradlenew.verification.ChecksumSource
+import gradlenew.verification.DistributionCheck
 import gradlenew.verification.InitGenerator
 import gradlenew.verification.InitOutcome
 import gradlenew.verification.Outcome
+import java.net.URI
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -70,11 +74,17 @@ class SitePublisherTest {
         buildList {
             add(FileEntry("settings.gradle.kts", "rootProject.name = \"${inputs.projectName}\"".encodeToByteArray(), false))
             add(FileEntry("gradlew", "#!/bin/sh".encodeToByteArray(), true))
+            add(FileEntry("gradle/wrapper/gradle-wrapper.jar", wrapperJar, false))
             inputs.packageName?.let { add(FileEntry("lib/src/main/groovy/${it.replace('.', '/')}/Library.groovy", "package $it".encodeToByteArray(), false)) }
             inputs.javaVersion?.let { add(FileEntry("lib/build.gradle", "languageVersion = JavaLanguageVersion.of($it)".encodeToByteArray(), false)) }
             addAll(extra)
         },
     )
+
+    private val wrapperJar = "the wrapper".encodeToByteArray()
+
+    private fun verified(version: String, source: ChecksumSource = ChecksumSource.PINNED) =
+        DistributionOutcome.Verified(VerifiedDistribution(version, URI("file:/distributions/gradle-$version-bin.zip"), Checksums("a".repeat(64), Sha256.hex(wrapperJar)), source))
 
     private val clean = InitGenerator { _, inputs -> InitOutcome.Generated(files(inputs)) }
 
@@ -84,10 +94,11 @@ class SitePublisherTest {
     }
 
     private fun publisher(
-        initFor: (String) -> InitGenerator = { clean },
-        modelFor: (String) -> InitModel = ::model,
+        initFor: (VerifiedDistribution) -> InitGenerator = { clean },
+        modelFor: (VerifiedDistribution) -> InitModel = { model(it.version) },
         budgetBytes: Long = Long.MAX_VALUE,
-    ) = SitePublisher(modelFor, initFor, budgetBytes)
+        distributionFor: (String) -> DistributionOutcome = { verified(it) },
+    ) = SitePublisher(distributionFor, modelFor, initFor, budgetBytes)
 
     private fun publish(publisher: SitePublisher, version: String) =
         publisher.publish(version, output, templatesOutput, reportOutput, workDir)
@@ -107,6 +118,8 @@ class SitePublisherTest {
         assertTrue(output.walkTopDown().none { it.extension == "zip" })
         val report = VerificationReportJson.decode(reportOutput.resolve("verification-report.json").readText())
         assertEquals(listOf("9.9.0-rc-1"), report.passedVersions)
+        assertEquals(Check.entries, report.version("9.9.0-rc-1").checks.map { it.check }, "the distribution check comes first")
+        assertEquals(ChecksumSource.PINNED, report.version("9.9.0-rc-1").checksums)
         assertTrue(result.summary.contains("Gradle 9.9.0-rc-1: passed"), result.summary)
     }
 
@@ -172,5 +185,45 @@ class SitePublisherTest {
         publish(publisher(), "9.8.2")
 
         assertFalse(workDir.resolve("staging").exists())
+    }
+
+    @Test
+    fun aDistributionWithAnotherChecksumPublishesNothing() {
+        var modelRequested = false
+        val result = publish(
+            publisher(
+                distributionFor = { DistributionOutcome.Rejected(DistributionCheck.of(it, "a".repeat(64), "b".repeat(64))) },
+                modelFor = { modelRequested = true; model(it.version) },
+            ),
+            "9.8.2",
+        )
+
+        assertEquals(1, result.exitCode)
+        assertFalse(modelRequested, "nothing runs a distribution that failed its checksum")
+        assertFalse(output.walkTopDown().any { it.isFile })
+        assertFalse(templatesOutput.walkTopDown().any { it.isFile })
+        val report = VerificationReportJson.decode(reportOutput.resolve("verification-report.json").readText()).version("9.8.2")
+        assertEquals(Outcome.FAILED, report.check(Check.DISTRIBUTION)!!.outcome)
+        assertTrue(report.checks.drop(1).all { it.outcome == Outcome.SKIPPED }, report.toString())
+        assertTrue(result.summary.contains("SHA-256 is ${"b".repeat(64)}, expected ${"a".repeat(64)}"), result.summary)
+    }
+
+    @Test
+    fun aWrapperJarThatIsNotThePinnedOneFailsTheVersion() {
+        val result = publish(publisher(distributionFor = { DistributionOutcome.Verified(VerifiedDistribution(it, URI("file:/x.zip"), Checksums("a".repeat(64), "c".repeat(64)), ChecksumSource.PINNED)) }), "9.8.2")
+
+        assertEquals(1, result.exitCode)
+        val report = VerificationReportJson.decode(reportOutput.resolve("verification-report.json").readText()).version("9.8.2")
+        assertEquals(Outcome.FAILED, report.check(Check.WRAPPER)!!.outcome)
+        assertFalse(templatesOutput.walkTopDown().any { it.isFile })
+    }
+
+    @Test
+    fun recordsThatTheChecksumsWereNotPinned() {
+        val result = publish(publisher(distributionFor = { verified(it, ChecksumSource.PUBLISHED) }), "9.8.0-rc-3")
+
+        assertEquals(0, result.exitCode, result.summary)
+        assertEquals(ChecksumSource.PUBLISHED, VerificationReportJson.decode(reportOutput.resolve("verification-report.json").readText()).version("9.8.0-rc-3").checksums)
+        assertTrue(result.summary.contains("not pinned"), result.summary)
     }
 }
