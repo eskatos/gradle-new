@@ -88,4 +88,20 @@ class ProposalsTest {
             assertEquals(emptyList(), Proposals.of(pin, OfferingPolicy.offer(feeds, pin)), feeds.toString())
         }
     }
+
+    @Test
+    fun proposalsCarryTheChecksumsOfWhatTheyChangeAndKeepTheOthers() {
+        val stable982 = Checksums(ChecksumsTest.DISTRIBUTION_982, ChecksumsTest.WRAPPER_982)
+        val stable990 = Checksums(ChecksumsTest.DISTRIBUTION_990, ChecksumsTest.WRAPPER_990)
+        val rc = Checksums(ChecksumsTest.DISTRIBUTION_RC, ChecksumsTest.WRAPPER_RC)
+        val pin = Pin("9.8.2", null, stable982)
+        val offered = Pin("9.9.0", "9.10.0-rc-1", stable990, rc)
+        assertEquals(
+            listOf(
+                Proposal(Slot.STABLE, "Offer Gradle 9.9.0", Pin("9.9.0", null, stable990)),
+                Proposal(Slot.RC, "Offer Gradle 9.10.0-rc-1", Pin("9.8.2", "9.10.0-rc-1", stable982, rc)),
+            ),
+            Proposals.of(pin, offered),
+        )
+    }
 }

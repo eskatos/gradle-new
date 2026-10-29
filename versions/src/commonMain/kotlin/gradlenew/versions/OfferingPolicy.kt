@@ -4,9 +4,20 @@ object OfferingPolicy {
 
     fun offer(feeds: Feeds, pin: Pin): Pin {
         val pinnedStable = GradleVersion.parse(pin.stable)
-        val stable = feeds.current?.finalRelease()?.takeIf { it > pinnedStable } ?: pinnedStable
-        val rc = feeds.releaseCandidate?.activeReleaseCandidate()?.takeIf { it.base > stable }
-        return Pin(stable.toString(), rc?.toString())
+        val newStable = feeds.current?.takeIf { entry -> entry.finalRelease()?.let { it > pinnedStable } == true }
+        val stable = newStable?.finalRelease() ?: pinnedStable
+        val rcEntry = feeds.releaseCandidate?.takeIf { entry -> entry.activeReleaseCandidate()?.let { it.base > stable } == true }
+        val rc = rcEntry?.activeReleaseCandidate()?.toString()
+        return Pin(
+            stable.toString(),
+            rc,
+            if (newStable != null) newStable.checksums() else pin.stableChecksums,
+            when {
+                rc == null -> null
+                rc == pin.rc -> pin.rcChecksums
+                else -> rcEntry.checksums()
+            },
+        )
     }
 
     private fun FeedEntry.finalRelease(): GradleVersion? =

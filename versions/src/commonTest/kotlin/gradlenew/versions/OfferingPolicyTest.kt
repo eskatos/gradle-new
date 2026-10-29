@@ -71,4 +71,20 @@ class OfferingPolicyTest {
         assertFailsWith<IllegalArgumentException> { Pin("9.8.2", "9.9.0") }
         assertFailsWith<IllegalArgumentException> { Pin("nine", null) }
     }
+
+    @Test
+    fun anOfferedVersionCarriesTheFeedsChecksumsAndAKeptOneKeepsThePinnedChecksums() {
+        val pinned = Checksums(ChecksumsTest.DISTRIBUTION_982, ChecksumsTest.WRAPPER_982)
+        val pin = Pin("9.8.2", null, pinned)
+        val feeds = Feeds(
+            FeedEntry("9.9.0", checksum = ChecksumsTest.DISTRIBUTION_990, wrapperChecksum = ChecksumsTest.WRAPPER_990),
+            FeedEntry("9.10.0-rc-1", activeRc = true, rcFor = "9.10.0", checksum = ChecksumsTest.DISTRIBUTION_RC, wrapperChecksum = ChecksumsTest.WRAPPER_RC),
+        )
+        assertEquals(
+            Pin("9.9.0", "9.10.0-rc-1", Checksums(ChecksumsTest.DISTRIBUTION_990, ChecksumsTest.WRAPPER_990), Checksums(ChecksumsTest.DISTRIBUTION_RC, ChecksumsTest.WRAPPER_RC)),
+            OfferingPolicy.offer(feeds, pin),
+        )
+        val unchanged = Feeds(FeedEntry("9.8.2", checksum = ChecksumsTest.DISTRIBUTION_990, wrapperChecksum = ChecksumsTest.WRAPPER_990), null)
+        assertEquals(pin, OfferingPolicy.offer(unchanged, pin), "an unchanged version keeps the checksums pinned when it was first offered")
+    }
 }
