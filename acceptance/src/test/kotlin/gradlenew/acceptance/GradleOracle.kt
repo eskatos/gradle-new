@@ -15,6 +15,19 @@ class GradleOracle(version: String) {
         return parseOptionValues(help)
     }
 
+    fun initOptionDescriptions(): Map<String, String> =
+        parseOptionDescriptions(gradle.runTasks(emptyBuild(), listOf("help", "--task", "init", "--quiet", "--offline")))
+
+    fun initWithArguments(arguments: List<String>): Map<String, GeneratedFile> {
+        val dir = Files.createTempDirectory("gradle-oracle-init").toFile()
+        try {
+            gradle.runTasks(dir, listOf("init", "--quiet", "--offline") + arguments)
+            return GeneratedBuild.fromDirectory(dir)
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     fun initRejection(arguments: List<String>): String? =
         try {
             InitRunner(gradle).run(listOf("--project-name", "probe") + arguments)
@@ -49,6 +62,11 @@ class GradleOracle(version: String) {
         }
 
     companion object {
+        fun parseOptionDescriptions(help: String): Map<String, String> =
+            help.lines().map { it.trim() }.filter { it.startsWith("--") }.associate { line ->
+                line.substring(2).substringBefore(' ') to line.substringAfter(' ').trim()
+            }
+
         fun parseOptionValues(help: String): Map<String, Set<String>> {
             val values = mutableMapOf<String, MutableSet<String>>()
             var current: MutableSet<String>? = null

@@ -7,7 +7,7 @@ import java.net.http.HttpResponse
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 
-class Target private constructor(private val baseUrl: String, private val container: GenericContainer<*>?) : AutoCloseable {
+class Target private constructor(val baseUrl: String, private val container: GenericContainer<*>?) : AutoCloseable {
 
     private val client = HttpClient.newHttpClient()
 

@@ -56,6 +56,10 @@ public abstract class AcceptanceTestsPlugin implements Plugin<Project> {
             versions.getStable().set(offered.stable());
             versions.getRc().set(offered.rc());
             test.getJvmArgumentProviders().add(versions);
+            OutputDirectoryArgumentProvider screenshots = project.getObjects().newInstance(OutputDirectoryArgumentProvider.class);
+            screenshots.getSystemProperty().set("acceptance.screenshotsDir");
+            screenshots.getDirectory().set(project.getLayout().getBuildDirectory().dir("screenshots"));
+            test.getJvmArgumentProviders().add(screenshots);
             if (dockerHost.isPresent()) {
                 test.environment("DOCKER_HOST", dockerHost.get());
                 test.environment("TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED", "true");
