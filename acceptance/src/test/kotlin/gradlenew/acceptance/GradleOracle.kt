@@ -22,6 +22,25 @@ class GradleOracle(version: String) {
             failure.output
         }
 
+    fun init(options: List<Pair<String, String>>): Map<String, GeneratedFile> {
+        val dir = Files.createTempDirectory("gradle-oracle-init").toFile()
+        try {
+            gradle.runTasks(dir, listOf("init", "--quiet", "--offline", "--use-defaults") + initArguments(options))
+            return GeneratedBuild.fromDirectory(dir)
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    private fun initArguments(options: List<Pair<String, String>>): List<String> =
+        options.flatMap { (name, value) ->
+            when (value) {
+                "true" -> listOf("--$name")
+                "false" -> listOf("--no-$name")
+                else -> listOf("--$name", value)
+            }
+        }
+
     private fun emptyBuild(): File =
         Files.createTempDirectory("gradle-oracle").toFile().apply {
             resolve("settings.gradle.kts").writeText("")

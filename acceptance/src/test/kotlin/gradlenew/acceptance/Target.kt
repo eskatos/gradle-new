@@ -14,6 +14,9 @@ class Target private constructor(private val baseUrl: String, private val contai
     fun get(path: String): HttpResponse<String> =
         client.send(HttpRequest.newBuilder(URI.create(baseUrl + path)).GET().build(), HttpResponse.BodyHandlers.ofString())
 
+    fun getBytes(path: String): HttpResponse<ByteArray> =
+        client.send(HttpRequest.newBuilder(URI.create(baseUrl + path)).GET().build(), HttpResponse.BodyHandlers.ofByteArray())
+
     override fun close() {
         container?.stop()
     }

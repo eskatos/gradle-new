@@ -3,6 +3,7 @@ package gradlenew.acceptance
 import gradlenew.adapterjson.InitModelJson
 import gradlenew.adapterjson.VersionsJson
 import gradlenew.domain.model.InitModel
+import java.net.URLEncoder
 import java.net.http.HttpResponse
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -19,7 +20,9 @@ class ApiJourneyTest {
         Target.open().use { target ->
             val stable = readOfferedVersions(target)
             val model = readModel(target, stable)
-            compareWithGradle(model, stable)
+            val oracle = GradleOracle(stable)
+            compareWithGradle(model, oracle)
+            generateBuilds(target, model, oracle)
         }
     }
 
@@ -43,8 +46,7 @@ class ApiJourneyTest {
         return model
     }
 
-    private fun compareWithGradle(model: InitModel, version: String) {
-        val oracle = GradleOracle(version)
+    private fun compareWithGradle(model: InitModel, oracle: GradleOracle) {
         val optionValues = oracle.initOptionValues()
         val generatorTypes = optionValues.getValue("type") - "pom"
         assertEquals(generatorTypes, model.buildTypes.map { it.id }.toSet())
@@ -59,6 +61,69 @@ class ApiJourneyTest {
         assertTrue(cppFailure != null && cppFailure.contains("Package name is not supported for 'cpp-application'"), cppFailure)
         assertEquals(null, oracle.initFailure(listOf("--type", "java-application", "--package", "org.example")))
     }
+
+    private fun generateBuilds(target: Target, model: InitModel, oracle: GradleOracle) {
+        val application = model.buildType("java-application")
+        generateAndCompare(
+            target, oracle, "stable", "demo-app",
+            listOf(
+                "type" to application.id,
+                "dsl" to "kotlin",
+                "test-framework" to "junit-jupiter",
+                "split-project" to "false",
+                "incubating" to "false",
+                "comments" to "true",
+                "project-name" to "demo-app",
+                "package" to "com.acme.demo",
+                "java-version" to "17",
+            ),
+        )
+        val plugin = model.buildType("kotlin-gradle-plugin")
+        generateAndCompare(
+            target, oracle, model.gradleVersion, "my-cool-thing",
+            listOf(
+                "type" to plugin.id,
+                "dsl" to "groovy",
+                "test-framework" to plugin.testFrameworksFor(plugin.modularization.default).default!!,
+                "incubating" to "true",
+                "comments" to "false",
+                "project-name" to "my-cool-thing",
+                "package" to "com.acme.tools",
+                "java-version" to "17",
+            ),
+        )
+        rejectInvalidRequest(target, oracle)
+    }
+
+    private fun generateAndCompare(target: Target, oracle: GradleOracle, version: String, projectName: String, options: List<Pair<String, String>>) {
+        val path = "/api/generate?" + (listOf("version" to version) + options).joinToString("&") { (name, value) -> "$name=${encode(value)}" }
+        val response = target.getBytes(path)
+        assertEquals(200, response.statusCode(), String(response.body()))
+        assertEquals("application/zip", response.headers().firstValue("content-type").orElse(""))
+        assertEquals("attachment; filename=\"$projectName.zip\"", response.headers().firstValue("content-disposition").orElse(""))
+        assertTrue(response.headers().firstValue("etag").isPresent)
+
+        val archive = GeneratedBuild.fromZip(response.body())
+        assertTrue(archive.keys.all { it.startsWith("$projectName/") }, archive.keys.toString())
+        val generated = archive.mapKeys { it.key.removePrefix("$projectName/") }
+        val expected = oracle.init(options)
+        assertEquals(emptyList(), GeneratedBuild.differences(expected, generated), "generated build differs from gradle init for $options")
+        assertTrue(generated.getValue("gradlew").executable)
+
+        val again = target.getBytes(path)
+        assertTrue(response.body().contentEquals(again.body()), "two identical requests returned different archives")
+    }
+
+    private fun rejectInvalidRequest(target: Target, oracle: GradleOracle) {
+        val initMessage = oracle.initFailure(listOf("--type", "cpp-application", "--package", "org.example"))!!
+            .lines().map { it.removePrefix("> ").trim() }.first { it.startsWith("Package name is not supported") }
+        val response = target.get("/api/generate?type=cpp-application&package=org.example&project-name=demo")
+        assertEquals(400, response.statusCode())
+        assertJson(response)
+        assertTrue(response.body().contains(initMessage), response.body())
+    }
+
+    private fun encode(value: String) = URLEncoder.encode(value, Charsets.UTF_8)
 
     private fun assertJson(response: HttpResponse<String>) {
         assertEquals("application/json", response.headers().firstValue("content-type").orElse("").substringBefore(';'))
