@@ -10,7 +10,7 @@ fun interface TemplateSource {
 }
 
 sealed interface GenerationResult {
-    data class Generated(val files: FileSet, val filename: String, val cacheKey: String, val immutable: Boolean) : GenerationResult
+    data class Generated(val files: FileSet, val filename: String, val immutable: Boolean) : GenerationResult
     data class Rejected(val message: String) : GenerationResult
 }
 
@@ -19,6 +19,12 @@ class BuildGeneration(
     private val models: (String) -> InitModel,
     private val templates: TemplateSource,
 ) {
+    fun generate(parameters: List<Pair<String, String>>): GenerationResult {
+        val repeated = parameters.groupingBy { it.first }.eachCount().filterValues { it > 1 }.keys
+        if (repeated.isNotEmpty()) return GenerationResult.Rejected("Option '${repeated.first()}' is given more than once.")
+        return generate(parameters.toMap())
+    }
+
     fun generate(options: Map<String, String>): GenerationResult =
         when (val resolution = RequestValidation.resolve(options, offered, models)) {
             is Resolution.Rejected -> GenerationResult.Rejected(resolution.message)
@@ -32,7 +38,6 @@ class BuildGeneration(
         return GenerationResult.Generated(
             files = Substitution.apply(template, request.inputs).under(request.archiveRoot),
             filename = request.filename,
-            cacheKey = request.cacheKey,
             immutable = !request.fromAlias,
         )
     }

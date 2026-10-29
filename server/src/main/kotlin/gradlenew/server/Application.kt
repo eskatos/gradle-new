@@ -1,27 +1,64 @@
 package gradlenew.server
 
+import gradlenew.adapterjson.ErrorJson
+import gradlenew.adapterzip.Zip
+import gradlenew.domain.generation.GenerationResult
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.http.content.staticFiles
 import io.ktor.server.response.header
+import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondFile
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import io.ktor.util.flattenEntries
 import java.io.File
+import java.security.MessageDigest
 
-fun Application.gradleNew(site: File) {
+private const val IMMUTABLE = "public, max-age=31536000, immutable"
+private const val SHORT_LIVED = "public, max-age=60"
+
+fun Application.gradleNew(siteDir: File) {
+    val site = Site(siteDir)
     routing {
         get("/api/versions") {
-            call.response.header(HttpHeaders.CacheControl, "public, max-age=60")
-            call.respondFile(File(site, "versions.json"))
+            call.response.header(HttpHeaders.CacheControl, SHORT_LIVED)
+            call.respondFile(File(siteDir, "versions.json"))
         }
-        staticFiles("/v", File(site, "v")) {
+        get("/api/generate") {
+            when (val result = site.generation.generate(call.request.queryParameters.flattenEntries())) {
+                is GenerationResult.Rejected -> call.respondText(ErrorJson.encode(result.message), ContentType.Application.Json, HttpStatusCode.BadRequest)
+                is GenerationResult.Generated -> {
+                    val zip = Zip.write(result.files)
+                    val etag = entityTag(zip)
+                    call.response.header(HttpHeaders.ETag, etag)
+                    call.response.header(HttpHeaders.CacheControl, if (result.immutable) IMMUTABLE else SHORT_LIVED)
+                    if (call.request.headers.getAll(HttpHeaders.IfNoneMatch).orEmpty().flatMap { it.split(',') }.any { it.trim() == etag }) {
+                        call.respond(HttpStatusCode.NotModified)
+                    } else {
+                        call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"${result.filename}\"")
+                        call.respondBytes(zip, ContentType.Application.Zip)
+                    }
+                }
+            }
+        }
+        staticFiles("/v", File(siteDir, "v")) {
+            exclude { file -> file.isTemplate() }
             contentType { ContentType.Application.Json }
-            modify { _, call -> call.response.header(HttpHeaders.CacheControl, "public, max-age=31536000, immutable") }
+            modify { _, call -> call.response.header(HttpHeaders.CacheControl, IMMUTABLE) }
         }
-        staticFiles("/", site, index = "index.html") {
+        staticFiles("/", siteDir, index = "index.html") {
+            exclude { file -> file.isTemplate() }
             contentType { file -> if (file.name.endsWith(".json")) ContentType.Application.Json else null }
         }
     }
 }
+
+private fun File.isTemplate() = parentFile?.name == "templates"
+
+private fun entityTag(bytes: ByteArray): String =
+    "\"" + MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) } + "\""

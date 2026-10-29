@@ -53,11 +53,17 @@ class BuildGenerationTest {
     }
 
     @Test
-    fun exposesTheCacheKeyOfTheResolvedRequest() {
-        val byAlias = assertIs<GenerationResult.Generated>(generation.generate(mapOf("type" to "java-application", "project-name" to "demo")))
-        val explicit = assertIs<GenerationResult.Generated>(generation.generate(mapOf("version" to "9.8.2", "type" to "java-application", "project-name" to "demo", "dsl" to "kotlin")))
+    fun rejectsRepeatedOptions() {
+        val result = generation.generate(listOf("type" to "java-application", "project-name" to "a", "project-name" to "b"))
 
-        assertEquals(byAlias.cacheKey, explicit.cacheKey)
+        assertEquals(GenerationResult.Rejected("Option 'project-name' is given more than once."), result)
+    }
+
+    @Test
+    fun acceptsParametersAsAList() {
+        val result = generation.generate(listOf("type" to "java-application", "project-name" to "demo"))
+
+        assertEquals("demo.zip", assertIs<GenerationResult.Generated>(result).filename)
     }
 
     @Test

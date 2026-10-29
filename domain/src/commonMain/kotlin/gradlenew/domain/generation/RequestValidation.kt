@@ -8,8 +8,6 @@ import gradlenew.substitution.ProjectInputs
 data class ResolvedRequest(val version: String, val fromAlias: Boolean, val spec: TemplateSpec, val inputs: ProjectInputs) {
     val filename: String get() = "${inputs.projectName}.zip"
     val archiveRoot: String get() = inputs.projectName
-    val cacheKey: String
-        get() = listOf(version, spec.key, inputs.projectName, inputs.packageName.orEmpty(), inputs.javaVersion?.toString().orEmpty()).joinToString("\n")
 }
 
 sealed interface Resolution {

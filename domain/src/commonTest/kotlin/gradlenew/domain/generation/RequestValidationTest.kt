@@ -200,15 +200,6 @@ class RequestValidationTest {
         )
     }
 
-    @Test
-    fun derivesACacheKeyFromTheResolvedRequest() {
-        val byAlias = accepted("version" to "stable", "type" to "java-application", "project-name" to "demo")
-        val explicit = accepted("version" to "9.8.2", "type" to "java-application", "dsl" to "kotlin", "project-name" to "demo", "package" to "org.example")
-
-        assertEquals(byAlias.cacheKey, explicit.cacheKey)
-        assertTrue(byAlias.cacheKey != accepted("type" to "java-application", "project-name" to "other").cacheKey)
-    }
-
     private fun accepted(vararg options: Pair<String, String>, offered: OfferedVersions = stableOnly, model: InitModel = gradle982Model): ResolvedRequest =
         when (val resolution = RequestValidation.resolve(mapOf(*options), offered) { if (it == rcModel.gradleVersion) rcModel else model }) {
             is Resolution.Accepted -> resolution.request
