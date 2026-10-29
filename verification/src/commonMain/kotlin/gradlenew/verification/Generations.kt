@@ -23,6 +23,9 @@ class Generations(private val init: InitGenerator) {
 
     fun template(entry: CatalogEntry): FileSet? = templates.getOrPut(entry) { fresh(entry.spec, entry.placeholders) }
 
+    fun cachedOrFresh(entry: CatalogEntry): FileSet? =
+        if (entry in templates) templates[entry] else fresh(entry.spec, entry.placeholders)
+
     fun fresh(spec: TemplateSpec, inputs: ProjectInputs, subject: String = spec.key): FileSet? =
         when (val outcome = init.generate(spec, inputs)) {
             is InitOutcome.Generated -> outcome.files
