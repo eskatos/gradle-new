@@ -2,7 +2,9 @@ package gradlenew.server
 
 import gradlenew.adapterjson.ErrorJson
 import gradlenew.adapterjson.InitModelJson
+import gradlenew.adapterjson.TemplateIndexJson
 import gradlenew.adapterzip.Zip
+import gradlenew.domain.generation.TemplateIndex
 import gradlenew.domain.model.BuildType
 import gradlenew.domain.model.Choice
 import gradlenew.domain.model.ComponentType
@@ -142,6 +144,41 @@ class GenerateRouteTest {
         assertEquals(HttpStatusCode.NotFound, client.get("/v/9.8.2/templates/$templateKey.zip").status)
         assertEquals(HttpStatusCode.NotFound, client.get("/templates/9.8.2/$templateKey.zip").status)
         assertEquals(HttpStatusCode.NotFound, client.get("/9.8.2/$templateKey.zip").status)
+    }
+
+    @Test
+    fun servesTheTemplateForTheRequestedJavaVersionOfAnEnumeratedType() = testApplication {
+        val enumerated = Files.createTempDirectory("enumerated").toFile().apply {
+            resolve("9.8.2").mkdirs()
+            resolve("9.8.2/index.json").writeText(TemplateIndexJson.encode(TemplateIndex(setOf("java-application"))))
+            resolve("9.8.2/$templateKey.java17.zip").writeBytes(
+                Zip.write(
+                    FileSet.of(
+                        FileEntry("settings.gradle.kts", "rootProject.name = \"zqxproj-name\"".encodeToByteArray(), false),
+                        FileEntry("app/build.gradle.kts", "languageVersion = JavaLanguageVersion.of(17)\n// targets Java 17".encodeToByteArray(), false),
+                    ),
+                ),
+            )
+        }
+        application { gradleNew(site, enumerated) }
+
+        val response = client.get("/api/generate?type=java-application&project-name=demo&java-version=17")
+        val outOfRange = client.get("/api/generate?type=java-application&project-name=demo&java-version=32")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(
+            FileSet.of(
+                FileEntry("demo/settings.gradle.kts", "rootProject.name = \"demo\"".encodeToByteArray(), false),
+                FileEntry("demo/app/build.gradle.kts", "languageVersion = JavaLanguageVersion.of(17)\n// targets Java 17".encodeToByteArray(), false),
+            ),
+            Zip.read(response.bodyAsBytes()),
+        )
+        assertEquals(HttpStatusCode.BadRequest, outOfRange.status)
+        assertEquals(
+            "Target Java version: '32' is not offered for 'java-application' build type - it must be between 7 and 31.",
+            ErrorJson.decode(outOfRange.bodyAsText()),
+        )
+        assertEquals(HttpStatusCode.NotFound, client.get("/9.8.2/index.json").status)
     }
 
     @Test
