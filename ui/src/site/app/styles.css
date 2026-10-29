@@ -33,7 +33,12 @@ code, pre, .mono { font-family: var(--font-mono); }
 
 .site-header { background: var(--surface-dark); border-bottom: 1px solid var(--border-on-dark); }
 .site-header-inner { display: flex; align-items: center; gap: var(--space-4); min-height: 64px; }
+.brand-lockup { display: flex; align-items: center; gap: var(--space-3); }
+.brand-link { display: block; border-radius: var(--radius-sm); }
+.brand-link:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .site-logo { display: block; height: 28px; width: auto; }
+.brand-by { color: var(--neutral-300); font-size: var(--text-sm); }
+.develocity-logo { display: block; height: 18px; width: auto; }
 
 .hero { background: var(--surface-dark); color: var(--text-inverse); padding: var(--space-8) 0 calc(var(--space-8) + var(--space-7)); }
 .eyebrow { font-size: var(--text-xs); font-weight: var(--weight-bold); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--gradle-teal); margin-bottom: var(--space-3); }

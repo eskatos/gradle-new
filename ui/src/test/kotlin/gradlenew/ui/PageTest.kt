@@ -14,6 +14,35 @@ class PageTest {
     private val zip = byteArrayOf(0x50, 0x4b, 0x05, 0x06) + ByteArray(18)
 
     @TestFactory
+    fun showsGradleByDevelocityInTheHeader(): List<DynamicTest> = onPage { page, _ ->
+        assertEquals("https://gradle.org/", page.getAttribute("#gradle-home", "href"))
+        assertEquals("Gradle", page.getAttribute("#gradle-home img", "alt"))
+        assertEquals("by", page.textContent(".site-header .brand-by")!!.trim())
+        assertEquals("https://develocity.ai/", page.getAttribute("#develocity-home", "href"))
+        assertEquals("Develocity", page.getAttribute("#develocity-home img", "alt"))
+        assertEquals("by", page.evaluate("() => [...document.querySelector('.site-header .brand-lockup').childNodes].map((n) => n.textContent.trim()).filter(Boolean).join(' ')"))
+        assertEquals("Gradle by Develocity", page.locator(".site-header .brand-lockup").evaluate("e => [...e.querySelectorAll('img, .brand-by')].map((n) => n.alt || n.textContent.trim()).join(' ')"))
+        page.waitForFunction("() => [...document.querySelectorAll('.site-header img')].every((i) => i.complete && i.naturalWidth > 0)")
+        @Suppress("UNCHECKED_CAST")
+        val whiteShare = page.evaluate("""() => {
+            const image = document.querySelector('#develocity-home img');
+            const canvas = document.createElement('canvas');
+            canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(image, 0, 0);
+            const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            let opaque = 0, light = 0;
+            for (let i = 0; i < pixels.length; i += 4) {
+                if (pixels[i + 3] < 128) continue;
+                opaque++;
+                if (pixels[i] > 200 && pixels[i + 1] > 200 && pixels[i + 2] > 200) light++;
+            }
+            return opaque === 0 ? 0 : light / opaque;
+        }""") as Number
+        assertTrue(whiteShare.toDouble() > 0.3, "the Develocity wordmark renders white on the dark header, share of light pixels: $whiteShare")
+    }
+
+    @TestFactory
     fun rendersTheFormFromTheModel(): List<DynamicTest> = onPage { page, _ ->
         assertTrue(page.isVisible("#form-fields"))
         assertTrue(!page.isVisible("#form-loading"))

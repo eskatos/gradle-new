@@ -38,7 +38,7 @@ class AccessibilityTest {
 
     @TestFactory
     fun theKeyboardReachesEveryControlInReadingOrderWithAVisibleFocus(): List<DynamicTest> = onPage { page, engine ->
-        val expected = listOf("version", "component-type", "language", "dsl", "test-framework", "project-name", "package", "java-version",
+        val expected = listOf("gradle-home", "develocity-home", "version", "component-type", "language", "dsl", "test-framework", "project-name", "package", "java-version",
             "split-project", "incubating", "comments", "download", "copy-command", "explain-command-toggle", "copy-url", "explain-url-toggle")
         val reached = mutableListOf<String>()
         page.focus("body")
