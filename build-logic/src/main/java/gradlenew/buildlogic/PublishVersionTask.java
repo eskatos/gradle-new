@@ -14,6 +14,7 @@ import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.JavaExec;
+import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
@@ -39,6 +40,17 @@ public abstract class PublishVersionTask extends JavaExec {
     @Input
     public abstract Property<Integer> getTemplateBudgetMegabytes();
 
+    @Input
+    @Optional
+    public abstract Property<String> getDistributionSha256();
+
+    @Input
+    @Optional
+    public abstract Property<String> getWrapperSha256();
+
+    @Internal
+    public abstract DirectoryProperty getDistributionCache();
+
     @OutputDirectory
     public abstract DirectoryProperty getSiteDirectory();
 
@@ -62,7 +74,11 @@ public abstract class PublishVersionTask extends JavaExec {
             "--templates-output", getTemplatesDirectory().get().getAsFile().getAbsolutePath(),
             "--work-dir", getWorkDirectory().get().getAsFile().getAbsolutePath(),
             "--report-output", getReportDirectory().get().getAsFile().getAbsolutePath(),
-            "--template-budget-mb", String.valueOf(getTemplateBudgetMegabytes().get())));
+            "--distribution-cache", getDistributionCache().get().getAsFile().getAbsolutePath()));
+        if (getDistributionSha256().isPresent() && getWrapperSha256().isPresent()) {
+            arguments.addAll(List.of("--distribution-sha256", getDistributionSha256().get(), "--wrapper-sha256", getWrapperSha256().get()));
+        }
+        arguments.addAll(List.of("--template-budget-mb", String.valueOf(getTemplateBudgetMegabytes().get())));
         setArgs(arguments);
         setIgnoreExitValue(true);
         super.exec();

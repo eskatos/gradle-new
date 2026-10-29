@@ -11,7 +11,7 @@ import org.gradle.api.file.RegularFile;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.ProviderFactory;
 
-record OfferedVersions(Provider<String> stable, Provider<String> rc) {
+record OfferedVersions(Provider<String> stable, Provider<String> rc, Provider<Properties> pinned) {
 
     static final String FILE = "offered-gradle-versions.properties";
     static final String STABLE_PROPERTY = "gradlenew.offered.stable";
@@ -23,7 +23,28 @@ record OfferedVersions(Provider<String> stable, Provider<String> rc) {
         Provider<Properties> pinned = providers.fileContents(file).getAsText().map(OfferedVersions::parse);
         return new OfferedVersions(
             providers.gradleProperty(STABLE_PROPERTY).orElse(pinned.map(properties -> properties.getProperty("stable", ""))).filter(value -> !value.isBlank()),
-            providers.gradleProperty(RC_PROPERTY).orElse(pinned.map(properties -> properties.getProperty("rc", ""))).filter(value -> !value.isBlank()));
+            providers.gradleProperty(RC_PROPERTY).orElse(pinned.map(properties -> properties.getProperty("rc", ""))).filter(value -> !value.isBlank()),
+            pinned);
+    }
+
+    Provider<String> distributionSha256(String version) {
+        return pinnedChecksum(version, "distribution");
+    }
+
+    Provider<String> wrapperSha256(String version) {
+        return pinnedChecksum(version, "wrapper");
+    }
+
+    private Provider<String> pinnedChecksum(String version, String kind) {
+        return pinned.map(properties -> {
+            for (String slot : List.of("stable", "rc")) {
+                if (version.equals(properties.getProperty(slot, ""))) {
+                    String checksum = properties.getProperty(slot + "." + kind + "-sha256", "");
+                    return checksum.isEmpty() ? null : checksum;
+                }
+            }
+            return null;
+        });
     }
 
     static RegularFile pinFile(Project project) {

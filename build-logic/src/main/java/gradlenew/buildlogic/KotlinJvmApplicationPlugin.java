@@ -1,5 +1,6 @@
 package gradlenew.buildlogic;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import org.gradle.api.Plugin;
@@ -39,6 +40,7 @@ public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
             .getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).getRuntimeClasspath();
         DirectoryProperty buildDir = project.getLayout().getBuildDirectory();
 
+        File distributionCache = new File(project.getGradle().getGradleUserHomeDir(), "caches/gradlenew/distributions");
         List<TaskProvider<PublishVersionTask>> publishVersions = new ArrayList<>();
         for (String version : offered.versions()) {
             publishVersions.add(project.getTasks().register("publishGradle-" + version, PublishVersionTask.class, task -> {
@@ -56,6 +58,9 @@ public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
                 task.getTemplatesDirectory().set(buildDir.dir("published/" + version + "/templates"));
                 task.getReportDirectory().set(buildDir.dir("published/" + version + "/report"));
                 task.getWorkDirectory().set(buildDir.dir("publisher-work/" + version));
+                task.getDistributionSha256().set(offered.distributionSha256(version));
+                task.getWrapperSha256().set(offered.wrapperSha256(version));
+                task.getDistributionCache().set(distributionCache);
             }));
         }
         TaskProvider<PublishVersionsIndexTask> publishIndex = project.getTasks().register("publishVersionsIndex", PublishVersionsIndexTask.class, task -> {

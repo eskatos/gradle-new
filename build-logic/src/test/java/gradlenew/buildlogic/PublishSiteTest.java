@@ -38,6 +38,46 @@ class PublishSiteTest {
             Files.readString(project.path("my-tool/build/published/index/versions.json")));
     }
 
+    private static final String DISTRIBUTION = "1".repeat(64);
+    private static final String WRAPPER = "2".repeat(64);
+
+    @Test
+    void passesThePinnedChecksumsOfAVersionAndADistributionCache(@TempDir Path dir) throws IOException {
+        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties",
+            "stable=9.8.2\nstable.distribution-sha256=" + DISTRIBUTION + "\nstable.wrapper-sha256=" + WRAPPER + "\nrc=9.9.0-rc-1\nrc.distribution-sha256=\nrc.wrapper-sha256=\n");
+
+        project.run(":my-tool:publishSite");
+
+        String stable = Files.readString(project.path("my-tool/build/published/9.8.2/site/v/9.8.2/args.txt"));
+        assertTrue(stable.contains(" --distribution-sha256 " + DISTRIBUTION + " --wrapper-sha256 " + WRAPPER + " "), stable);
+        assertTrue(stable.contains(" --distribution-cache ") && stable.contains("caches/gradlenew/distributions"), stable);
+        String rc = Files.readString(project.path("my-tool/build/published/9.9.0-rc-1/site/v/9.9.0-rc-1/args.txt"));
+        assertFalse(rc.contains("-sha256"), "an RC without pinned checksums gets none: " + rc);
+        assertTrue(rc.contains(" --distribution-cache "), rc);
+    }
+
+    @Test
+    void anOverriddenVersionHasNoPinnedChecksums(@TempDir Path dir) throws IOException {
+        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties",
+            "stable=9.8.2\nstable.distribution-sha256=" + DISTRIBUTION + "\nstable.wrapper-sha256=" + WRAPPER + "\nrc=\n");
+
+        project.run(":my-tool:publishSite", "-Pgradlenew.offered.stable=9.8.1");
+
+        assertFalse(Files.readString(project.path("my-tool/build/published/9.8.1/site/v/9.8.1/args.txt")).contains("-sha256"));
+    }
+
+    @Test
+    void aChangedPinnedChecksumInvalidatesThePublishedVersion(@TempDir Path dir) throws IOException {
+        String pin = "stable=9.8.2\nstable.distribution-sha256=%s\nstable.wrapper-sha256=" + WRAPPER + "\nrc=\n";
+        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", pin.formatted(DISTRIBUTION));
+        project.run(":my-tool:publishSite");
+        assertEquals(TaskOutcome.UP_TO_DATE, project.run(":my-tool:publishSite").task(":my-tool:publishGradle-9.8.2").getOutcome());
+
+        project.file("offered-gradle-versions.properties", pin.formatted("3".repeat(64)));
+
+        assertEquals(TaskOutcome.SUCCESS, project.run(":my-tool:publishSite").task(":my-tool:publishGradle-9.8.2").getOutcome());
+    }
+
     @Test
     void takesTheTemplateBudgetFromAGradleProperty(@TempDir Path dir) throws IOException {
         TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=\n");

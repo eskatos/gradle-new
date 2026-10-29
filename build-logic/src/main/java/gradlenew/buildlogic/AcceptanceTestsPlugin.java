@@ -51,10 +51,13 @@ public abstract class AcceptanceTestsPlugin implements Plugin<Project> {
                 .matching(pattern -> pattern.exclude(BuilderSources.EXCLUDED)));
             publisherInputs.getVersionCatalog().set(rootDir.file("gradle/libs.versions.toml"));
             publisherInputs.getVersionCatalogFiles().setFrom(rootDir.file("gradle/libs.versions.toml"));
+            publisherInputs.getDistributionCache().set(new java.io.File(project.getGradle().getGradleUserHomeDir(), "caches/gradlenew/distributions"));
             test.getJvmArgumentProviders().add(publisherInputs);
             OfferedVersionsArgumentProvider versions = project.getObjects().newInstance(OfferedVersionsArgumentProvider.class);
             versions.getStable().set(offered.stable());
             versions.getRc().set(offered.rc());
+            versions.getStableDistributionSha256().set(offered.stable().flatMap(offered::distributionSha256));
+            versions.getStableWrapperSha256().set(offered.stable().flatMap(offered::wrapperSha256));
             test.getJvmArgumentProviders().add(versions);
             OutputDirectoryArgumentProvider screenshots = project.getObjects().newInstance(OutputDirectoryArgumentProvider.class);
             screenshots.getSystemProperty().set("acceptance.screenshotsDir");

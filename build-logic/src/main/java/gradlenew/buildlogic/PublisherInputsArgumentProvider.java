@@ -28,6 +28,9 @@ public abstract class PublisherInputsArgumentProvider implements CommandLineArgu
     @Internal
     public abstract RegularFileProperty getVersionCatalog();
 
+    @Internal
+    public abstract DirectoryProperty getDistributionCache();
+
     @InputFiles
     @PathSensitive(PathSensitivity.NONE)
     public abstract ConfigurableFileCollection getVersionCatalogFiles();
@@ -37,6 +40,7 @@ public abstract class PublisherInputsArgumentProvider implements CommandLineArgu
         return List.of(
             "-Dacceptance.publisherClasspath=" + getPublisherClasspath().getAsPath(),
             "-Dacceptance.builderSources=" + getBuilderSources().get().getAsFile().getAbsolutePath(),
-            "-Dacceptance.versionCatalog=" + getVersionCatalog().get().getAsFile().getAbsolutePath());
+            "-Dacceptance.versionCatalog=" + getVersionCatalog().get().getAsFile().getAbsolutePath(),
+            "-Dacceptance.distributionCache=" + getDistributionCache().get().getAsFile().getAbsolutePath());
     }
 }

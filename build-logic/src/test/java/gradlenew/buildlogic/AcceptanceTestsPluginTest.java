@@ -62,13 +62,14 @@ class AcceptanceTestsPluginTest {
                     @Test
                     fun recordsPublisherInputs() {
                         File("probe.txt").writeText(
-                            listOf("acceptance.publisherClasspath", "acceptance.builderSources", "acceptance.versionCatalog", "gradlenew.offered.stable")
+                            listOf("acceptance.publisherClasspath", "acceptance.builderSources", "acceptance.versionCatalog", "gradlenew.offered.stable", "acceptance.distributionCache", "gradlenew.offered.stable.distribution-sha256", "gradlenew.offered.stable.wrapper-sha256")
                                 .joinToString("\\n") { System.getProperty(it) ?: "null" }
                         )
                     }
                 }
                 """);
 
+        project.file("offered-gradle-versions.properties", "stable=9.8.2\nstable.distribution-sha256=" + "1".repeat(64) + "\nstable.wrapper-sha256=" + "2".repeat(64) + "\nrc=\n");
         BuildResult result = project.run(":acceptance:test", "-Pgradlenew.offered.stable=9.8.2");
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":acceptance:test").getOutcome());
@@ -79,6 +80,9 @@ class AcceptanceTestsPluginTest {
         assertEquals(dir.toRealPath().resolve("builder").toString(), recorded.get(1));
         assertEquals(dir.toRealPath().resolve("gradle/libs.versions.toml").toString(), recorded.get(2));
         assertEquals("9.8.2", recorded.get(3));
+        assertTrue(recorded.get(4).endsWith("caches/gradlenew/distributions"), recorded.get(4));
+        assertEquals("1".repeat(64), recorded.get(5));
+        assertEquals("2".repeat(64), recorded.get(6));
     }
 
     @Test

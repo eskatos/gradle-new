@@ -7,8 +7,10 @@ import gradlenew.adapterjson.VerificationReportJson
 import gradlenew.domain.generation.TemplateCatalog
 import gradlenew.domain.model.InitModel
 import gradlenew.verification.Check
+import gradlenew.verification.ChecksumSource
 import gradlenew.verification.Outcome
 import gradlenew.verification.VersionReport
+import gradlenew.versions.Checksums
 import gradlenew.versions.Pin
 import gradlenew.versions.Proposal
 import gradlenew.versions.Slot
@@ -28,6 +30,11 @@ import kotlin.time.TimeSource
 class PublisherScenarioTest {
 
     private val stable = System.getProperty("gradlenew.offered.stable") ?: error("gradlenew.offered.stable is not set")
+    private val pinnedDistribution: String? = System.getProperty("gradlenew.offered.stable.distribution-sha256")
+    private val pinnedWrapper: String? = System.getProperty("gradlenew.offered.stable.wrapper-sha256")
+    private val distributionCache = System.getProperty("acceptance.distributionCache") ?: error("acceptance.distributionCache is not set")
+    private val recordedStable = Checksums("21bd5da2de49b642904077f38c0efdc7778e92b3ed0889392dca61b97e389607", "3b8a25775a69158b5ad2b1d17a80a88dc7b40a352a73eb27d06c612a7ce68e98")
+    private val recordedRc = Checksums("a068e9c506ea61501c689900aec9010eda810b112e682146b1ae4291df3dab6a", "238e777fcddd7e34f9708186085def2abd6e08e658505b38718d79d74c21abd5")
     private val classpath = System.getProperty("acceptance.publisherClasspath") ?: error("acceptance.publisherClasspath is not set")
     private val builderSources = System.getProperty("acceptance.builderSources") ?: error("acceptance.builderSources is not set")
     private val versionCatalog = System.getProperty("acceptance.versionCatalog") ?: error("acceptance.versionCatalog is not set")
@@ -44,6 +51,7 @@ class PublisherScenarioTest {
         val model = publishesTheRealStable()
         val javaTarget = model.buildTypes.firstOrNull { it.supportsJavaVersion && it.componentType == "library" }
             ?: model.buildTypes.first { it.supportsJavaVersion }
+        refusesADistributionWithAnotherChecksum()
         refusesNondeterministicOutput(model)
         refusesAnUnknownProjectNameForm()
         enumeratesATypeWhoseOutputDependsOnTheJavaVersion(model, javaTarget.id)
@@ -57,23 +65,28 @@ class PublisherScenarioTest {
             assertEquals("stable=9.8.2\nrc=\n", unchanged.pinText())
 
             assertEquals(
-                listOf(Proposal(Slot.RC, "Offer Gradle 9.9.0-rc-1", Pin("9.8.2", "9.9.0-rc-1"))),
+                listOf(Proposal(Slot.RC, "Offer Gradle 9.9.0-rc-1", Pin("9.8.2", "9.9.0-rc-1", null, recordedRc))),
                 propose(feeds, "active-rc", Pin("9.8.2", null)).proposals(),
             )
             assertEquals(
-                listOf(Proposal(Slot.STABLE, "Offer Gradle 9.9.0", Pin("9.9.0", null))),
+                listOf(Proposal(Slot.STABLE, "Offer Gradle 9.9.0", Pin("9.9.0", null, recordedStable))),
                 propose(feeds, "final-retires-rc", Pin("9.8.2", "9.9.0-rc-2")).proposals(),
             )
 
             val both = propose(feeds, "new-stable-and-rc", Pin("9.8.2", null), write = true)
             assertEquals(
                 listOf(
-                    Proposal(Slot.STABLE, "Offer Gradle 9.9.0", Pin("9.9.0", null)),
-                    Proposal(Slot.RC, "Offer Gradle 9.10.0-rc-1", Pin("9.8.2", "9.10.0-rc-1")),
+                    Proposal(Slot.STABLE, "Offer Gradle 9.9.0", Pin("9.9.0", null, recordedStable)),
+                    Proposal(Slot.RC, "Offer Gradle 9.10.0-rc-1", Pin("9.8.2", "9.10.0-rc-1", null, recordedRc)),
                 ),
                 both.proposals(),
             )
-            assertEquals("stable=9.9.0\nrc=9.10.0-rc-1\n", both.pinText())
+            assertEquals(
+                "stable=9.9.0\nstable.distribution-sha256=${recordedStable.distribution}\nstable.wrapper-sha256=${recordedStable.wrapper}\n" +
+                    "rc=9.10.0-rc-1\nrc.distribution-sha256=${recordedRc.distribution}\nrc.wrapper-sha256=${recordedRc.wrapper}\n",
+                both.pinText(),
+                "the written pin carries the checksums from the feeds",
+            )
 
             assertEquals(emptyList(), propose(feeds, "broken-stable", Pin("9.8.2", null)).proposals())
             assertEquals(
@@ -147,6 +160,7 @@ class PublisherScenarioTest {
         val report = run.report()
         assertEquals(Check.entries.toSet(), report.checks.map { it.check }.toSet())
         assertTrue(report.checks.all { it.outcome == Outcome.PASSED }, report.toString())
+        assertEquals(if (pinnedDistribution != null) ChecksumSource.PINNED else ChecksumSource.PUBLISHED, report.checksums)
 
         assertEquals(listOf("v"), run.site.list()!!.toList())
         val model = InitModelJson.decode(run.site.resolve("v/$stable/model.json").readText())
@@ -155,6 +169,17 @@ class PublisherScenarioTest {
         assertEquals(expectedKeys, run.templateKeys())
         assertEquals(enumerated, TemplateIndexJson.decode(run.templates.resolve("$stable/index.json").readText()).javaEnumeratedTypes)
         return model
+    }
+
+    private fun refusesADistributionWithAnotherChecksum() {
+        val run = publish("wrong-checksum", distributionSha256 = "0".repeat(64))
+
+        assertEquals(1, run.exitCode, run.output)
+        val distribution = run.report().result(Check.DISTRIBUTION)
+        assertEquals(Outcome.FAILED, distribution.outcome)
+        assertTrue(distribution.failures.single().message.endsWith("expected ${"0".repeat(64)}"), distribution.toString())
+        assertTrue(run.report().checks.drop(1).all { it.outcome == Outcome.SKIPPED }, run.report().toString())
+        run.assertNothingPublished()
     }
 
     private fun refusesNondeterministicOutput(model: InitModel) {
@@ -206,13 +231,23 @@ class PublisherScenarioTest {
         run.assertNothingPublished()
     }
 
-    private fun publish(name: String, initScript: String? = null, faultTarget: String? = null, budgetMegabytes: Int? = null): PublisherRun {
+    private fun publish(
+        name: String,
+        initScript: String? = null,
+        faultTarget: String? = null,
+        budgetMegabytes: Int? = null,
+        distributionSha256: String? = pinnedDistribution,
+    ): PublisherRun {
         val dir = workRoot.resolve(name)
         val arguments = buildList {
             addAll(listOf("publish", "--version", stable))
             addAll(listOf("--builder-dir", builderSources, "--catalog", versionCatalog))
             addAll(listOf("--output", dir.resolve("site").path, "--templates-output", dir.resolve("templates").path))
             addAll(listOf("--report-output", dir.resolve("report").path, "--work-dir", dir.resolve("work").path))
+            addAll(listOf("--distribution-cache", distributionCache))
+            if (distributionSha256 != null) {
+                addAll(listOf("--distribution-sha256", distributionSha256, "--wrapper-sha256", pinnedWrapper ?: error("the pinned wrapper SHA-256 is missing")))
+            }
             budgetMegabytes?.let { addAll(listOf("--template-budget-mb", it.toString())) }
             initScript?.let { addAll(listOf("--gradle-argument", "--init-script", "--gradle-argument", faultInjection(it).path)) }
             faultTarget?.let { addAll(listOf("--gradle-argument", "-Dgradlenew.fault.type=$it")) }
