@@ -94,7 +94,7 @@ class UiJourneyTest {
         page.check("input[name=component-type][value=application]")
         page.check("input[name=language][value=${application.language}]")
         page.check("input[name=dsl][value=${application.dsls.values.last()}]")
-        page.selectOption("#test-framework", application.testFrameworksFor(application.modularization.default).values.last())
+        page.check("input[name=test-framework][value=${application.testFrameworksFor(application.modularization.default).values.last()}]")
         page.fill("#project-name", "demo-app")
         page.fill("#package", "com.acme.demo")
         page.fill("#java-version", "17")
@@ -139,8 +139,8 @@ class UiJourneyTest {
     private fun explanations(page: Page, model: InitModel, offered: OfferedVersions) {
         val descriptions = GradleOracle(offered.stable).initOptionDescriptions().also { gradleDescriptions.putAll(it) }
         assertTrue(!page.isVisible("#explain-command .explanation-item"), "explanations are collapsed by default")
-        page.click("#explain-command summary")
-        page.click("#explain-url summary")
+        page.click("#explain-command-toggle")
+        page.click("#explain-url-toggle")
         for (block in listOf("#explain-command", "#explain-url")) {
             val items = page.locator("$block .explanation-item")
             val count = items.count()
@@ -191,7 +191,7 @@ class UiJourneyTest {
 
     private fun releaseCandidate(page: Page, target: Target, rc: String) {
         page.check("input[name=version][value=rc]")
-        assertTrue(apiUrl(page).contains("version=rc"), apiUrl(page))
+        page.waitForFunction("() => document.querySelector('#api-url').textContent.includes('version=rc')")
         assertTrue(page.textContent("#explain-command [data-kind=gradle]")!!.contains(rc))
         page.check("input[name=component-type][value=application]")
         val url = apiUrl(page)
@@ -199,6 +199,7 @@ class UiJourneyTest {
         val fromApi = target.getBytes(url.removePrefix(target.baseUrl))
         assertTrue(Files.readAllBytes(download.path()).contentEquals(fromApi.body()), "RC download differs from the API's zip")
         page.check("input[name=version][value=stable]")
+        page.waitForFunction("() => document.querySelector('#api-url').textContent.includes('version=stable')")
     }
 
     private fun everyRequestStayedOnTheOrigin(requests: Set<String>, target: Target) {
