@@ -26,4 +26,33 @@ class StaticSitePluginTest {
         assertTrue(Files.exists(project.path("build/site/index.html")));
         assertTrue(Files.exists(project.path("build/site/versions.json")));
     }
+
+    @Test
+    void testsReceiveTheAssembledSiteAndInstalledBrowsers(@TempDir Path dir) throws IOException {
+        TestProject project = TestProject.in(dir)
+            .buildScript("plugins { id(\"gradlenew.static-site\") }")
+            .file("src/site/index.html", "<!doctype html><title>site</title>")
+            .file("src/test/kotlin/SiteTest.kt", """
+                import java.io.File
+                import kotlin.test.Test
+                import kotlin.test.assertEquals
+                import kotlin.test.assertTrue
+
+                class SiteTest {
+                    @Test
+                    fun seesTheSite() {
+                        assertTrue(File(System.getProperty("ui.siteDir"), "index.html").isFile)
+                        assertEquals("1", System.getenv("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD"))
+                        assertEquals("webkit,firefox,chromium", System.getProperty("playwright.engines"))
+                        Class.forName("com.microsoft.playwright.Playwright")
+                    }
+                }
+                """);
+
+        BuildResult planned = project.run("test", "--dry-run");
+        assertTrue(planned.getOutput().contains(":installPlaywrightBrowsers SKIPPED"), planned.getOutput());
+
+        BuildResult result = project.run("test", "-x", "installPlaywrightBrowsers");
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test").getOutcome());
+    }
 }

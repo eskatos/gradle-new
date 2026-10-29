@@ -15,6 +15,7 @@ public abstract class AcceptanceTestsPlugin implements Plugin<Project> {
         JvmConventions.applyKotlinJvm(project, catalog);
         project.getDependencies().addProvider("testImplementation", catalog.library("testcontainers"));
         project.getDependencies().addProvider("testRuntimeOnly", catalog.library("slf4j-simple"));
+        PlaywrightBrowsers.wire(project, catalog);
 
         Configuration image = project.getConfigurations().create("image", configuration -> {
             configuration.setCanBeConsumed(false);
