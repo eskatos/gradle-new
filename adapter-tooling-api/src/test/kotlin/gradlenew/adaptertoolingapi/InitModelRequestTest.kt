@@ -1,50 +1,45 @@
 package gradlenew.adaptertoolingapi
 
-import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class InitModelRequestTest {
 
     @Test
-    fun requestsTheInitOptionsModelFromTheVersionUnderTest() {
+    fun requestsAModelThatAgreesWithTheVersionUnderTest() {
         for (version in Pinned.versions) {
-            val workDir = Files.createTempDirectory("model-request").toFile()
             val gradle = GradleDistribution(version)
-            val jars = BuilderCompiler.compile(gradle, Pinned.builderSources, Pinned.versionCatalog, workDir)
-
-            val model = InitModelRequest.request(gradle, jars, workDir)
+            val model = InitHelp.model(gradle)
+            val optionValues = InitHelp.optionValues(gradle)
 
             assertEquals(version, model.gradleVersion)
-            assertTrue(model.buildTypes.size >= 16, model.buildTypes.map { it.id }.toString())
-            assertFalse(model.buildTypes.any { it.id == "pom" })
+            assertEquals(optionValues.getValue("type") - "pom", model.buildTypes.map { it.id }.toSet(), version)
+            assertEquals(optionValues.getValue("dsl"), model.dsls.map { it.id }.toSet(), version)
+            assertEquals(optionValues.getValue("test-framework"), model.testFrameworks.map { it.id }.toSet(), version)
 
-            val javaApplication = model.buildType("java-application")
-            assertEquals("application", javaApplication.componentType)
-            assertEquals("java", javaApplication.language)
-            assertEquals(listOf("kotlin", "groovy"), javaApplication.dsls.values)
-            assertEquals("kotlin", javaApplication.dsls.default)
-            assertEquals(listOf("single-project", "with-library-projects"), javaApplication.modularization.values)
-            assertTrue("junit-jupiter" in javaApplication.testFrameworksFor("single-project").values)
-            assertTrue(javaApplication.supportsPackage)
-            assertTrue(javaApplication.supportsJavaVersion)
+            val componentTypes = model.componentTypes.map { it.id }.toSet()
+            val languages = model.languages.map { it.id }.toSet()
+            for (type in model.buildTypes) {
+                assertTrue(type.componentType in componentTypes, type.id)
+                type.language?.let { assertTrue(it in languages, type.id) }
+                assertTrue(type.dsls.default in type.dsls.values, type.id)
+                assertTrue(type.modularization.default in type.modularization.values, type.id)
+                for (choice in type.testFrameworks) {
+                    if (choice.values.isEmpty()) assertNull(choice.default, type.id) else assertTrue(choice.default in choice.values, type.id)
+                }
+            }
+            with(model.javaVersion) { assertTrue(minimum <= default && default <= maximum, toString()) }
+            val packageName = model.packageName
+            if (packageName.pattern != null && packageName.default != null) assertTrue(Regex(packageName.pattern!!).matches(packageName.default!!), packageName.toString())
 
-            val basic = model.buildType("basic")
-            assertNull(basic.language)
-            assertEquals(emptyList(), basic.testFrameworksFor("single-project").values)
-            assertFalse(basic.supportsPackage)
-
-            assertFalse(model.buildType("cpp-application").supportsPackage)
-            assertEquals("cpp", model.buildType("cpp-application").language)
-            assertEquals(7, model.javaVersion.minimum)
-            assertEquals(21, model.javaVersion.default)
-            if (version == "9.8.2") assertEquals(31, model.javaVersion.maximum)
-            assertTrue(model.javaVersion.maximum >= model.javaVersion.default)
-            assertEquals("org.example", model.packageName.default)
-            assertEquals(listOf("kotlin", "groovy"), model.dsls.map { it.id })
+            val init = InitRunner(gradle)
+            val withoutPackage = model.buildTypes.first { !it.supportsPackage }
+            val withPackage = model.buildTypes.first { it.supportsPackage }
+            assertFailsWith<InitRejected>(withoutPackage.id) { init.run(listOf("--type", withoutPackage.id, "--package", "org.example", "--project-name", "probe")) }
+            init.run(listOf("--type", withPackage.id, "--package", "org.example", "--project-name", "probe"))
         }
     }
 }

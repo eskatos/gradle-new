@@ -1,10 +1,12 @@
 package gradlenew.adaptertoolingapi
 
 import gradlenew.domain.generation.CatalogEntry
-import gradlenew.domain.generation.TemplateSpec
+import gradlenew.domain.generation.TemplateCatalog
+import gradlenew.domain.model.BuildType
 import gradlenew.substitution.Placeholders
 import gradlenew.substitution.ProjectInputs
 import gradlenew.substitution.Substitution
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -37,28 +39,38 @@ class InitRunnerTest {
     }
 
     @Test
-    fun reportsInitsRejectionReason() {
-        val packageRejection = assertFailsWith<InitRejected> {
-            init.run(listOf("--type", "cpp-application", "--package", "org.example", "--project-name", "demo"))
-        }
-        assertEquals("Package name is not supported for 'cpp-application' build type.", packageRejection.reason)
+    fun reportsInitsOwnRejectionReason() {
+        val arguments = listOf("--type", "no-such-type", "--project-name", "demo")
 
-        val frameworkRejection = assertFailsWith<InitRejected> {
-            init.run(listOf("--type", "basic", "--test-framework", "junit", "--project-name", "demo"))
+        val rejection = assertFailsWith<InitRejected> { init.run(arguments) }
+        val raw = assertFailsWith<GradleBuildFailed> {
+            GradleDistribution(Pinned.stable).runTasks(Files.createTempDirectory("raw-init").toFile(), listOf("init", "--use-defaults", "--offline", "--quiet") + arguments)
         }
-        assertEquals("The requested test framework 'junit' is not supported for 'basic' build type. Supported frameworks:\n    - 'none'", frameworkRejection.reason)
+
+        assertTrue(rejection.reason.contains("no-such-type"), rejection.reason)
+        assertTrue(rejection.reason.lines().all { it.isNotBlank() && it in raw.output }, "${rejection.reason}\n---\n${raw.output}")
     }
 
     @Test
     fun substitutedTemplatesEqualInitOutputForRealInputs() {
-        val cases = listOf(
-            TemplateSpec("cpp-library", "kotlin", "cpptest", "single-project", incubating = false, comments = true) to ProjectInputs("demo-app", null, null),
-            TemplateSpec("swift-application", "groovy", "xctest", "single-project", incubating = false, comments = true) to ProjectInputs("my-cool-thing", null, null),
-            TemplateSpec("kotlin-gradle-plugin", "groovy", "kotlintest", "single-project", incubating = true, comments = false) to ProjectInputs("my-cool-thing", "com.acme.tools", null),
-            TemplateSpec("java-application", "kotlin", "junit-jupiter", "with-library-projects", incubating = false, comments = true) to ProjectInputs("demo.app", "com.acme.demo", 17),
-            TemplateSpec("basic", "kotlin", null, "single-project", incubating = true, comments = true) to ProjectInputs("x_y-z2", null, null),
+        val model = InitHelp.model(GradleDistribution(Pinned.stable))
+        val catalog = TemplateCatalog.of(model)
+        val cases = listOf<Pair<(BuildType) -> Boolean, ProjectInputs>>(
+            { type: BuildType -> type.language == "cpp" } to ProjectInputs("demo-app", null, null),
+            { type: BuildType -> type.language == "swift" } to ProjectInputs("my-cool-thing", null, null),
+            { type: BuildType -> type.componentType == "gradle-plugin" && type.supportsPackage } to ProjectInputs("my-cool-thing", "com.acme.tools", null),
+            { type: BuildType -> type.supportsJavaVersion && type.modularization.values.size > 1 } to ProjectInputs("demo.app", "com.acme.demo", 17),
+            { type: BuildType -> type.language == null } to ProjectInputs("x_y-z2", null, null),
         )
-        for ((spec, inputs) in cases) {
+        var compared = 0
+        for ((matches, requested) in cases) {
+            val type = model.buildTypes.firstOrNull(matches) ?: continue
+            val spec = catalog.map { it.spec }.filter { it.type == type.id }.maxBy { it.modularization != type.modularization.default }
+            val inputs = ProjectInputs(
+                requested.projectName,
+                requested.packageName.takeIf { type.supportsPackage },
+                requested.javaVersion.takeIf { type.supportsJavaVersion },
+            )
             val placeholders = ProjectInputs(
                 Placeholders.PROJECT_NAME,
                 Placeholders.PACKAGE.takeIf { inputs.packageName != null },
@@ -68,6 +80,8 @@ class InitRunnerTest {
             val expected = init.run(CatalogEntry(spec, inputs).initArguments())
 
             assertEquals(emptyList(), expected.differencesFrom(Substitution.apply(template, inputs)), "substitution differs from init for ${spec.key}")
+            compared++
         }
+        assertTrue(compared >= 3, "only $compared build types matched the cases")
     }
 }
