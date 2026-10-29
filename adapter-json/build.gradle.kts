@@ -5,5 +5,6 @@ plugins {
 dependencies {
     api(projects.domain)
     api(projects.verification)
+    api(projects.versions)
     implementation(libs.kotlinx.serialization.json)
 }
