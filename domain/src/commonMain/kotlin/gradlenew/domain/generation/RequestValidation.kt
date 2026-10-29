@@ -31,7 +31,19 @@ object RequestValidation {
         "throw", "throws", "transient", "try", "void", "volatile", "while", "_", "true", "false", "null",
     )
 
+    val modelOptions = listOf("version")
+
     private class Rejection(message: String, val parameter: String?) : Exception(message)
+
+    fun resolveModelVersion(options: Map<String, String>, offered: OfferedVersions): ModelLookup =
+        try {
+            val resolver = Resolver(options, modelOptions)
+            resolver.checkOptions()
+            val (version, fromAlias) = resolver.version(offered)
+            ModelLookup.Found(version, immutable = !fromAlias)
+        } catch (rejection: Rejection) {
+            ModelLookup.Rejected(rejection.message!!, rejection.parameter)
+        }
 
     fun resolve(
         options: Map<String, String>,
@@ -45,7 +57,7 @@ object RequestValidation {
             Resolution.Rejected(rejection.message!!, rejection.parameter)
         }
 
-    private class Resolver(private val options: Map<String, String>) {
+    private class Resolver(private val options: Map<String, String>, private val supported: List<String> = RequestValidation.options) {
 
         fun resolve(offered: OfferedVersions, indexFor: (String) -> TemplateIndex, modelFor: (String) -> InitModel): ResolvedRequest {
             checkOptions()
@@ -71,14 +83,14 @@ object RequestValidation {
 
         private fun value(name: String): String? = options[name]?.takeIf { it.isNotEmpty() }
 
-        private fun checkOptions() {
+        fun checkOptions() {
             for ((name, value) in options) {
-                if (name !in RequestValidation.options) reject("Unknown option '$name'. Supported options:" + list(RequestValidation.options), name)
+                if (name !in supported) reject("Unknown option '$name'. Supported options:" + list(supported), name)
                 if (value.length > MAX_VALUE_LENGTH) reject("Value of option '$name' is too long (at most $MAX_VALUE_LENGTH characters).", name)
             }
         }
 
-        private fun version(offered: OfferedVersions): Pair<String, Boolean> {
+        fun version(offered: OfferedVersions): Pair<String, Boolean> {
             val offeredVersions = listOfNotNull(offered.stable, offered.rc)
             return when (val requested = value("version")) {
                 null, "stable" -> offered.stable to true

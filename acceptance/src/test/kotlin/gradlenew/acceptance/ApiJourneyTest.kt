@@ -22,6 +22,7 @@ class ApiJourneyTest {
         Target.open().use { target ->
             val offered = readOfferedVersions(target)
             val model = readModel(target, offered.stable)
+            modelByChannel(target, offered)
             val oracle = GradleOracle(offered.stable)
             compareWithGradle(model, oracle)
             generateBuilds(target, model, oracle)
@@ -29,6 +30,18 @@ class ApiJourneyTest {
             offered.rc?.let { rc -> generateApplication(target, readModel(target, rc), GradleOracle(rc), "rc") }
             templatesAreNotServed(target, model)
             target.hasShell()?.let { assertEquals(false, it, "the image has no shell") }
+        }
+    }
+
+    private fun modelByChannel(target: Target, offered: OfferedVersions) {
+        val stable = target.get("/api/model")
+        assertEquals(200, stable.statusCode())
+        assertEquals(target.get("/v/${offered.stable}/model.json").body(), stable.body(), "/api/model serves the stable channel's model")
+        val rc = target.get("/api/model?version=rc")
+        if (offered.rc == null) {
+            assertEquals(400, rc.statusCode())
+        } else {
+            assertEquals(target.get("/v/${offered.rc}/model.json").body(), rc.body(), "/api/model?version=rc serves the release candidate's model")
         }
     }
 

@@ -3,6 +3,7 @@ package gradlenew.server
 import gradlenew.adapterjson.ErrorJson
 import gradlenew.adapterzip.Zip
 import gradlenew.domain.generation.GenerationResult
+import gradlenew.domain.generation.ModelLookup
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -86,6 +87,15 @@ fun Application.gradleNew(siteDir: File, templatesDir: File, limits: RateLimits 
         get("/api/versions") {
             call.response.header(HttpHeaders.CacheControl, SHORT_LIVED)
             call.respondFile(File(siteDir, "versions.json"))
+        }
+        get("/api/model") {
+            when (val lookup = ModelLookup.resolve(call.request.queryParameters.flattenEntries(), site.offered)) {
+                is ModelLookup.Rejected -> call.respondText(ErrorJson.encode(lookup.message, lookup.parameter), ContentType.Application.Json, HttpStatusCode.BadRequest)
+                is ModelLookup.Found -> {
+                    call.response.header(HttpHeaders.CacheControl, if (lookup.immutable) IMMUTABLE else SHORT_LIVED)
+                    call.respondBytes(site.modelFile(lookup.version).readBytes(), ContentType.Application.Json)
+                }
+            }
         }
         rateLimit(GENERATE) {
             get(GENERATE_PATH) {

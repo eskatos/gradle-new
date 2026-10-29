@@ -11,6 +11,7 @@ import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class ServerTest {
 
@@ -38,6 +39,28 @@ class ServerTest {
         assertEquals("public, max-age=31536000, immutable", response.headers[HttpHeaders.CacheControl])
         assertEquals("""{"gradleVersion":"9.8.2"}""", response.bodyAsText())
         assertEquals(HttpStatusCode.NotFound, client.get("/v/9.8.1/model.json").status)
+    }
+
+    @Test
+    fun servesTheModelOfAChannelOrAVersion() = testApplication {
+        application { gradleNew(site, templates) }
+
+        val stable = client.get("/api/model")
+        assertEquals(HttpStatusCode.OK, stable.status)
+        assertEquals(ContentType.Application.Json, stable.contentType()?.withoutParameters())
+        assertEquals("public, max-age=60", stable.headers[HttpHeaders.CacheControl])
+        assertEquals("""{"gradleVersion":"9.8.2"}""", stable.bodyAsText())
+        assertEquals("""{"gradleVersion":"9.8.2"}""", client.get("/api/model?version=stable").bodyAsText())
+
+        val concrete = client.get("/api/model?version=9.8.2")
+        assertEquals("public, max-age=31536000, immutable", concrete.headers[HttpHeaders.CacheControl])
+
+        val rc = client.get("/api/model?version=rc")
+        assertEquals(HttpStatusCode.BadRequest, rc.status)
+        assertEquals(ContentType.Application.Json, rc.contentType()?.withoutParameters())
+        assertTrue(rc.bodyAsText().contains("No release candidate is currently offered."), rc.bodyAsText())
+        assertTrue(rc.bodyAsText().contains("\"parameter\": \"version\""), rc.bodyAsText())
+        assertEquals(HttpStatusCode.BadRequest, client.get("/api/model?type=basic").status)
     }
 
     @Test
