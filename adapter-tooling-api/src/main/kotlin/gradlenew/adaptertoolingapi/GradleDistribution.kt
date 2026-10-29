@@ -2,33 +2,21 @@ package gradlenew.adaptertoolingapi
 
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.minutes
 import org.gradle.tooling.BuildException
 import org.gradle.tooling.GradleConnector
 import org.gradle.tooling.ProjectConnection
-import org.gradle.tooling.internal.consumer.DefaultGradleConnector
 
 class GradleBuildFailed(val output: String, cause: Throwable) : RuntimeException("Gradle build failed:\n$output", cause)
 
 class GradleDistribution(val version: String) {
 
-    fun <T> connect(projectDir: File, searchUpwards: Boolean = true, action: (ProjectConnection) -> T): T {
-        val connector = GradleConnector.newConnector()
-            .useGradleVersion(version)
-            .forProjectDirectory(projectDir)
-        (connector as? DefaultGradleConnector)?.apply {
-            daemonMaxIdleTime(DAEMON_IDLE_MINUTES, TimeUnit.MINUTES)
-            searchUpwards(searchUpwards)
-        }
-        return connector.connect().use(action)
-    }
-
-    fun runTasks(projectDir: File, arguments: List<String>, searchUpwards: Boolean = true): String {
+    fun runTasks(projectDir: File, arguments: List<String>): String {
         val output = ByteArrayOutputStream()
-        return connect(projectDir, searchUpwards) { connection ->
+        return connect(projectDir) { connection ->
             try {
                 connection.newBuild()
-                    .withArguments(arguments)
+                    .withArguments(DAEMON_ARGUMENTS + arguments)
                     .setJvmArguments(DAEMON_JVM_ARGUMENTS)
                     .setStandardOutput(output)
                     .setStandardError(output)
@@ -40,8 +28,24 @@ class GradleDistribution(val version: String) {
         }
     }
 
+    fun <T> requestModel(projectDir: File, type: Class<T>, arguments: List<String>): T =
+        connect(projectDir) { connection ->
+            connection.model(type)
+                .withArguments(DAEMON_ARGUMENTS + arguments)
+                .setJvmArguments(DAEMON_JVM_ARGUMENTS)
+                .get()
+        }
+
+    private fun <T> connect(projectDir: File, action: (ProjectConnection) -> T): T =
+        GradleConnector.newConnector()
+            .useGradleVersion(version)
+            .forProjectDirectory(projectDir)
+            .connect()
+            .use(action)
+
     companion object {
-        private const val DAEMON_IDLE_MINUTES = 2
+        val DAEMON_IDLE_TIMEOUT = 2.minutes
+        private val DAEMON_ARGUMENTS = listOf("-Dorg.gradle.daemon.idletimeout=${DAEMON_IDLE_TIMEOUT.inWholeMilliseconds}")
         private val DAEMON_JVM_ARGUMENTS = listOf("-Xmx256m", "-XX:MaxMetaspaceSize=384m")
     }
 }

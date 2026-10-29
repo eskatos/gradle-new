@@ -13,7 +13,7 @@ class InitRunner(private val gradle: GradleDistribution) {
         val dir = Files.createTempDirectory("gradle-init").toFile()
         try {
             try {
-                gradle.runTasks(dir, listOf("init", "--use-defaults", "--offline", "--quiet") + arguments, searchUpwards = false)
+                gradle.runTasks(dir, listOf("init", "--use-defaults", "--offline", "--quiet") + arguments)
             } catch (failure: GradleBuildFailed) {
                 throw InitRejected(reasonFrom(failure.output), failure.output)
             }

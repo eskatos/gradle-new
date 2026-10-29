@@ -23,6 +23,16 @@ class GradleDistributionTest {
     }
 
     @Test
+    fun everyBuildCarriesTheDaemonIdleTimeout() {
+        val build = emptyBuild()
+        val initScript = build.resolve("print-idle-timeout.gradle.kts").apply {
+            writeText("println(\"idle-timeout=\" + System.getProperty(\"org.gradle.daemon.idletimeout\"))\n")
+        }
+        val output = GradleDistribution(Pinned.stable).runTasks(build, listOf("--init-script", initScript.absolutePath, "help", "--offline"))
+        assertTrue(output.contains("idle-timeout=${GradleDistribution.DAEMON_IDLE_TIMEOUT.inWholeMilliseconds}"), output)
+    }
+
+    @Test
     fun aFailingBuildRaisesWithItsOutput() {
         val failure = assertFailsWith<GradleBuildFailed> {
             GradleDistribution(Pinned.stable).runTasks(emptyBuild(), listOf("noSuchTask", "--quiet"))

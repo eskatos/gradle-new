@@ -14,5 +14,4 @@ object Pinned {
 fun emptyBuild(): File =
     Files.createTempDirectory("empty-build").toFile().apply {
         resolve("settings.gradle.kts").writeText("")
-        resolve("gradle.properties").writeText("org.gradle.jvmargs=-Xmx256m\norg.gradle.daemon.idletimeout=120000\n")
     }

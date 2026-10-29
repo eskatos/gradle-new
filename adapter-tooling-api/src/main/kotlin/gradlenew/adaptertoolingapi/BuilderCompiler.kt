@@ -13,7 +13,6 @@ object BuilderCompiler {
         copy.deleteRecursively()
         copySources(builderSources, copy)
         versionCatalog.copyTo(workDir.resolve("gradle/libs.versions.toml"), overwrite = true)
-        copy.resolve("gradle.properties").appendText("\norg.gradle.daemon.idletimeout=120000\n")
         gradle.runTasks(copy, listOf(":builder-plugin:jar", ":builder-api:jar", "--quiet"))
         return BuilderJars(singleJar(copy.resolve("builder-plugin/build/libs")), singleJar(copy.resolve("builder-api/build/libs")))
     }

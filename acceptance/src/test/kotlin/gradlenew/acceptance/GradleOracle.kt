@@ -44,7 +44,7 @@ class GradleOracle(version: String) {
     private fun emptyBuild(): File =
         Files.createTempDirectory("gradle-oracle").toFile().apply {
             resolve("settings.gradle.kts").writeText("")
-            resolve("gradle.properties").writeText("org.gradle.jvmargs=-Xmx256m\norg.gradle.daemon.idletimeout=120000\n")
+            resolve("gradle.properties").writeText("org.gradle.jvmargs=-Xmx256m\n")
         }
 
     companion object {
