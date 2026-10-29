@@ -6,7 +6,6 @@ import gradlenew.adaptertoolingapi.InitModelRequest
 import gradlenew.adaptertoolingapi.InitRejected
 import gradlenew.adaptertoolingapi.InitRunner
 import gradlenew.domain.generation.CatalogEntry
-import gradlenew.domain.model.OfferedVersions
 import gradlenew.verification.InitGenerator
 import gradlenew.verification.InitOutcome
 import kotlin.system.exitProcess
@@ -14,13 +13,18 @@ import kotlin.time.TimeSource
 
 fun main(args: Array<String>) {
     when (args.firstOrNull()) {
+        "publish" -> publish(args.drop(1))
+        "index" -> IndexCommand.run(args.drop(1))
         "propose" -> exitProcess(ProposeCommand().run(args.drop(1), System.out, System.err))
-        else -> publish(args)
+        else -> {
+            System.err.println("usage: publish --version <v> ... | index --stable <v> [--rc <v>] --output <dir> | propose --pin <file> [--feeds-url <url>] [--write]")
+            exitProcess(1)
+        }
     }
 }
 
-private fun publish(args: Array<String>) {
-    val arguments = Arguments.parse(args.toList())
+private fun publish(args: List<String>) {
+    val arguments = Arguments.parse(args)
     val started = TimeSource.Monotonic.markNow()
     var inits = 0
     val publisher = SitePublisher(
@@ -44,7 +48,7 @@ private fun publish(args: Array<String>) {
         templateBudgetBytes = arguments.templateBudgetBytes,
     )
     val result = publisher.publish(
-        OfferedVersions(arguments.stable, arguments.rc),
+        arguments.version,
         arguments.output,
         arguments.templatesOutput,
         arguments.reportOutput,

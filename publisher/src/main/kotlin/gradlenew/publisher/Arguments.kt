@@ -3,8 +3,7 @@ package gradlenew.publisher
 import java.io.File
 
 data class Arguments(
-    val stable: String,
-    val rc: String?,
+    val version: String,
     val builderSources: File,
     val versionCatalog: File,
     val output: File,
@@ -34,11 +33,10 @@ data class Arguments(
                 }
                 i += 2
             }
-            fun required(name: String) = requireNotNull(options[name]) { "Missing --$name" }
+            fun required(name: String) = requireNotNull(options[name]?.takeIf { it.isNotBlank() }) { "Missing --$name" }
             val budget = options["template-budget-mb"]?.let { requireNotNull(it.toLongOrNull()) { "--template-budget-mb must be a number of megabytes, got '$it'" } }
             return Arguments(
-                stable = required("stable"),
-                rc = options["rc"]?.takeIf { it.isNotBlank() },
+                version = required("version"),
                 builderSources = File(required("builder-dir")),
                 versionCatalog = File(required("catalog")),
                 output = File(required("output")),

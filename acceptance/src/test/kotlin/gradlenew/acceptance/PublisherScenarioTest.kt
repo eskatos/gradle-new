@@ -4,7 +4,6 @@ import gradlenew.adapterjson.InitModelJson
 import gradlenew.adapterjson.ProposalsJson
 import gradlenew.adapterjson.TemplateIndexJson
 import gradlenew.adapterjson.VerificationReportJson
-import gradlenew.adapterjson.VersionsJson
 import gradlenew.domain.generation.TemplateCatalog
 import gradlenew.domain.model.InitModel
 import gradlenew.verification.Check
@@ -148,7 +147,7 @@ class PublisherScenarioTest {
         assertTrue(report.checks.all { it.outcome == Outcome.PASSED }, report.toString())
         assertEquals(emptyList(), report.javaEnumeratedTypes)
 
-        assertEquals(stable, VersionsJson.decode(run.site.resolve("versions.json").readText()).stable)
+        assertEquals(listOf("v"), run.site.list()!!.toList())
         val model = InitModelJson.decode(run.site.resolve("v/$stable/model.json").readText())
         val expectedKeys = TemplateCatalog.of(model).map { "${it.spec.key}.zip" }.toSet()
         assertEquals(expectedKeys, run.templateKeys())
@@ -207,7 +206,7 @@ class PublisherScenarioTest {
     private fun publish(name: String, initScript: String? = null, budgetMegabytes: Int? = null): PublisherRun {
         val dir = workRoot.resolve(name)
         val arguments = buildList {
-            addAll(listOf("--stable", stable, "--rc", ""))
+            addAll(listOf("publish", "--version", stable))
             addAll(listOf("--builder-dir", builderSources, "--catalog", versionCatalog))
             addAll(listOf("--output", dir.resolve("site").path, "--templates-output", dir.resolve("templates").path))
             addAll(listOf("--report-output", dir.resolve("report").path, "--work-dir", dir.resolve("work").path))

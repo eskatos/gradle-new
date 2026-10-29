@@ -3,11 +3,9 @@ package gradlenew.publisher
 import gradlenew.adapterjson.InitModelJson
 import gradlenew.adapterjson.TemplateIndexJson
 import gradlenew.adapterjson.VerificationReportJson
-import gradlenew.adapterjson.VersionsJson
 import gradlenew.adapterzip.Zip
 import gradlenew.domain.generation.TemplateIndex
 import gradlenew.domain.model.InitModel
-import gradlenew.domain.model.OfferedVersions
 import gradlenew.verification.Check
 import gradlenew.verification.CheckResult
 import gradlenew.verification.InitGenerator
@@ -29,31 +27,21 @@ class SitePublisher(
     private val templateBudgetBytes: Long,
 ) {
 
-    fun publish(versions: OfferedVersions, output: File, templatesOutput: File, reportOutput: File, workDir: File): PublishResult {
+    fun publish(version: String, output: File, templatesOutput: File, reportOutput: File, workDir: File): PublishResult {
         val staging = workDir.resolve("staging")
         for (dir in listOf(output, templatesOutput, reportOutput, staging)) {
             dir.deleteRecursively()
             dir.mkdirs()
         }
-        val reports = listOfNotNull(versions.stable, versions.rc).map { version -> verify(version, staging.resolve(version)) }
-        val report = VerificationReport(reports)
-        val stablePassed = report.version(versions.stable).passed
-        if (stablePassed) {
-            val published = OfferedVersions(versions.stable, versions.rc?.takeIf { report.version(it).passed })
-            for (version in listOfNotNull(published.stable, published.rc)) {
-                move(staging.resolve("$version/site"), output.resolve("v/$version"))
-                move(staging.resolve("$version/templates"), templatesOutput.resolve(version))
-            }
-            output.resolve("versions.json").writeText(VersionsJson.encode(published) + "\n")
+        val versionReport = verify(version, staging)
+        if (versionReport.passed) {
+            move(staging.resolve("site"), output.resolve("v/$version"))
+            move(staging.resolve("templates"), templatesOutput.resolve(version))
         }
         staging.deleteRecursively()
+        val report = VerificationReport(listOf(versionReport))
         reportOutput.resolve("verification-report.json").writeText(VerificationReportJson.encode(report) + "\n")
-        val exitCode = when {
-            !stablePassed -> 1
-            !report.passed -> 2
-            else -> 0
-        }
-        return PublishResult(exitCode, report, report.summary())
+        return PublishResult(if (versionReport.passed) 0 else 1, report, report.summary())
     }
 
     private fun verify(version: String, staging: File): VersionReport {

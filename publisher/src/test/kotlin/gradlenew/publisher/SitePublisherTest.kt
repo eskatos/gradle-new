@@ -3,7 +3,6 @@ package gradlenew.publisher
 import gradlenew.adapterjson.InitModelJson
 import gradlenew.adapterjson.TemplateIndexJson
 import gradlenew.adapterjson.VerificationReportJson
-import gradlenew.adapterjson.VersionsJson
 import gradlenew.adapterzip.Zip
 import gradlenew.domain.generation.TemplateCatalog
 import gradlenew.domain.generation.TemplateIndex
@@ -15,7 +14,6 @@ import gradlenew.domain.model.InitModel
 import gradlenew.domain.model.JavaVersionParameter
 import gradlenew.domain.model.Language
 import gradlenew.domain.model.ModularizationOption
-import gradlenew.domain.model.OfferedVersions
 import gradlenew.domain.model.TestFramework
 import gradlenew.domain.model.TestFrameworkChoice
 import gradlenew.domain.model.TextParameter
@@ -91,58 +89,45 @@ class SitePublisherTest {
         budgetBytes: Long = Long.MAX_VALUE,
     ) = SitePublisher(modelFor, initFor, budgetBytes)
 
-    private fun publish(publisher: SitePublisher, versions: OfferedVersions) =
-        publisher.publish(versions, output, templatesOutput, reportOutput, workDir)
+    private fun publish(publisher: SitePublisher, version: String) =
+        publisher.publish(version, output, templatesOutput, reportOutput, workDir)
 
     @Test
-    fun publishesEveryVersionThatPassesAndExitsZero() {
-        val result = publish(publisher(), OfferedVersions("9.8.2", "9.9.0-rc-1"))
+    fun publishesAVersionThatPassesAndExitsZero() {
+        val result = publish(publisher(), "9.9.0-rc-1")
 
         assertEquals(0, result.exitCode)
-        assertEquals(OfferedVersions("9.8.2", "9.9.0-rc-1"), VersionsJson.decode(output.resolve("versions.json").readText()))
         assertEquals(model("9.9.0-rc-1"), InitModelJson.decode(output.resolve("v/9.9.0-rc-1/model.json").readText()))
-        val keys = TemplateCatalog.of(model("9.8.2")).map { "${it.spec.key}.zip" }.toSet()
-        assertEquals(keys + "index.json", templatesOutput.resolve("9.8.2").list()!!.toSet())
-        assertEquals(TemplateIndex.NONE, TemplateIndexJson.decode(templatesOutput.resolve("9.8.2/index.json").readText()))
+        assertEquals(listOf("v"), output.list()!!.toList())
+        val keys = TemplateCatalog.of(model("9.9.0-rc-1")).map { "${it.spec.key}.zip" }.toSet()
+        assertEquals(keys + "index.json", templatesOutput.resolve("9.9.0-rc-1").list()!!.toSet())
+        assertEquals(TemplateIndex.NONE, TemplateIndexJson.decode(templatesOutput.resolve("9.9.0-rc-1/index.json").readText()))
         val key = "basic.groovy.none.single-project.no-incubating.comments"
-        assertEquals(files(TemplateCatalog.of(model("9.8.2")).first { it.spec.key == key }.placeholders), Zip.read(templatesOutput.resolve("9.8.2/$key.zip").readBytes()))
+        assertEquals(files(TemplateCatalog.of(model("9.9.0-rc-1")).first { it.spec.key == key }.placeholders), Zip.read(templatesOutput.resolve("9.9.0-rc-1/$key.zip").readBytes()))
         assertTrue(output.walkTopDown().none { it.extension == "zip" })
         val report = VerificationReportJson.decode(reportOutput.resolve("verification-report.json").readText())
-        assertEquals(listOf("9.8.2", "9.9.0-rc-1"), report.passedVersions)
-        assertTrue(result.summary.contains("Gradle 9.8.2: passed"), result.summary)
+        assertEquals(listOf("9.9.0-rc-1"), report.passedVersions)
+        assertTrue(result.summary.contains("Gradle 9.9.0-rc-1: passed"), result.summary)
     }
 
     @Test
-    fun publishesTheStableAloneAndExitsTwoWhenOnlyTheRcFails() {
-        val result = publish(publisher(initFor = { version -> if (version == "9.9.0-rc-1") nondeterministic() else clean }), OfferedVersions("9.8.2", "9.9.0-rc-1"))
-
-        assertEquals(2, result.exitCode)
-        assertEquals(OfferedVersions("9.8.2", null), VersionsJson.decode(output.resolve("versions.json").readText()))
-        assertEquals(listOf("9.8.2"), output.resolve("v").list()!!.toList())
-        assertEquals(listOf("9.8.2"), templatesOutput.list()!!.toList())
-        val report = VerificationReportJson.decode(reportOutput.resolve("verification-report.json").readText())
-        assertEquals(Outcome.FAILED, report.version("9.9.0-rc-1").check(Check.DETERMINISM)!!.outcome)
-    }
-
-    @Test
-    fun publishesNothingAndExitsOneWhenTheStableFails() {
+    fun publishesNothingAndExitsOneWhenTheVersionFails() {
         output.resolve("v/old").mkdirs()
-        output.resolve("versions.json").writeText("stale")
         templatesOutput.resolve("old").mkdirs()
 
-        val result = publish(publisher(initFor = { version -> if (version == "9.8.2") nondeterministic() else clean }), OfferedVersions("9.8.2", "9.9.0-rc-1"))
+        val result = publish(publisher(initFor = { nondeterministic() }), "9.8.2")
 
         assertEquals(1, result.exitCode)
         assertFalse(output.walkTopDown().any { it.isFile || it.name == "old" }, output.walkTopDown().toList().toString())
         assertFalse(templatesOutput.walkTopDown().any { it.isFile || it.name == "old" })
         val report = VerificationReportJson.decode(reportOutput.resolve("verification-report.json").readText())
-        assertEquals(listOf("9.9.0-rc-1"), report.passedVersions)
+        assertEquals(Outcome.FAILED, report.version("9.8.2").check(Check.DETERMINISM)!!.outcome)
         assertTrue(result.summary.contains("Gradle 9.8.2: FAILED"), result.summary)
     }
 
     @Test
     fun reportsAModelThatCouldNotBeObtainedUnderTheModelCheck() {
-        val result = publish(publisher(modelFor = { error("builder-plugin did not compile") }), OfferedVersions("9.8.2", null))
+        val result = publish(publisher(modelFor = { error("builder-plugin did not compile") }), "9.8.2")
 
         assertEquals(1, result.exitCode)
         val model = VerificationReportJson.decode(reportOutput.resolve("verification-report.json").readText()).version("9.8.2").check(Check.MODEL)!!
@@ -151,7 +136,7 @@ class SitePublisherTest {
 
     @Test
     fun refusesAModelForAnotherVersion() {
-        val result = publish(publisher(modelFor = { model("9.8.1") }), OfferedVersions("9.8.2", null))
+        val result = publish(publisher(modelFor = { model("9.8.1") }), "9.8.2")
 
         assertEquals(1, result.exitCode)
         val model = VerificationReportJson.decode(reportOutput.resolve("verification-report.json").readText()).version("9.8.2").check(Check.MODEL)!!
@@ -165,7 +150,7 @@ class SitePublisherTest {
             InitOutcome.Generated(files(inputs, comment))
         }
 
-        val result = publish(publisher(initFor = { javaInComment }), OfferedVersions("9.8.2", null))
+        val result = publish(publisher(initFor = { javaInComment }), "9.8.2")
 
         assertEquals(0, result.exitCode, result.summary)
         assertEquals(TemplateIndex(setOf("groovy-library")), TemplateIndexJson.decode(templatesOutput.resolve("9.8.2/index.json").readText()))
@@ -176,7 +161,7 @@ class SitePublisherTest {
 
     @Test
     fun failsTheVersionOverTheBudget() {
-        val result = publish(publisher(budgetBytes = 10), OfferedVersions("9.8.2", null))
+        val result = publish(publisher(budgetBytes = 10), "9.8.2")
 
         assertEquals(1, result.exitCode)
         assertFalse(templatesOutput.walkTopDown().any { it.isFile })
@@ -184,7 +169,7 @@ class SitePublisherTest {
 
     @Test
     fun leavesNoStagingBehind() {
-        publish(publisher(), OfferedVersions("9.8.2", null))
+        publish(publisher(), "9.8.2")
 
         assertFalse(workDir.resolve("staging").exists())
     }
