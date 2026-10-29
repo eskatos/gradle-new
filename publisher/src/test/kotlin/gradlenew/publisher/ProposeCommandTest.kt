@@ -3,6 +3,7 @@ package gradlenew.publisher
 import gradlenew.adapterfeeds.FeedUnavailable
 import gradlenew.adapterfeeds.RawFeeds
 import gradlenew.adapterjson.ProposalsJson
+import gradlenew.versions.Checksums
 import gradlenew.versions.Pin
 import gradlenew.versions.Proposal
 import gradlenew.versions.Slot
@@ -18,8 +19,10 @@ class ProposeCommandTest {
 
     private val dir = Files.createTempDirectory("propose").toFile()
     private val pinFile = dir.resolve("offered-gradle-versions.properties").apply { writeText("stable=9.8.2\nrc=\n") }
-    private val final990 = """{ "version" : "9.9.0", "activeRc" : false, "rcFor" : "", "broken" : false }"""
-    private val rc9100 = """{ "version" : "9.10.0-rc-1", "activeRc" : true, "rcFor" : "9.10.0", "broken" : false }"""
+    private val stable990 = Checksums("1".repeat(64), "2".repeat(64))
+    private val rc9100Checksums = Checksums("3".repeat(64), "4".repeat(64))
+    private val final990 = """{ "version" : "9.9.0", "activeRc" : false, "rcFor" : "", "broken" : false, "checksum" : "${stable990.distribution}", "wrapperChecksum" : "${stable990.wrapper}" }"""
+    private val rc9100 = """{ "version" : "9.10.0-rc-1", "activeRc" : true, "rcFor" : "9.10.0", "broken" : false, "checksum" : "${rc9100Checksums.distribution}", "wrapperChecksum" : "${rc9100Checksums.wrapper}" }"""
 
     private class Run(val exitCode: Int, val stdout: String, val stderr: String)
 
@@ -37,8 +40,8 @@ class ProposeCommandTest {
         assertEquals(0, run.exitCode, run.stderr)
         assertEquals(
             listOf(
-                Proposal(Slot.STABLE, "Offer Gradle 9.9.0", Pin("9.9.0", null)),
-                Proposal(Slot.RC, "Offer Gradle 9.10.0-rc-1", Pin("9.8.2", "9.10.0-rc-1")),
+                Proposal(Slot.STABLE, "Offer Gradle 9.9.0", Pin("9.9.0", null, stable990)),
+                Proposal(Slot.RC, "Offer Gradle 9.10.0-rc-1", Pin("9.8.2", "9.10.0-rc-1", null, rc9100Checksums)),
             ),
             ProposalsJson.decode(run.stdout),
         )
@@ -50,7 +53,7 @@ class ProposeCommandTest {
         val run = propose(listOf("--pin", pinFile.path, "--write")) { RawFeeds(final990, rc9100) }
 
         assertEquals(0, run.exitCode, run.stderr)
-        assertEquals("stable=9.9.0\nrc=9.10.0-rc-1\n", pinFile.readText())
+        assertEquals(Pin("9.9.0", "9.10.0-rc-1", stable990, rc9100Checksums), PinFile.read(pinFile), "the written pin carries the feeds' checksums")
     }
 
     @Test

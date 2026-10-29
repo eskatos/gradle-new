@@ -1,5 +1,6 @@
 package gradlenew.publisher
 
+import gradlenew.versions.Checksums
 import gradlenew.versions.Pin
 import java.nio.file.Files
 import kotlin.test.Test
@@ -21,11 +22,35 @@ class PinFileTest {
     }
 
     @Test
-    fun writesExactlyTwoLinesWithoutATimestamp() {
-        PinFile.write(file, Pin("9.9.0", "9.10.0-rc-1"))
-        assertEquals("stable=9.9.0\nrc=9.10.0-rc-1\n", file.readText())
+    fun readsTheChecksumsOfEachSlot() {
+        file.writeText("stable=9.8.2\nstable.distribution-sha256=${"1".repeat(64)}\nstable.wrapper-sha256=${"2".repeat(64)}\nrc=9.9.0-rc-1\nrc.distribution-sha256=${"3".repeat(64)}\nrc.wrapper-sha256=${"4".repeat(64)}\n")
+        assertEquals(Pin("9.8.2", "9.9.0-rc-1", Checksums("1".repeat(64), "2".repeat(64)), Checksums("3".repeat(64), "4".repeat(64))), PinFile.read(file))
+        file.writeText("stable=9.8.2\nstable.distribution-sha256=\nstable.wrapper-sha256=\nrc=\nrc.distribution-sha256=\nrc.wrapper-sha256=\n")
+        assertEquals(Pin("9.8.2", null), PinFile.read(file))
+    }
+
+    @Test
+    fun writesSixLinesInAFixedOrderWithoutATimestamp() {
+        PinFile.write(file, Pin("9.9.0", "9.10.0-rc-1", Checksums("1".repeat(64), "2".repeat(64)), Checksums("3".repeat(64), "4".repeat(64))))
+        assertEquals(
+            "stable=9.9.0\nstable.distribution-sha256=${"1".repeat(64)}\nstable.wrapper-sha256=${"2".repeat(64)}\n" +
+                "rc=9.10.0-rc-1\nrc.distribution-sha256=${"3".repeat(64)}\nrc.wrapper-sha256=${"4".repeat(64)}\n",
+            file.readText(),
+        )
         PinFile.write(file, Pin("9.9.0", null))
-        assertEquals("stable=9.9.0\nrc=\n", file.readText())
+        assertEquals("stable=9.9.0\nstable.distribution-sha256=\nstable.wrapper-sha256=\nrc=\nrc.distribution-sha256=\nrc.wrapper-sha256=\n", file.readText())
+    }
+
+    @Test
+    fun rejectsHalfPinnedChecksumsAndMalformedDigests() {
+        for (content in listOf(
+            "stable=9.8.2\nstable.distribution-sha256=${"1".repeat(64)}\n",
+            "stable=9.8.2\nstable.distribution-sha256=abc\nstable.wrapper-sha256=${"2".repeat(64)}\n",
+            "stable=9.8.2\nrc=\nrc.distribution-sha256=${"3".repeat(64)}\nrc.wrapper-sha256=${"4".repeat(64)}\n",
+        )) {
+            file.writeText(content)
+            assertFailsWith<IllegalArgumentException>(content) { PinFile.read(file) }
+        }
     }
 
     @Test
