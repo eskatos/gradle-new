@@ -60,6 +60,9 @@ public abstract class NativeImageServerPlugin implements Plugin<Project> {
                 task.from(assembleSite, copy -> copy.into("site"));
             });
 
+        OfferedVersions offered = OfferedVersions.of(project);
+        Provider<String> gitState = project.getProviders().of(GitStateValueSource.class, source ->
+            source.getParameters().getRepository().set(project.getLayout().getSettingsDirectory()));
         TaskProvider<BuildContainerImageTask> buildImage = project.getTasks()
             .register("buildImage", BuildContainerImageTask.class, task -> {
                 task.setGroup("build");
@@ -69,6 +72,10 @@ public abstract class NativeImageServerPlugin implements Plugin<Project> {
                 task.getRepository().set("gradlenew/" + project.getName());
                 task.getTool().set(ContainerTool.detect(project.getProviders()));
                 task.getImageReferenceFile().set(project.getLayout().getBuildDirectory().file("image/image-ref.txt"));
+                task.getOfferedVersionsTag().set(offered.stable().orElse("unpinned").zip(offered.rc().orElse(""),
+                    (stable, rc) -> rc.isEmpty() ? stable : stable + "_" + rc));
+                task.getCommit().set(gitState.map(state -> state.replace(GitStateValueSource.DIRTY, "")).filter(commit -> !commit.isEmpty()));
+                task.getDirty().set(gitState.map(state -> state.isEmpty() || state.endsWith(GitStateValueSource.DIRTY)));
             });
 
         project.getConfigurations().consumable("imageElements", configuration -> {

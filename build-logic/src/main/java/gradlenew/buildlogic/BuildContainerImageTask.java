@@ -16,6 +16,7 @@ import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputDirectory;
+import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
@@ -37,6 +38,16 @@ public abstract class BuildContainerImageTask extends DefaultTask {
     @Input
     public abstract Property<String> getTool();
 
+    @Input
+    public abstract Property<String> getOfferedVersionsTag();
+
+    @Input
+    @Optional
+    public abstract Property<String> getCommit();
+
+    @Input
+    public abstract Property<Boolean> getDirty();
+
     @OutputFile
     public abstract RegularFileProperty getImageReferenceFile();
 
@@ -46,7 +57,14 @@ public abstract class BuildContainerImageTask extends DefaultTask {
     @TaskAction
     public void build() throws IOException {
         Path context = getContextDirectory().get().getAsFile().toPath();
-        String reference = getRepository().get() + ":" + contentHash(context, getMainClass().get());
+        StringBuilder tag = new StringBuilder(getOfferedVersionsTag().get());
+        if (getCommit().isPresent()) {
+            tag.append('-').append(getCommit().get());
+        }
+        if (getDirty().get() || !getCommit().isPresent()) {
+            tag.append("-dirty-").append(contentHash(context, getMainClass().get()));
+        }
+        String reference = getRepository().get() + ":" + tag;
         getExecOperations().exec(exec -> exec.commandLine(
             getTool().get(), "build", "--quiet",
             "--build-arg", "MAIN_CLASS=" + getMainClass().get(),

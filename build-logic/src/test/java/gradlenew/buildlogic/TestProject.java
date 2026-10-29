@@ -72,6 +72,12 @@ final class TestProject {
         return runner(arguments).buildAndFail();
     }
 
+    BuildResult runWithEnvironment(java.util.Map<String, String> environment, String... arguments) {
+        java.util.Map<String, String> merged = new java.util.HashMap<>(System.getenv());
+        merged.putAll(environment);
+        return runner(arguments).withEnvironment(merged).build();
+    }
+
     private GradleRunner runner(String... arguments) {
         return GradleRunner.create()
             .withProjectDir(dir.toFile())
