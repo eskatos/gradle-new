@@ -81,5 +81,29 @@ class BuildGenerationTest {
         assertEquals("No template 'basic.kotlin.none.single-project.no-incubating.comments' was published for Gradle 9.8.2", failure.message)
     }
 
+    @Test
+    fun selectsAnEnumeratedTemplateByJavaVersionAndKeepsItsJavaVersion() {
+        val enumeratedTemplate = FileSet.of(
+            text("settings.gradle", "rootProject.name = 'zqxproj-name'"),
+            text("lib/build.gradle", "languageVersion = JavaLanguageVersion.of(17)\n// targets Java 17"),
+        )
+        val keys = mutableListOf<String>()
+        val enumerated = BuildGeneration(OfferedVersions("9.8.2", null), { gradle982Model }, indexes = { TemplateIndex(setOf("groovy-library")) }) { version, key ->
+            keys += key
+            enumeratedTemplate.takeIf { version == "9.8.2" }
+        }
+
+        val result = enumerated.generate(mapOf("type" to "groovy-library", "project-name" to "demo", "java-version" to "17"))
+
+        assertEquals(listOf("groovy-library.groovy.spock.single-project.no-incubating.comments.java17"), keys)
+        assertEquals(
+            FileSet.of(
+                text("demo/settings.gradle", "rootProject.name = 'demo'"),
+                text("demo/lib/build.gradle", "languageVersion = JavaLanguageVersion.of(17)\n// targets Java 17"),
+            ),
+            assertIs<GenerationResult.Generated>(result).files,
+        )
+    }
+
     private fun text(path: String, content: String) = FileEntry(path, content.encodeToByteArray(), false)
 }

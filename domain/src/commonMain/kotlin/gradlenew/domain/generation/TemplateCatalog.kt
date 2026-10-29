@@ -12,15 +12,17 @@ data class TemplateSpec(
     val modularization: String,
     val incubating: Boolean,
     val comments: Boolean,
+    val javaVersion: Int? = null,
 ) {
     val key: String
-        get() = listOf(
+        get() = listOfNotNull(
             type,
             dsl,
             testFramework ?: NO_TEST_FRAMEWORK,
             modularization,
             if (incubating) "incubating" else "no-incubating",
             if (comments) "comments" else "no-comments",
+            javaVersion?.let { "java$it" },
         ).joinToString(".")
 
     companion object {
@@ -44,9 +46,27 @@ data class CatalogEntry(val spec: TemplateSpec, val placeholders: ProjectInputs)
     }
 }
 
+data class TemplateIndex(val javaEnumeratedTypes: Set<String>) {
+    companion object {
+        val NONE = TemplateIndex(emptySet())
+    }
+}
+
 object TemplateCatalog {
 
-    fun of(model: InitModel): List<CatalogEntry> = model.buildTypes.flatMap { type -> entries(type) }
+    fun of(model: InitModel, javaEnumeratedTypes: Set<String> = emptySet()): List<CatalogEntry> {
+        for (id in javaEnumeratedTypes) {
+            require(model.buildTypes.any { it.id == id && it.supportsJavaVersion }) { "Build type '$id' does not take a Java version to enumerate" }
+        }
+        val javaVersions = model.javaVersion.minimum..model.javaVersion.maximum
+        return model.buildTypes.flatMap { type ->
+            val entries = entries(type)
+            if (type.id !in javaEnumeratedTypes) entries
+            else entries.flatMap { entry ->
+                javaVersions.map { version -> CatalogEntry(entry.spec.copy(javaVersion = version), entry.placeholders.copy(javaVersion = version)) }
+            }
+        }
+    }
 
     fun placeholdersFor(type: BuildType) = ProjectInputs(
         projectName = Placeholders.PROJECT_NAME,

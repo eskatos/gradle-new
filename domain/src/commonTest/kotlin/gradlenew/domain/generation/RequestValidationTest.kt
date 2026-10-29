@@ -200,14 +200,39 @@ class RequestValidationTest {
         )
     }
 
-    private fun accepted(vararg options: Pair<String, String>, offered: OfferedVersions = stableOnly, model: InitModel = gradle982Model): ResolvedRequest =
-        when (val resolution = RequestValidation.resolve(mapOf(*options), offered) { if (it == rcModel.gradleVersion) rcModel else model }) {
+    @Test
+    fun selectsTheTemplateForTheRequestedJavaVersionOfAnEnumeratedType() {
+        val request = accepted("type" to "groovy-library", "project-name" to "p", "java-version" to "17", index = groovyEnumerated)
+
+        assertEquals(TemplateSpec("groovy-library", "groovy", "spock", "single-project", incubating = false, comments = true, javaVersion = 17), request.spec)
+        assertEquals(ProjectInputs("p", "org.example", null), request.inputs)
+        assertEquals(21, accepted("type" to "groovy-library", "project-name" to "p", index = groovyEnumerated).spec.javaVersion)
+        assertEquals(null, accepted("type" to "java-library", "project-name" to "p", "java-version" to "17", index = groovyEnumerated).spec.javaVersion)
+    }
+
+    @Test
+    fun rejectsAJavaVersionOutsideTheRangeOfAnEnumeratedType() {
+        assertEquals(
+            "Target Java version: '32' is not offered for 'groovy-library' build type - it must be between 7 and 31.",
+            rejected("type" to "groovy-library", "project-name" to "p", "java-version" to "32", index = groovyEnumerated),
+        )
+        assertEquals(
+            "Target Java version: '6' is not a supported target version. It must be equal to or greater than 7",
+            rejected("type" to "groovy-library", "project-name" to "p", "java-version" to "6", index = groovyEnumerated),
+        )
+        assertEquals(32, accepted("type" to "java-library", "project-name" to "p", "java-version" to "32", index = groovyEnumerated).inputs.javaVersion)
+    }
+
+    private val groovyEnumerated = TemplateIndex(setOf("groovy-library"))
+
+    private fun accepted(vararg options: Pair<String, String>, offered: OfferedVersions = stableOnly, model: InitModel = gradle982Model, index: TemplateIndex = TemplateIndex.NONE): ResolvedRequest =
+        when (val resolution = RequestValidation.resolve(mapOf(*options), offered, { index }) { if (it == rcModel.gradleVersion) rcModel else model }) {
             is Resolution.Accepted -> resolution.request
             is Resolution.Rejected -> fail("Expected acceptance of ${options.toList()}, got: ${resolution.message}")
         }
 
-    private fun rejected(vararg options: Pair<String, String>, offered: OfferedVersions = stableOnly, model: InitModel = gradle982Model): String =
-        when (val resolution = RequestValidation.resolve(mapOf(*options), offered) { if (it == rcModel.gradleVersion) rcModel else model }) {
+    private fun rejected(vararg options: Pair<String, String>, offered: OfferedVersions = stableOnly, model: InitModel = gradle982Model, index: TemplateIndex = TemplateIndex.NONE): String =
+        when (val resolution = RequestValidation.resolve(mapOf(*options), offered, { index }) { if (it == rcModel.gradleVersion) rcModel else model }) {
             is Resolution.Accepted -> fail("Expected rejection of ${options.toList()}, got: ${resolution.request}")
             is Resolution.Rejected -> resolution.message
         }

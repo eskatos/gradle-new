@@ -17,6 +17,7 @@ sealed interface GenerationResult {
 class BuildGeneration(
     private val offered: OfferedVersions,
     private val models: (String) -> InitModel,
+    private val indexes: (String) -> TemplateIndex = { TemplateIndex.NONE },
     private val templates: TemplateSource,
 ) {
     fun generate(parameters: List<Pair<String, String>>): GenerationResult {
@@ -26,7 +27,7 @@ class BuildGeneration(
     }
 
     fun generate(options: Map<String, String>): GenerationResult =
-        when (val resolution = RequestValidation.resolve(options, offered, models)) {
+        when (val resolution = RequestValidation.resolve(options, offered, indexes, models)) {
             is Resolution.Rejected -> GenerationResult.Rejected(resolution.message)
             is Resolution.Accepted -> generate(resolution.request)
         }

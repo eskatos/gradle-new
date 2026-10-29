@@ -82,5 +82,8 @@ class VerificationTest {
         }.verify(model)
 
         assertEquals(listOf("groovy-library"), report.javaEnumeratedTypes)
+        assertTrue(report.passed, report.toString())
+        assertEquals(TemplateCatalog.of(model, setOf("groovy-library")), written)
+        assertEquals((7..31).toSet(), written.filter { it.spec.type == "groovy-library" }.map { it.spec.javaVersion }.toSet())
     }
 }

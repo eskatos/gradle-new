@@ -67,8 +67,29 @@ class TemplateCatalogTest {
     }
 
     @Test
-    fun everyKeyHasSixSegments() {
+    fun everyKeyOfASubstitutedTypeHasSixSegments() {
         assertTrue(catalog.all { it.spec.key.split('.').size == 6 }, catalog.map { it.spec.key }.toString())
+    }
+
+    @Test
+    fun enumeratesTheJavaRangeForEnumeratedTypes() {
+        val enumerated = TemplateCatalog.of(gradle982Model, setOf("groovy-library"))
+        val groovy = enumerated.filter { it.spec.type == "groovy-library" }
+
+        assertEquals(catalog.count { it.spec.type == "groovy-library" } * 25, groovy.size)
+        assertEquals((7..31).toSet(), groovy.map { it.spec.javaVersion }.toSet())
+        assertTrue(groovy.all { it.placeholders.javaVersion == it.spec.javaVersion && it.spec.key.endsWith(".java${it.spec.javaVersion}") })
+        assertEquals(groovy.size, groovy.map { it.spec.key }.toSet().size)
+        assertEquals(catalog.filter { it.spec.type != "groovy-library" }, enumerated.filter { it.spec.type != "groovy-library" })
+        val java17 = groovy.first { it.spec.javaVersion == 17 }
+        assertEquals(listOf("--java-version", "17"), java17.initArguments().takeLast(2))
+        assertEquals(ProjectInputs(Placeholders.PROJECT_NAME, Placeholders.PACKAGE, 17), java17.placeholders)
+    }
+
+    @Test
+    fun enumeratesOnlyTypesThatTakeAJavaVersion() {
+        kotlin.test.assertFailsWith<IllegalArgumentException> { TemplateCatalog.of(gradle982Model, setOf("cpp-application")) }
+        kotlin.test.assertFailsWith<IllegalArgumentException> { TemplateCatalog.of(gradle982Model, setOf("no-such-type")) }
     }
 
     private fun entry(type: String) = catalog.first { it.spec.type == type }

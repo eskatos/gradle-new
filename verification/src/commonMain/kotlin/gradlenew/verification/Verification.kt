@@ -28,7 +28,7 @@ class Verification(private val init: InitGenerator, private val sink: TemplateSi
         val inspected = mutableListOf<Pair<CatalogEntry, FileSet>>()
         var totalBytes = 0L
         val hygieneFailures = mutableListOf<Failure>()
-        for (entry in TemplateCatalog.of(model)) {
+        for (entry in TemplateCatalog.of(model, java.enumeratedTypes.toSet())) {
             val files = generations.cachedOrFresh(entry) ?: continue
             hygieneFailures += hygieneOf(model, entry, files)
             inspected += entry to files

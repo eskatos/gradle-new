@@ -33,21 +33,27 @@ object RequestValidation {
 
     private class Rejection(message: String) : Exception(message)
 
-    fun resolve(options: Map<String, String>, offered: OfferedVersions, modelFor: (String) -> InitModel): Resolution =
+    fun resolve(
+        options: Map<String, String>,
+        offered: OfferedVersions,
+        indexFor: (String) -> TemplateIndex = { TemplateIndex.NONE },
+        modelFor: (String) -> InitModel,
+    ): Resolution =
         try {
-            Resolution.Accepted(Resolver(options).resolve(offered, modelFor))
+            Resolution.Accepted(Resolver(options).resolve(offered, indexFor, modelFor))
         } catch (rejection: Rejection) {
             Resolution.Rejected(rejection.message!!)
         }
 
     private class Resolver(private val options: Map<String, String>) {
 
-        fun resolve(offered: OfferedVersions, modelFor: (String) -> InitModel): ResolvedRequest {
+        fun resolve(offered: OfferedVersions, indexFor: (String) -> TemplateIndex, modelFor: (String) -> InitModel): ResolvedRequest {
             checkOptions()
             val (version, fromAlias) = version(offered)
             val model = modelFor(version)
             val type = type(model)
-            val javaVersion = javaVersion(model, type)
+            val enumerated = type.id in indexFor(version).javaEnumeratedTypes
+            val javaVersion = javaVersion(model, type, enumerated)
             val projectName = projectName(type)
             val modularization = modularization(type)
             val dsl = dsl(model, type)
@@ -58,8 +64,8 @@ object RequestValidation {
             return ResolvedRequest(
                 version = version,
                 fromAlias = fromAlias,
-                spec = TemplateSpec(type.id, dsl, testFramework, modularization, incubating, comments),
-                inputs = ProjectInputs(projectName, packageName, javaVersion),
+                spec = TemplateSpec(type.id, dsl, testFramework, modularization, incubating, comments, javaVersion.takeIf { enumerated }),
+                inputs = ProjectInputs(projectName, packageName, javaVersion.takeUnless { enumerated }),
             )
         }
 
@@ -88,12 +94,15 @@ object RequestValidation {
                 ?: reject("The requested build type '$requested' is not supported. Supported types:" + list(model.buildTypes.map { it.id }.sorted()))
         }
 
-        private fun javaVersion(model: InitModel, type: BuildType): Int? {
+        private fun javaVersion(model: InitModel, type: BuildType, enumerated: Boolean): Int? {
             if (!type.supportsJavaVersion) return null
             val requested = value("java-version") ?: return model.javaVersion.default
             val parsed = requested.toIntOrNull() ?: reject("Invalid target Java version '$requested'. The version must be an integer.")
             if (parsed < model.javaVersion.minimum) {
                 reject("Target Java version: '$requested' is not a supported target version. It must be equal to or greater than ${model.javaVersion.minimum}")
+            }
+            if (enumerated && parsed > model.javaVersion.maximum) {
+                reject("Target Java version: '$requested' is not offered for '${type.id}' build type - it must be between ${model.javaVersion.minimum} and ${model.javaVersion.maximum}.")
             }
             return parsed
         }
