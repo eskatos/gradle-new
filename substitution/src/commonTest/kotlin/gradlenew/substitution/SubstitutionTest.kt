@@ -18,6 +18,24 @@ class SubstitutionTest {
     }
 
     @Test
+    fun everyProjectNameAndPackageFormCarriesAMarker() {
+        val nameAndPackageForms = Placeholders.forms().filterNot { it.startsWith("JavaLanguageVersion") }
+        for (form in nameAndPackageForms) {
+            assertTrue(Placeholders.markers.any { form.contains(it, ignoreCase = true) }, "'$form' carries no marker")
+        }
+        for (marker in Placeholders.markers) {
+            assertTrue(Placeholders.PROJECT_NAME.contains(marker) || Placeholders.PACKAGE.contains(marker), marker)
+        }
+    }
+
+    @Test
+    fun recognisesTextTheWaySubstitutionDoes() {
+        assertTrue(Substitution.isText("plain text\n".encodeToByteArray()))
+        assertTrue(!Substitution.isText(byteArrayOf(0x50, 0x4b, 0x03, 0x04, 0x00)))
+        assertTrue(!Substitution.isText(byteArrayOf(0xff.toByte(), 0xfe.toByte())))
+    }
+
+    @Test
     fun substitutesAJvmApplication() {
         val template = FileSet.of(
             text("settings.gradle.kts", "rootProject.name = \"zqxproj-name\"\ninclude(\"app\")\n"),

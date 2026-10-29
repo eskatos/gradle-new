@@ -9,6 +9,8 @@ object Placeholders {
 
     val inputs = ProjectInputs(PROJECT_NAME, PACKAGE, JAVA_VERSION)
 
+    val markers = listOf("zqxproj", "zqxpkg", "zqxsub")
+
     fun forms(): List<String> = Substitution.forms.map { requireNotNull(it.derive(inputs)) }
 }
 
@@ -35,6 +37,8 @@ object Substitution {
             FileEntry(replace(entry.path, replacements, entry.path) ?: entry.path, content, entry.executable)
         }
     }
+
+    fun isText(content: ByteArray): Boolean = textOf(content) != null
 
     private fun textOf(content: ByteArray): String? {
         val text = try {
