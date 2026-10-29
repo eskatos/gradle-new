@@ -222,7 +222,7 @@ class PageTest {
         assertEquals("assets/logo/gradle-icon-colour.svg", page.getAttribute("link[rel=icon]", "href"))
         assertEquals("Gradle", page.getAttribute(".site-logo", "alt"))
         assertTrue(page.textContent("h1")!!.contains("Gradle®"))
-        assertTrue(page.textContent(".site-footer")!!.contains("not affiliated with or endorsed by Gradle, Inc."))
+        assertTrue(page.textContent(".site-footer")!!.contains("This website is not affiliated with or endorsed by Gradle, Inc."))
         val normal = page.evaluate("() => parseFloat(getComputedStyle(document.querySelector('.explain-toggle .icon')).transitionDuration)") as Number
         assertTrue(normal.toDouble() in 0.12..0.32, "transitions last 120 to 320 ms, got ${normal}s")
         page.emulateMedia(Page.EmulateMediaOptions().setReducedMotion(com.microsoft.playwright.options.ReducedMotion.REDUCE))
