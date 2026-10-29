@@ -23,4 +23,6 @@ public interface InitModel {
     TextParameter getPackageName();
 
     TextParameter getProjectName();
+
+    List<? extends InitOption> getOptions();
 }

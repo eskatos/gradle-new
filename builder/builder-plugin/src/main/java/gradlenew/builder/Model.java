@@ -5,6 +5,7 @@ import gradlenew.builder.api.Choice;
 import gradlenew.builder.api.ComponentType;
 import gradlenew.builder.api.Dsl;
 import gradlenew.builder.api.InitModel;
+import gradlenew.builder.api.InitOption;
 import gradlenew.builder.api.JavaVersionParameter;
 import gradlenew.builder.api.NamedElement;
 import gradlenew.builder.api.TestFrameworkChoice;
@@ -274,10 +275,11 @@ final class Model {
         private final JavaVersion javaVersion;
         private final Text packageName;
         private final Text projectName;
+        private final List<Option> options;
 
         Init(String gradleVersion, List<Component> componentTypes, List<Named> languages, List<ScriptDsl> dsls,
              List<Named> modularizationOptions, List<Named> testFrameworks, List<Type> buildTypes,
-             JavaVersion javaVersion, Text packageName, Text projectName) {
+             JavaVersion javaVersion, Text packageName, Text projectName, List<Option> options) {
             this.gradleVersion = gradleVersion;
             this.componentTypes = List.copyOf(componentTypes);
             this.languages = List.copyOf(languages);
@@ -288,6 +290,7 @@ final class Model {
             this.javaVersion = javaVersion;
             this.packageName = packageName;
             this.projectName = projectName;
+            this.options = List.copyOf(options);
         }
 
         @Override
@@ -338,6 +341,38 @@ final class Model {
         @Override
         public Text getProjectName() {
             return projectName;
+        }
+
+        @Override
+        public List<Option> getOptions() {
+            return options;
+        }
+    }
+
+    static final class Option implements InitOption, Serializable {
+        private final String name;
+        private final String description;
+        private final String negatedDescription;
+
+        Option(String name, String description, String negatedDescription) {
+            this.name = name;
+            this.description = description;
+            this.negatedDescription = negatedDescription;
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public String getDescription() {
+            return description;
+        }
+
+        @Override
+        public String getNegatedDescription() {
+            return negatedDescription;
         }
     }
 }

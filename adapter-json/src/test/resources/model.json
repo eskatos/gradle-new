@@ -137,5 +137,17 @@
     "projectName": {
         "pattern": null,
         "default": null
-    }
+    },
+    "options": [
+        {
+            "name": "comments",
+            "description": "Include clarifying comments in files.",
+            "negatedDescription": "Disables option --comments."
+        },
+        {
+            "name": "type",
+            "description": "Set the type of project to generate.",
+            "negatedDescription": null
+        }
+    ]
 }

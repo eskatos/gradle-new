@@ -5,6 +5,7 @@ import gradlenew.domain.model.Choice
 import gradlenew.domain.model.ComponentType
 import gradlenew.domain.model.Dsl
 import gradlenew.domain.model.InitModel
+import gradlenew.domain.model.InitOption
 import gradlenew.domain.model.JavaVersionParameter
 import gradlenew.domain.model.Language
 import gradlenew.domain.model.ModularizationOption
@@ -57,4 +58,8 @@ val sampleModel = InitModel(
     javaVersion = JavaVersionParameter(minimum = 7, default = 21, maximum = 31),
     packageName = TextParameter(pattern = "^[A-Za-z_$][A-Za-z0-9_$]*(\\.[A-Za-z_$][A-Za-z0-9_$]*)*$", default = "org.example"),
     projectName = TextParameter(pattern = null, default = null),
+    options = listOf(
+        InitOption("comments", "Include clarifying comments in files.", "Disables option --comments."),
+        InitOption("type", "Set the type of project to generate.", null),
+    ),
 )

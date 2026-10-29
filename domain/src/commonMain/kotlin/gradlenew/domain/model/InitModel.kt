@@ -11,6 +11,7 @@ data class InitModel(
     val javaVersion: JavaVersionParameter,
     val packageName: TextParameter,
     val projectName: TextParameter,
+    val options: List<InitOption> = emptyList(),
 ) {
     init {
         require(gradleVersion.isNotBlank()) { "Gradle version must not be blank" }
@@ -20,6 +21,7 @@ data class InitModel(
         requireUnique("modularization options", modularizationOptions.map { it.id })
         requireUnique("test frameworks", testFrameworks.map { it.id })
         requireUnique("build types", buildTypes.map { it.id })
+        requireUnique("options", options.map { it.name })
         val componentTypeIds = componentTypes.map { it.id }.toSet()
         val languageIds = languages.map { it.id }.toSet()
         val dslIds = dsls.map { it.id }.toSet()
@@ -33,6 +35,8 @@ data class InitModel(
             requireDefined(type, "test framework", type.testFrameworks.flatMap { it.values }, testFrameworkIds)
         }
     }
+
+    fun option(name: String): InitOption? = options.firstOrNull { it.name == name }
 
     fun buildType(id: String): BuildType =
         requireNotNull(buildTypes.firstOrNull { it.id == id }) { "Unknown build type '$id'" }

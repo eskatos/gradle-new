@@ -5,6 +5,7 @@ import gradlenew.domain.model.Choice
 import gradlenew.domain.model.ComponentType
 import gradlenew.domain.model.Dsl
 import gradlenew.domain.model.InitModel
+import gradlenew.domain.model.InitOption
 import gradlenew.domain.model.JavaVersionParameter
 import gradlenew.domain.model.Language
 import gradlenew.domain.model.ModularizationOption
@@ -49,6 +50,13 @@ object InitModelJson {
         )
         put("packageName", toJson(model.packageName))
         put("projectName", toJson(model.projectName))
+        putJsonArray("options") { model.options.forEach { add(toJson(it)) } }
+    }
+
+    private fun toJson(option: InitOption) = buildJsonObject {
+        put("name", option.name)
+        put("description", option.description)
+        put("negatedDescription", option.negatedDescription)
     }
 
     private fun named(id: String, displayName: String) = buildJsonObject { put("id", id); put("displayName", displayName) }
@@ -105,6 +113,7 @@ object InitModelJson {
         javaVersion = json.obj("javaVersion").let { JavaVersionParameter(it.int("minimum"), it.int("default"), it.int("maximum")) },
         packageName = textParameter(json.obj("packageName")),
         projectName = textParameter(json.obj("projectName")),
+        options = json["options"]?.jsonArray.orEmpty().map { it.jsonObject.let { o -> InitOption(o.string("name"), o.string("description"), o.stringOrNull("negatedDescription")) } },
     )
 
     private fun buildType(json: JsonObject) = BuildType(

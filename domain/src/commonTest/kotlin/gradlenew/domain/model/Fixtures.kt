@@ -51,6 +51,7 @@ fun model(
     modularizationOptions: List<ModularizationOption> = listOf(singleProject, withLibraries),
     testFrameworks: List<TestFramework> = listOf(junitJupiter, spock),
     javaVersion: JavaVersionParameter = JavaVersionParameter(minimum = 7, default = 21, maximum = 31),
+    options: List<InitOption> = listOf(typeOption, commentsOption),
 ) = InitModel(
     gradleVersion = "9.8.2",
     componentTypes = componentTypes,
@@ -62,4 +63,8 @@ fun model(
     javaVersion = javaVersion,
     packageName = TextParameter(pattern = "^[a-z]+(\\.[a-z]+)*$", default = "org.example"),
     projectName = TextParameter(pattern = null, default = null),
+    options = options,
 )
+
+val typeOption = InitOption("type", "Set the type of project to generate.", negatedDescription = null)
+val commentsOption = InitOption("comments", "Include clarifying comments in files.", negatedDescription = "Disables option --comments.")

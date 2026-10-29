@@ -66,4 +66,19 @@ class InitModelTest {
         assertEquals(listOf("junit-jupiter"), type.testFrameworksFor("with-library-projects").values)
         assertFailsWith<IllegalArgumentException> { type.testFrameworksFor("unknown") }
     }
+
+    @Test
+    fun optionsAreLookedUpByNameAndKnowWhetherTheyCanBeNegated() {
+        val model = model()
+
+        assertEquals("Set the type of project to generate.", model.option("type")?.description)
+        assertEquals(false, model.option("type")?.negatable)
+        assertEquals(true, model.option("comments")?.negatable)
+        assertEquals(null, model.option("no-such-option"))
+    }
+
+    @Test
+    fun optionNamesMustBeUnique() {
+        assertFailsWith<IllegalArgumentException> { model(options = listOf(typeOption, typeOption)) }
+    }
 }

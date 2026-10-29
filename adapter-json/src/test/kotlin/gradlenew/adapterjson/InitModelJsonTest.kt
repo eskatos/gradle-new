@@ -30,6 +30,12 @@ class InitModelJsonTest {
     }
 
     @Test
+    fun decodesADocumentWrittenBeforeOptionsExisted() {
+        val withoutOptions = golden.substringBefore(",\n    \"options\"") + "\n}"
+        assertEquals(sampleModel.copy(options = emptyList()), InitModelJson.decode(withoutOptions))
+    }
+
+    @Test
     fun rejectsAMalformedDocument() {
         assertFailsWith<IllegalArgumentException> { InitModelJson.decode("""{"gradleVersion": "9.8.2"}""") }
     }

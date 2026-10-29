@@ -5,6 +5,7 @@ import gradlenew.builder.api.Choice
 import gradlenew.builder.api.InitModel
 import gradlenew.domain.model.ComponentType
 import gradlenew.domain.model.Dsl
+import gradlenew.domain.model.InitOption
 import gradlenew.domain.model.JavaVersionParameter
 import gradlenew.domain.model.Language
 import gradlenew.domain.model.ModularizationOption
@@ -25,6 +26,7 @@ internal object ModelMapping {
         javaVersion = JavaVersionParameter(model.javaVersion.minimum, model.javaVersion.default, model.javaVersion.maximum),
         packageName = TextParameter(model.packageName.pattern, model.packageName.default),
         projectName = TextParameter(model.projectName.pattern, model.projectName.default),
+        options = model.options.map { InitOption(it.name, it.description, it.negatedDescription) },
     )
 
     private fun toDomain(type: BuildType) = gradlenew.domain.model.BuildType(

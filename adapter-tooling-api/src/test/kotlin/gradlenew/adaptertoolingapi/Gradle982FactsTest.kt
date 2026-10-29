@@ -23,6 +23,9 @@ class Gradle982FactsTest {
         assertEquals(21, model.javaVersion.default)
         assertEquals(31, model.javaVersion.maximum)
         assertEquals("org.example", model.packageName.default)
+        assertEquals("Set the type of project to generate.", model.option("type")?.description)
+        assertEquals("Split functionality across multiple subprojects?", model.option("split-project")?.description)
+        assertEquals("Disables option --split-project.", model.option("split-project")?.negatedDescription)
 
         val javaApplication = model.buildType("java-application")
         assertEquals("application", javaApplication.componentType)

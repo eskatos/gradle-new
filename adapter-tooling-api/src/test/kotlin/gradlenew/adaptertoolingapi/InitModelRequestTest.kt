@@ -35,6 +35,14 @@ class InitModelRequestTest {
             val packageName = model.packageName
             if (packageName.pattern != null && packageName.default != null) assertTrue(Regex(packageName.pattern!!).matches(packageName.default!!), packageName.toString())
 
+            val help = InitHelp.optionDescriptions(gradle)
+            for (option in model.options) {
+                assertEquals(help[option.name], option.description, "--${option.name} in $version")
+                if (option.negatable) assertEquals(help["no-${option.name}"], option.negatedDescription, "--no-${option.name} in $version")
+            }
+            val negated = model.options.filter { it.negatable }.map { "no-${it.name}" }
+            assertEquals(help.keys - "rerun" - negated.toSet(), model.options.map { it.name }.toSet(), version)
+
             val init = InitRunner(gradle)
             val withoutPackage = model.buildTypes.first { !it.supportsPackage }
             val withPackage = model.buildTypes.first { it.supportsPackage }

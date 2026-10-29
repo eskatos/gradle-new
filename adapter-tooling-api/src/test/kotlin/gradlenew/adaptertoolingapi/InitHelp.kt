@@ -20,6 +20,12 @@ object InitHelp {
         return values.filterValues { it.isNotEmpty() }
     }
 
+    fun optionDescriptions(gradle: GradleDistribution): Map<String, String> =
+        gradle.runTasks(emptyBuild(), listOf("help", "--task", "init", "--quiet", "--offline")).lines()
+            .map { it.trim() }
+            .filter { it.startsWith("--") }
+            .associate { it.substring(2).substringBefore(' ') to it.substringAfter(' ').trim() }
+
     fun model(gradle: GradleDistribution): InitModel {
         val workDir = Files.createTempDirectory("model-request").toFile()
         return InitModelRequest.request(gradle, BuilderCompiler.compile(gradle, Pinned.builderSources, Pinned.versionCatalog, workDir), workDir)

@@ -21,13 +21,15 @@ final class InitModelConverter {
     private final int defaultJavaVersion;
     private final int maximumJavaVersion;
     private final String defaultPackageName;
+    private final List<Model.Option> options;
 
-    InitModelConverter(String gradleVersion, int minimumJavaVersion, int defaultJavaVersion, int maximumJavaVersion, String defaultPackageName) {
+    InitModelConverter(String gradleVersion, int minimumJavaVersion, int defaultJavaVersion, int maximumJavaVersion, String defaultPackageName, List<Model.Option> options) {
         this.gradleVersion = gradleVersion;
         this.minimumJavaVersion = minimumJavaVersion;
         this.defaultJavaVersion = defaultJavaVersion;
         this.maximumJavaVersion = maximumJavaVersion;
         this.defaultPackageName = defaultPackageName;
+        this.options = List.copyOf(options);
     }
 
     Model.Init convert(List<? extends BuildGenerator> generators) {
@@ -57,7 +59,8 @@ final class InitModelConverter {
             types,
             new Model.JavaVersion(minimumJavaVersion, defaultJavaVersion, maximumJavaVersion),
             new Model.Text(PACKAGE_PATTERN, defaultPackageName),
-            new Model.Text(null, null));
+            new Model.Text(null, null),
+            options);
     }
 
     private Model.Type convert(BuildGenerator generator) {

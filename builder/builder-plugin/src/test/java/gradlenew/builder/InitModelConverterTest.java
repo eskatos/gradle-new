@@ -20,7 +20,8 @@ import org.junit.jupiter.api.Test;
 
 class InitModelConverterTest {
 
-    private final InitModelConverter converter = new InitModelConverter("9.8.2", 7, 21, 31, "org.example");
+    private final InitModelConverter converter = new InitModelConverter("9.8.2", 7, 21, 31, "org.example",
+        List.of(new Model.Option("comments", "Include clarifying comments in files.", "Disables option --comments.")));
 
     @Test
     void convertsVocabulariesFromTheEnums() {
@@ -42,6 +43,9 @@ class InitModelConverterTest {
         assertEquals(31, model.getJavaVersion().getMaximum());
         assertEquals("org.example", model.getPackageName().getDefault());
         assertNull(model.getProjectName().getPattern());
+        assertEquals("comments", model.getOptions().get(0).getName());
+        assertEquals("Include clarifying comments in files.", model.getOptions().get(0).getDescription());
+        assertEquals("Disables option --comments.", model.getOptions().get(0).getNegatedDescription());
     }
 
     @Test

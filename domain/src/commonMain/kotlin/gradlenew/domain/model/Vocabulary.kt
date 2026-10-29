@@ -32,3 +32,7 @@ data class JavaVersionParameter(val minimum: Int, val default: Int, val maximum:
 }
 
 data class TextParameter(val pattern: String?, val default: String?)
+
+data class InitOption(val name: String, val description: String, val negatedDescription: String?) {
+    val negatable: Boolean get() = negatedDescription != null
+}
