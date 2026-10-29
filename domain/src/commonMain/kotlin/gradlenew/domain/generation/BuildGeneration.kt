@@ -1,0 +1,39 @@
+package gradlenew.domain.generation
+
+import gradlenew.domain.model.InitModel
+import gradlenew.domain.model.OfferedVersions
+import gradlenew.substitution.FileSet
+import gradlenew.substitution.Substitution
+
+fun interface TemplateSource {
+    fun template(version: String, key: String): FileSet?
+}
+
+sealed interface GenerationResult {
+    data class Generated(val files: FileSet, val filename: String, val cacheKey: String, val immutable: Boolean) : GenerationResult
+    data class Rejected(val message: String) : GenerationResult
+}
+
+class BuildGeneration(
+    private val offered: OfferedVersions,
+    private val models: (String) -> InitModel,
+    private val templates: TemplateSource,
+) {
+    fun generate(options: Map<String, String>): GenerationResult =
+        when (val resolution = RequestValidation.resolve(options, offered, models)) {
+            is Resolution.Rejected -> GenerationResult.Rejected(resolution.message)
+            is Resolution.Accepted -> generate(resolution.request)
+        }
+
+    private fun generate(request: ResolvedRequest): GenerationResult.Generated {
+        val template = checkNotNull(templates.template(request.version, request.spec.key)) {
+            "No template '${request.spec.key}' was published for Gradle ${request.version}"
+        }
+        return GenerationResult.Generated(
+            files = Substitution.apply(template, request.inputs).under(request.archiveRoot),
+            filename = request.filename,
+            cacheKey = request.cacheKey,
+            immutable = !request.fromAlias,
+        )
+    }
+}
