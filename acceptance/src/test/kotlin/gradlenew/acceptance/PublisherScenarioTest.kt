@@ -12,6 +12,7 @@ import gradlenew.verification.VersionReport
 import java.io.File
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -25,6 +26,11 @@ class PublisherScenarioTest {
     private val builderSources = System.getProperty("acceptance.builderSources") ?: error("acceptance.builderSources is not set")
     private val versionCatalog = System.getProperty("acceptance.versionCatalog") ?: error("acceptance.versionCatalog is not set")
     private val workRoot = Files.createTempDirectory("publisher-scenario").toFile()
+
+    @AfterTest
+    fun deleteWorkRoot() {
+        workRoot.deleteRecursively()
+    }
 
     @Test
     fun publisherScenario() {
@@ -56,7 +62,7 @@ class PublisherScenarioTest {
         val run = publish("nondeterministic", initScript = "nondeterministic.gradle")
 
         assertEquals(1, run.exitCode, run.output)
-        val determinism = run.report().check(Check.DETERMINISM)
+        val determinism = run.report().result(Check.DETERMINISM)
         assertEquals(Outcome.FAILED, determinism.outcome)
         assertTrue(determinism.failures.any { it.subject.startsWith("java-application.") }, determinism.toString())
         assertTrue(determinism.failures.all { it.message.contains("generated-at.txt") }, determinism.toString())
@@ -68,9 +74,9 @@ class PublisherScenarioTest {
 
         assertEquals(1, run.exitCode, run.output)
         val report = run.report()
-        assertEquals(Outcome.FAILED, report.check(Check.HYGIENE).outcome)
-        assertTrue(report.check(Check.HYGIENE).failures.any { it.message.contains("PROJECT.txt") }, report.toString())
-        assertEquals(Outcome.FAILED, report.check(Check.DIFFERENTIAL).outcome)
+        assertEquals(Outcome.FAILED, report.result(Check.HYGIENE).outcome)
+        assertTrue(report.result(Check.HYGIENE).failures.any { it.message.contains("PROJECT.txt") }, report.toString())
+        assertEquals(Outcome.FAILED, report.result(Check.DIFFERENTIAL).outcome)
         run.assertNothingPublished()
     }
 
@@ -96,7 +102,7 @@ class PublisherScenarioTest {
         val run = publish("over-budget", initScript = "java-version-comment.gradle", budgetMegabytes = 1)
 
         assertEquals(1, run.exitCode, run.output)
-        assertEquals(Outcome.FAILED, run.report().check(Check.BUDGET).outcome)
+        assertEquals(Outcome.FAILED, run.report().result(Check.BUDGET).outcome)
         run.assertNothingPublished()
     }
 
@@ -147,5 +153,5 @@ class PublisherScenarioTest {
         }
     }
 
-    private fun VersionReport.check(check: Check) = checks.single { it.check == check }
+    private fun VersionReport.result(check: Check) = checks.single { it.check == check }
 }
