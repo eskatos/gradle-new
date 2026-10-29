@@ -33,6 +33,16 @@ class GradleDistributionTest {
     }
 
     @Test
+    fun passesExtraArgumentsToEveryBuild() {
+        val build = emptyBuild()
+        val initScript = build.resolve("marker.gradle").apply { writeText("println 'extra-arguments-applied'\n") }
+        val gradle = GradleDistribution(Pinned.stable, listOf("--init-script", initScript.absolutePath))
+
+        assertTrue(gradle.runTasks(build, listOf("help", "--offline")).contains("extra-arguments-applied"))
+        assertEquals(listOf("--init-script", initScript.absolutePath), gradle.extraArguments)
+    }
+
+    @Test
     fun aFailingBuildRaisesWithItsOutput() {
         val failure = assertFailsWith<GradleBuildFailed> {
             GradleDistribution(Pinned.stable).runTasks(emptyBuild(), listOf("noSuchTask", "--quiet"))

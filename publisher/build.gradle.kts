@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     implementation(projects.domain)
+    implementation(projects.verification)
     implementation(projects.adapterJson)
     implementation(projects.adapterToolingApi)
     implementation(projects.adapterZip)

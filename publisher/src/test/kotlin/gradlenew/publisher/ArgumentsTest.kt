@@ -8,12 +8,33 @@ import kotlin.test.assertNull
 
 class ArgumentsTest {
 
-    private val required = listOf("--stable", "9.8.2", "--builder-dir", "b", "--catalog", "c.toml", "--output", "out", "--templates-output", "tpl", "--work-dir", "work")
+    private val required = listOf(
+        "--stable", "9.8.2", "--builder-dir", "b", "--catalog", "c.toml", "--output", "out",
+        "--templates-output", "tpl", "--report-output", "report", "--work-dir", "work",
+    )
 
     @Test
     fun parsesAllOptions() {
-        val arguments = Arguments.parse(required + listOf("--rc", "9.9.0-rc-1"))
-        assertEquals(Arguments("9.8.2", "9.9.0-rc-1", File("b"), File("c.toml"), File("out"), File("tpl"), File("work")), arguments)
+        val arguments = Arguments.parse(
+            required + listOf("--rc", "9.9.0-rc-1", "--template-budget-mb", "12", "--gradle-argument", "--init-script", "--gradle-argument", "fault.gradle"),
+        )
+
+        assertEquals(
+            Arguments(
+                stable = "9.8.2", rc = "9.9.0-rc-1", builderSources = File("b"), versionCatalog = File("c.toml"),
+                output = File("out"), templatesOutput = File("tpl"), reportOutput = File("report"), workDir = File("work"),
+                templateBudgetBytes = 12L * 1024 * 1024, gradleArguments = listOf("--init-script", "fault.gradle"),
+            ),
+            arguments,
+        )
+    }
+
+    @Test
+    fun defaultsTheBudgetAndHasNoExtraGradleArguments() {
+        val arguments = Arguments.parse(required)
+
+        assertEquals(64L * 1024 * 1024, arguments.templateBudgetBytes)
+        assertEquals(emptyList(), arguments.gradleArguments)
     }
 
     @Test
@@ -23,8 +44,10 @@ class ArgumentsTest {
     }
 
     @Test
-    fun rejectsMissingOrMalformedOptions() {
+    fun rejectsMissingRepeatedOrMalformedOptions() {
         assertFailsWith<IllegalArgumentException> { Arguments.parse(required.drop(2)) }
         assertFailsWith<IllegalArgumentException> { Arguments.parse(required + "--rc") }
+        assertFailsWith<IllegalArgumentException> { Arguments.parse(required + listOf("--stable", "9.8.1")) }
+        assertFailsWith<IllegalArgumentException> { Arguments.parse(required + listOf("--template-budget-mb", "lots")) }
     }
 }

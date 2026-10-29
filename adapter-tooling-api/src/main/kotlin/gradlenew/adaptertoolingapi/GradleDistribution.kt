@@ -9,14 +9,14 @@ import org.gradle.tooling.ProjectConnection
 
 class GradleBuildFailed(val output: String, cause: Throwable) : RuntimeException("Gradle build failed:\n$output", cause)
 
-class GradleDistribution(val version: String) {
+class GradleDistribution(val version: String, val extraArguments: List<String> = emptyList()) {
 
     fun runTasks(projectDir: File, arguments: List<String>): String {
         val output = ByteArrayOutputStream()
         return connect(projectDir) { connection ->
             try {
                 connection.newBuild()
-                    .withArguments(DAEMON_ARGUMENTS + arguments)
+                    .withArguments(DAEMON_ARGUMENTS + extraArguments + arguments)
                     .setJvmArguments(DAEMON_JVM_ARGUMENTS)
                     .setStandardOutput(output)
                     .setStandardError(output)
@@ -31,7 +31,7 @@ class GradleDistribution(val version: String) {
     fun <T> requestModel(projectDir: File, type: Class<T>, arguments: List<String>): T =
         connect(projectDir) { connection ->
             connection.model(type)
-                .withArguments(DAEMON_ARGUMENTS + arguments)
+                .withArguments(DAEMON_ARGUMENTS + extraArguments + arguments)
                 .setJvmArguments(DAEMON_JVM_ARGUMENTS)
                 .get()
         }

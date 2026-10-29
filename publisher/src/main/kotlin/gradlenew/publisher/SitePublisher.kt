@@ -1,35 +1,95 @@
 package gradlenew.publisher
 
 import gradlenew.adapterjson.InitModelJson
+import gradlenew.adapterjson.TemplateIndexJson
+import gradlenew.adapterjson.VerificationReportJson
 import gradlenew.adapterjson.VersionsJson
 import gradlenew.adapterzip.Zip
-import gradlenew.domain.generation.CatalogEntry
-import gradlenew.domain.generation.TemplateCatalog
+import gradlenew.domain.generation.TemplateIndex
 import gradlenew.domain.model.InitModel
 import gradlenew.domain.model.OfferedVersions
-import gradlenew.substitution.FileSet
+import gradlenew.verification.Check
+import gradlenew.verification.CheckResult
+import gradlenew.verification.InitGenerator
+import gradlenew.verification.ModelCheck
+import gradlenew.verification.TemplateSink
+import gradlenew.verification.Verification
+import gradlenew.verification.VerificationReport
+import gradlenew.verification.VersionReport
 import java.io.File
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+
+data class PublishResult(val exitCode: Int, val report: VerificationReport, val summary: String)
 
 class SitePublisher(
     private val modelFor: (version: String) -> InitModel,
-    private val templateFor: (version: String, entry: CatalogEntry) -> FileSet,
+    private val initFor: (version: String) -> InitGenerator,
+    private val templateBudgetBytes: Long,
 ) {
 
-    fun publish(versions: OfferedVersions, output: File, templatesOutput: File) {
-        for (dir in listOf(output, templatesOutput)) {
+    fun publish(versions: OfferedVersions, output: File, templatesOutput: File, reportOutput: File, workDir: File): PublishResult {
+        val staging = workDir.resolve("staging")
+        for (dir in listOf(output, templatesOutput, reportOutput, staging)) {
             dir.deleteRecursively()
             dir.mkdirs()
         }
-        output.resolve("versions.json").writeText(VersionsJson.encode(versions) + "\n")
-        for (version in listOfNotNull(versions.stable, versions.rc)) {
-            val model = modelFor(version)
-            require(model.gradleVersion == version) { "Model reports Gradle ${model.gradleVersion}, expected $version" }
-            val versionDir = output.resolve("v/$version").apply { mkdirs() }
-            versionDir.resolve("model.json").writeText(InitModelJson.encode(model) + "\n")
-            val templates = templatesOutput.resolve(version).apply { mkdirs() }
-            for (entry in TemplateCatalog.of(model)) {
-                templates.resolve("${entry.spec.key}.zip").writeBytes(Zip.write(templateFor(version, entry)))
+        val reports = listOfNotNull(versions.stable, versions.rc).map { version -> verify(version, staging.resolve(version)) }
+        val report = VerificationReport(reports)
+        val stablePassed = report.version(versions.stable).passed
+        if (stablePassed) {
+            val published = OfferedVersions(versions.stable, versions.rc?.takeIf { report.version(it).passed })
+            for (version in listOfNotNull(published.stable, published.rc)) {
+                move(staging.resolve("$version/site"), output.resolve("v/$version"))
+                move(staging.resolve("$version/templates"), templatesOutput.resolve(version))
             }
+            output.resolve("versions.json").writeText(VersionsJson.encode(published) + "\n")
+        }
+        staging.deleteRecursively()
+        reportOutput.resolve("verification-report.json").writeText(VerificationReportJson.encode(report) + "\n")
+        val exitCode = when {
+            !stablePassed -> 1
+            !report.passed -> 2
+            else -> 0
+        }
+        return PublishResult(exitCode, report, report.summary())
+    }
+
+    private fun verify(version: String, staging: File): VersionReport {
+        val model = try {
+            modelFor(version).also { require(it.gradleVersion == version) { "the model reports Gradle ${it.gradleVersion}, expected $version" } }
+        } catch (failure: Exception) {
+            return unavailable(version, failure.message ?: failure.toString())
+        }
+        val site = staging.resolve("site").apply { mkdirs() }
+        val templates = staging.resolve("templates").apply { mkdirs() }
+        val sink = TemplateSink { entry, files ->
+            val zip = Zip.write(files)
+            templates.resolve("${entry.spec.key}.zip").writeBytes(zip)
+            zip.size.toLong()
+        }
+        val report = Verification(initFor(version), sink, templateBudgetBytes, sizeOf = { Zip.write(it).size.toLong() }).verify(model)
+        if (report.passed) {
+            site.resolve("model.json").writeText(InitModelJson.encode(model) + "\n")
+            templates.resolve("index.json").writeText(TemplateIndexJson.encode(TemplateIndex(report.javaEnumeratedTypes.toSet())) + "\n")
+        }
+        return report
+    }
+
+    private fun unavailable(version: String, reason: String) = VersionReport(
+        version,
+        listOf(ModelCheck.unavailable(version, reason)) + Check.entries.drop(1).map { CheckResult.skipped(it) },
+        emptyList(),
+    )
+
+    private fun move(from: File, to: File) {
+        to.parentFile.mkdirs()
+        try {
+            Files.move(from.toPath(), to.toPath(), StandardCopyOption.ATOMIC_MOVE)
+        } catch (_: AtomicMoveNotSupportedException) {
+            from.copyRecursively(to, overwrite = true)
+            from.deleteRecursively()
         }
     }
 }
