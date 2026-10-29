@@ -171,7 +171,11 @@ class RequestValidationTest {
                 rejected("type" to "java-application", "project-name" to "p", "package" to invalid),
             )
         }
-        for (valid in listOf("a", "a.var", "a.\$b", "_a.b1", "com.acme.demo")) {
+        assertEquals(
+            "Package name: 'a.\$b' is not supported by this service - it must not contain '\$'.",
+            rejected("type" to "java-application", "project-name" to "p", "package" to "a.\$b"),
+        )
+        for (valid in listOf("a", "a.var", "_a.b1", "com.acme.demo")) {
             assertEquals(valid, accepted("type" to "java-application", "project-name" to "p", "package" to valid).inputs.packageName)
         }
     }

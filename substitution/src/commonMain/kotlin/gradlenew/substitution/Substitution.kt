@@ -20,6 +20,7 @@ object Substitution {
         Form("project name") { it.projectName },
         Form("project name") { Derivations.capitalize(Derivations.toCamelCase(it.projectName)) },
         Form("project name") { Derivations.toNamespace(it.projectName) },
+        Form("project name") { Derivations.toNamespace(it.projectName).uppercase() },
         Form("package") { it.packageName },
         Form("package") { it.packageName?.replace('.', '/') },
         Form("Java version") { inputs -> inputs.javaVersion?.let { "JavaLanguageVersion.of($it)" } },

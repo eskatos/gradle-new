@@ -14,7 +14,7 @@ class SubstitutionTest {
         val forms = Placeholders.forms()
         assertEquals(forms.size, forms.toSet().size)
         for (a in forms) for (b in forms) if (a != b) assertTrue(!a.contains(b), "'$a' contains '$b'")
-        assertEquals(listOf("zqxproj-name", "ZqxprojName", "zqxproj_name", "zqxpkg.zqxsub", "zqxpkg/zqxsub", "JavaLanguageVersion.of(97)"), forms)
+        assertEquals(listOf("zqxproj-name", "ZqxprojName", "zqxproj_name", "ZQXPROJ_NAME", "zqxpkg.zqxsub", "zqxpkg/zqxsub", "JavaLanguageVersion.of(97)"), forms)
     }
 
     @Test
@@ -60,9 +60,9 @@ class SubstitutionTest {
     }
 
     @Test
-    fun substitutesTheLiteralAndNamespaceFormsInACppLibrary() {
+    fun substitutesTheLiteralNamespaceAndMacroFormsInACppLibrary() {
         val template = FileSet.of(
-            text("lib/src/main/public/zqxproj-name.h", "namespace zqxproj_name {\n    class Greeter {};\n}\n"),
+            text("lib/src/main/public/zqxproj-name.h", "#ifndef ZQXPROJ_NAME_H\nnamespace zqxproj_name {\n    class Greeter {};\n}\n"),
             text("lib/src/main/cpp/hello.cpp", "#include \"zqxproj-name.h\"\n\nstd::string zqxproj_name::Greeter::greeting() {}\n"),
         )
 
@@ -70,7 +70,7 @@ class SubstitutionTest {
 
         assertEquals(
             FileSet.of(
-                text("lib/src/main/public/demo-app.h", "namespace demo_app {\n    class Greeter {};\n}\n"),
+                text("lib/src/main/public/demo-app.h", "#ifndef DEMO_APP_H\nnamespace demo_app {\n    class Greeter {};\n}\n"),
                 text("lib/src/main/cpp/hello.cpp", "#include \"demo-app.h\"\n\nstd::string demo_app::Greeter::greeting() {}\n"),
             ),
             result,

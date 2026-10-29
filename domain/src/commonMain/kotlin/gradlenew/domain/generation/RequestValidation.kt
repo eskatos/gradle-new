@@ -149,6 +149,7 @@ object RequestValidation {
             if (!isValidPackage(model, packageName)) {
                 reject("Package name: '$packageName' is not valid - it may contain invalid characters or reserved words.")
             }
+            if ('$' in packageName) reject("Package name: '$packageName' is not supported by this service - it must not contain '\$'.")
             return packageName
         }
 
