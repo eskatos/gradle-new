@@ -26,6 +26,7 @@ import kotlin.test.assertTrue
 class SitePublisherTest {
 
     private val output = Files.createTempDirectory("site").toFile()
+    private val templatesOutput = Files.createTempDirectory("templates").toFile()
     private val generated = mutableListOf<Pair<String, String>>()
 
     private fun model(version: String) = InitModel(
@@ -66,7 +67,7 @@ class SitePublisherTest {
 
     @Test
     fun writesTheVersionsIndexAndOneModelPerOfferedVersion() {
-        publisher.publish(OfferedVersions("9.8.2", "9.9.0-rc-1"), output)
+        publisher.publish(OfferedVersions("9.8.2", "9.9.0-rc-1"), output, templatesOutput)
 
         assertEquals(OfferedVersions("9.8.2", "9.9.0-rc-1"), VersionsJson.decode(output.resolve("versions.json").readText()))
         assertEquals(model("9.8.2"), InitModelJson.decode(output.resolve("v/9.8.2/model.json").readText()))
@@ -75,41 +76,51 @@ class SitePublisherTest {
 
     @Test
     fun writesOneTemplateZipPerCatalogEntryAndVersion() {
-        publisher.publish(OfferedVersions("9.8.2", null), output)
+        publisher.publish(OfferedVersions("9.8.2", null), output, templatesOutput)
 
-        val templates = output.resolve("v/9.8.2/templates").listFiles()!!.map { it.name }.sorted()
+        val templates = templatesOutput.resolve("9.8.2").listFiles()!!.map { it.name }.sorted()
         assertEquals(8, templates.size)
         assertEquals(generated.map { "${it.second}.zip" }.sorted(), templates)
         assertTrue(generated.all { it.first == "9.8.2" })
         val key = "basic.groovy.none.single-project.incubating.no-comments"
-        val files = Zip.read(output.resolve("v/9.8.2/templates/$key.zip").readBytes())
+        val files = Zip.read(templatesOutput.resolve("9.8.2/$key.zip").readBytes())
         assertEquals(template("9.8.2", entryFor(key)), files)
     }
 
     @Test
     fun writesIdenticalTemplatesOnEveryRun() {
-        publisher.publish(OfferedVersions("9.8.2", null), output)
-        val first = output.resolve("v/9.8.2/templates").listFiles()!!.associate { it.name to it.readBytes() }
-        publisher.publish(OfferedVersions("9.8.2", null), output)
-        val second = output.resolve("v/9.8.2/templates").listFiles()!!.associate { it.name to it.readBytes() }
+        publisher.publish(OfferedVersions("9.8.2", null), output, templatesOutput)
+        val first = templatesOutput.resolve("9.8.2").listFiles()!!.associate { it.name to it.readBytes() }
+        publisher.publish(OfferedVersions("9.8.2", null), output, templatesOutput)
+        val second = templatesOutput.resolve("9.8.2").listFiles()!!.associate { it.name to it.readBytes() }
 
         assertEquals(first.keys, second.keys)
         assertTrue(first.all { (name, bytes) -> bytes.contentEquals(second.getValue(name)) })
     }
 
     @Test
+    fun keepsTemplatesOutOfThePublicSiteTree() {
+        publisher.publish(OfferedVersions("9.8.2", null), output, templatesOutput)
+
+        assertEquals(listOf("model.json"), output.resolve("v/9.8.2").list()!!.toList())
+        assertTrue(output.walkTopDown().none { it.extension == "zip" })
+    }
+
+    @Test
     fun replacesStaleContentAndSkipsTheRcWhenAbsent() {
         output.resolve("v/old").mkdirs()
-        publisher.publish(OfferedVersions("9.8.2", null), output)
+        templatesOutput.resolve("old").mkdirs()
+        publisher.publish(OfferedVersions("9.8.2", null), output, templatesOutput)
 
         assertFalse(output.resolve("v/old").exists())
         assertFalse(output.resolve("v").listFiles()!!.any { it.name != "9.8.2" })
+        assertEquals(listOf("9.8.2"), templatesOutput.list()!!.toList())
     }
 
     @Test
     fun refusesAModelForAnotherVersion() {
         assertFailsWith<IllegalArgumentException> {
-            SitePublisher({ model("9.8.1") }, ::template).publish(OfferedVersions("9.8.2", null), output)
+            SitePublisher({ model("9.8.1") }, ::template).publish(OfferedVersions("9.8.2", null), output, templatesOutput)
         }
     }
 

@@ -8,6 +8,7 @@ data class Arguments(
     val builderSources: File,
     val versionCatalog: File,
     val output: File,
+    val templatesOutput: File,
     val workDir: File,
 ) {
     companion object {
@@ -27,6 +28,7 @@ data class Arguments(
                 builderSources = File(required("builder-dir")),
                 versionCatalog = File(required("catalog")),
                 output = File(required("output")),
+                templatesOutput = File(required("templates-output")),
                 workDir = File(required("work-dir")),
             )
         }

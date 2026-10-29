@@ -5,6 +5,7 @@ plugins {
 dependencies {
     site(projects.ui)
     site(projects.publisher)
+    templates(projects.publisher)
     implementation(projects.domain)
     implementation(projects.adapterJson)
     implementation(projects.adapterZip)

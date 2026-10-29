@@ -8,6 +8,7 @@ final class ContainerImageAttributes {
     static final Attribute<String> ARTIFACT_TYPE = Attribute.of("gradlenew.artifact", String.class);
     static final String CONTAINER_IMAGE_REFERENCE = "container-image-reference";
     static final String SITE = "site";
+    static final String TEMPLATES = "templates";
 
     private ContainerImageAttributes() {
     }
@@ -18,5 +19,9 @@ final class ContainerImageAttributes {
 
     static void site(AttributeContainer attributes) {
         attributes.attribute(ARTIFACT_TYPE, SITE);
+    }
+
+    static void templates(AttributeContainer attributes) {
+        attributes.attribute(ARTIFACT_TYPE, TEMPLATES);
     }
 }

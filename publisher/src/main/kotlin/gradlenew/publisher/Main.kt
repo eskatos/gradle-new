@@ -23,6 +23,6 @@ fun main(args: Array<String>) {
             InitRunner(GradleDistribution(version)).run(entry.initArguments())
         },
     )
-    publisher.publish(OfferedVersions(arguments.stable, arguments.rc), arguments.output)
+    publisher.publish(OfferedVersions(arguments.stable, arguments.rc), arguments.output, arguments.templatesOutput)
     println("Published $templates templates in ${started.elapsedNow().inWholeSeconds} s")
 }

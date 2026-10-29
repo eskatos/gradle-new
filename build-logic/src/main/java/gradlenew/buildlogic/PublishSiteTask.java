@@ -41,6 +41,9 @@ public abstract class PublishSiteTask extends JavaExec {
     @OutputDirectory
     public abstract DirectoryProperty getOutputDirectory();
 
+    @OutputDirectory
+    public abstract DirectoryProperty getTemplatesOutputDirectory();
+
     @Internal
     public abstract DirectoryProperty getWorkDirectory();
 
@@ -52,6 +55,7 @@ public abstract class PublishSiteTask extends JavaExec {
             "--builder-dir", getBuilderSources().get().getAsFile().getAbsolutePath(),
             "--catalog", getVersionCatalog().get().getAsFile().getAbsolutePath(),
             "--output", getOutputDirectory().get().getAsFile().getAbsolutePath(),
+            "--templates-output", getTemplatesOutputDirectory().get().getAsFile().getAbsolutePath(),
             "--work-dir", getWorkDirectory().get().getAsFile().getAbsolutePath()));
         setArgs(arguments);
         super.exec();

@@ -22,8 +22,8 @@ import java.security.MessageDigest
 private const val IMMUTABLE = "public, max-age=31536000, immutable"
 private const val SHORT_LIVED = "public, max-age=60"
 
-fun Application.gradleNew(siteDir: File) {
-    val site = Site(siteDir)
+fun Application.gradleNew(siteDir: File, templatesDir: File) {
+    val site = Site(siteDir, templatesDir)
     routing {
         get("/api/versions") {
             call.response.header(HttpHeaders.CacheControl, SHORT_LIVED)
@@ -47,18 +47,14 @@ fun Application.gradleNew(siteDir: File) {
             }
         }
         staticFiles("/v", File(siteDir, "v")) {
-            exclude { file -> file.isTemplate() }
             contentType { ContentType.Application.Json }
             modify { _, call -> call.response.header(HttpHeaders.CacheControl, IMMUTABLE) }
         }
         staticFiles("/", siteDir, index = "index.html") {
-            exclude { file -> file.isTemplate() }
             contentType { file -> if (file.name.endsWith(".json")) ContentType.Application.Json else null }
         }
     }
 }
-
-private fun File.isTemplate() = parentFile?.name == "templates"
 
 private fun entityTag(bytes: ByteArray): String =
     "\"" + MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) } + "\""

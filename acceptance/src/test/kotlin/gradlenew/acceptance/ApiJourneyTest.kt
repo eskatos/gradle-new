@@ -2,6 +2,7 @@ package gradlenew.acceptance
 
 import gradlenew.adapterjson.InitModelJson
 import gradlenew.adapterjson.VersionsJson
+import gradlenew.domain.generation.TemplateCatalog
 import gradlenew.domain.model.InitModel
 import java.net.URLEncoder
 import java.net.http.HttpResponse
@@ -23,6 +24,7 @@ class ApiJourneyTest {
             val oracle = GradleOracle(stable)
             compareWithGradle(model, oracle)
             generateBuilds(target, model, oracle)
+            templatesAreNotServed(target, model)
         }
     }
 
@@ -121,6 +123,11 @@ class ApiJourneyTest {
         assertEquals(400, response.statusCode())
         assertJson(response)
         assertTrue(response.body().contains(initMessage), response.body())
+    }
+
+    private fun templatesAreNotServed(target: Target, model: InitModel) {
+        val key = TemplateCatalog.of(model).first().spec.key
+        assertEquals(404, target.get("/v/${model.gradleVersion}/templates/$key.zip").statusCode())
     }
 
     private fun encode(value: String) = URLEncoder.encode(value, Charsets.UTF_8)

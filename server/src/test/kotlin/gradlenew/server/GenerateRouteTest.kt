@@ -62,16 +62,22 @@ class GenerateRouteTest {
         FileEntry("gradlew", "#!/bin/sh".encodeToByteArray(), true),
     )
 
+    private val templateKey = "java-application.kotlin.junit-jupiter.single-project.no-incubating.comments"
+
     private val site: File = Files.createTempDirectory("site").toFile().apply {
         resolve("versions.json").writeText("""{"stable":"9.8.2","rc":null}""")
-        resolve("v/9.8.2/templates").mkdirs()
+        resolve("v/9.8.2").mkdirs()
         resolve("v/9.8.2/model.json").writeText(InitModelJson.encode(model))
-        resolve("v/9.8.2/templates/java-application.kotlin.junit-jupiter.single-project.no-incubating.comments.zip").writeBytes(Zip.write(template))
+    }
+
+    private val templates: File = Files.createTempDirectory("templates").toFile().apply {
+        resolve("9.8.2").mkdirs()
+        resolve("9.8.2/$templateKey.zip").writeBytes(Zip.write(template))
     }
 
     @Test
     fun returnsTheGeneratedBuildAsAZip() = testApplication {
-        application { gradleNew(site) }
+        application { gradleNew(site, templates) }
 
         val response = client.get("/api/generate?type=java-application&project-name=demo-app&package=com.acme.demo&java-version=17")
 
@@ -93,7 +99,7 @@ class GenerateRouteTest {
 
     @Test
     fun marksAConcreteVersionAsImmutableAndAnswersIdenticalRequestsIdentically() = testApplication {
-        application { gradleNew(site) }
+        application { gradleNew(site, templates) }
 
         val first = client.get("/api/generate?version=9.8.2&type=java-application&project-name=demo")
         val second = client.get("/api/generate?version=9.8.2&type=java-application&project-name=demo")
@@ -105,7 +111,7 @@ class GenerateRouteTest {
 
     @Test
     fun answersNotModifiedForAMatchingEntityTag() = testApplication {
-        application { gradleNew(site) }
+        application { gradleNew(site, templates) }
         val etag = client.get("/api/generate?type=java-application&project-name=demo").headers[HttpHeaders.ETag]!!
 
         val response = client.get("/api/generate?type=java-application&project-name=demo") { header(HttpHeaders.IfNoneMatch, etag) }
@@ -117,7 +123,7 @@ class GenerateRouteTest {
 
     @Test
     fun rejectsInvalidRequestsWithTheRuleAsJson() = testApplication {
-        application { gradleNew(site) }
+        application { gradleNew(site, templates) }
 
         val response = client.get("/api/generate?type=java-application&project-name=demo&java-version=6")
 
@@ -130,15 +136,17 @@ class GenerateRouteTest {
     }
 
     @Test
-    fun doesNotServeTheTemplatesDirectly() = testApplication {
-        application { gradleNew(site) }
+    fun templatesAreNotServed() = testApplication {
+        application { gradleNew(site, templates) }
 
-        assertEquals(HttpStatusCode.Forbidden, client.get("/v/9.8.2/templates/java-application.kotlin.junit-jupiter.single-project.no-incubating.comments.zip").status)
+        assertEquals(HttpStatusCode.NotFound, client.get("/v/9.8.2/templates/$templateKey.zip").status)
+        assertEquals(HttpStatusCode.NotFound, client.get("/templates/9.8.2/$templateKey.zip").status)
+        assertEquals(HttpStatusCode.NotFound, client.get("/9.8.2/$templateKey.zip").status)
     }
 
     @Test
     fun rejectsRepeatedParameters() = testApplication {
-        application { gradleNew(site) }
+        application { gradleNew(site, templates) }
 
         val response = client.get("/api/generate?type=java-application&project-name=a&project-name=b")
 

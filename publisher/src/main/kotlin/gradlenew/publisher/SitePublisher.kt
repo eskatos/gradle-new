@@ -15,16 +15,18 @@ class SitePublisher(
     private val templateFor: (version: String, entry: CatalogEntry) -> FileSet,
 ) {
 
-    fun publish(versions: OfferedVersions, output: File) {
-        output.deleteRecursively()
-        output.mkdirs()
+    fun publish(versions: OfferedVersions, output: File, templatesOutput: File) {
+        for (dir in listOf(output, templatesOutput)) {
+            dir.deleteRecursively()
+            dir.mkdirs()
+        }
         output.resolve("versions.json").writeText(VersionsJson.encode(versions) + "\n")
         for (version in listOfNotNull(versions.stable, versions.rc)) {
             val model = modelFor(version)
             require(model.gradleVersion == version) { "Model reports Gradle ${model.gradleVersion}, expected $version" }
             val versionDir = output.resolve("v/$version").apply { mkdirs() }
             versionDir.resolve("model.json").writeText(InitModelJson.encode(model) + "\n")
-            val templates = versionDir.resolve("templates").apply { mkdirs() }
+            val templates = templatesOutput.resolve(version).apply { mkdirs() }
             for (entry in TemplateCatalog.of(model)) {
                 templates.resolve("${entry.spec.key}.zip").writeBytes(Zip.write(templateFor(version, entry)))
             }

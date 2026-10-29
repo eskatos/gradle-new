@@ -8,12 +8,12 @@ import kotlin.test.assertNull
 
 class ArgumentsTest {
 
-    private val required = listOf("--stable", "9.8.2", "--builder-dir", "b", "--catalog", "c.toml", "--output", "out", "--work-dir", "work")
+    private val required = listOf("--stable", "9.8.2", "--builder-dir", "b", "--catalog", "c.toml", "--output", "out", "--templates-output", "tpl", "--work-dir", "work")
 
     @Test
     fun parsesAllOptions() {
         val arguments = Arguments.parse(required + listOf("--rc", "9.9.0-rc-1"))
-        assertEquals(Arguments("9.8.2", "9.9.0-rc-1", File("b"), File("c.toml"), File("out"), File("work")), arguments)
+        assertEquals(Arguments("9.8.2", "9.9.0-rc-1", File("b"), File("c.toml"), File("out"), File("tpl"), File("work")), arguments)
     }
 
     @Test

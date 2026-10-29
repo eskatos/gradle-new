@@ -21,9 +21,11 @@ class ServerTest {
         resolve("v/9.8.2/model.json").writeText("""{"gradleVersion":"9.8.2"}""")
     }
 
+    private val templates: File = Files.createTempDirectory("templates").toFile()
+
     @Test
     fun servesPerVersionFilesAsImmutableJson() = testApplication {
-        application { gradleNew(site) }
+        application { gradleNew(site, templates) }
 
         val response = client.get("/v/9.8.2/model.json")
 
@@ -36,7 +38,7 @@ class ServerTest {
 
     @Test
     fun servesVersionsAsJsonWithCacheHeaders() = testApplication {
-        application { gradleNew(site) }
+        application { gradleNew(site, templates) }
 
         val response = client.get("/api/versions")
 
@@ -48,7 +50,7 @@ class ServerTest {
 
     @Test
     fun servesStaticFilesFromTheSiteTree() = testApplication {
-        application { gradleNew(site) }
+        application { gradleNew(site, templates) }
 
         val index = client.get("/")
         val missing = client.get("/missing.txt")
@@ -62,5 +64,13 @@ class ServerTest {
     fun readsPortFromTheEnvironmentWithADefault() {
         assertEquals(8080, portFrom(emptyMap()))
         assertEquals(9000, portFrom(mapOf("PORT" to "9000")))
+    }
+
+    @Test
+    fun readsTheContentDirectoriesFromTheEnvironmentWithDefaults() {
+        assertEquals(File("/site"), siteDirFrom(emptyMap()))
+        assertEquals(File("/templates"), templatesDirFrom(emptyMap()))
+        assertEquals(File("/tmp/s"), siteDirFrom(mapOf("SITE_DIR" to "/tmp/s")))
+        assertEquals(File("/tmp/t"), templatesDirFrom(mapOf("TEMPLATES_DIR" to "/tmp/t")))
     }
 }

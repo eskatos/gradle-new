@@ -38,12 +38,17 @@ public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
                 dir.getAsFileTree().matching(pattern -> pattern.exclude("build", ".gradle", ".kotlin"))));
             task.getVersionCatalog().set(site.getVersionCatalog());
             task.getOutputDirectory().set(project.getLayout().getBuildDirectory().dir("site"));
+            task.getTemplatesOutputDirectory().set(project.getLayout().getBuildDirectory().dir("templates"));
             task.getWorkDirectory().set(project.getLayout().getBuildDirectory().dir("publisher-work"));
         });
 
         project.getConfigurations().consumable("siteElements", configuration -> {
             ContainerImageAttributes.site(configuration.getAttributes());
             configuration.getOutgoing().artifact(publishSite.flatMap(PublishSiteTask::getOutputDirectory));
+        });
+        project.getConfigurations().consumable("templatesElements", configuration -> {
+            ContainerImageAttributes.templates(configuration.getAttributes());
+            configuration.getOutgoing().artifact(publishSite.flatMap(PublishSiteTask::getTemplatesOutputDirectory));
         });
     }
 

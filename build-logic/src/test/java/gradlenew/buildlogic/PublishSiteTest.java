@@ -1,6 +1,7 @@
 package gradlenew.buildlogic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -25,6 +26,7 @@ class PublishSiteTest {
         assertTrue(recorded.contains("--builder-dir " + dir.toRealPath().resolve("builder") + " "), recorded);
         assertTrue(recorded.contains("--catalog " + dir.toRealPath().resolve("catalog.toml") + " "), recorded);
         assertTrue(recorded.contains("--output " + dir.toRealPath().resolve("my-tool/build/site") + " "), recorded);
+        assertTrue(recorded.contains("--templates-output " + dir.toRealPath().resolve("my-tool/build/templates") + " "), recorded);
         assertTrue(recorded.contains("--work-dir " + dir.toRealPath().resolve("my-tool/build/publisher-work")), recorded);
     }
 
@@ -65,6 +67,30 @@ class PublishSiteTest {
         project.run(":consumer:collectSite", "-Pgradlenew.offered.stable=9.8.2");
 
         assertTrue(Files.exists(project.path("consumer/build/collected/args.txt")));
+        assertFalse(Files.exists(project.path("consumer/build/collected/9.8.2")));
+    }
+
+    @Test
+    void exposesTheTemplatesAsASeparateTemplatesVariant(@TempDir Path dir) throws IOException {
+        TestProject project = publisherProject(dir)
+            .file("settings.gradle.kts", TestProject.settings() + "include(\"my-tool\", \"consumer\")\n")
+            .file("consumer/build.gradle.kts", """
+                plugins { base }
+                val templates by configurations.creating {
+                    isCanBeConsumed = false
+                    attributes { attribute(Attribute.of("gradlenew.artifact", String::class.java), "templates") }
+                }
+                dependencies { templates(project(":my-tool")) }
+                tasks.register<Sync>("collectTemplates") {
+                    from(templates)
+                    into(layout.buildDirectory.dir("collected"))
+                }
+                """);
+
+        project.run(":consumer:collectTemplates", "-Pgradlenew.offered.stable=9.8.2");
+
+        assertTrue(Files.exists(project.path("consumer/build/collected/9.8.2/key.zip")));
+        assertFalse(Files.exists(project.path("consumer/build/collected/args.txt")));
     }
 
     private static TestProject publisherProject(Path dir) throws IOException {
@@ -85,6 +111,9 @@ class PublishSiteTest {
                     val output = File(args[args.indexOf("--output") + 1])
                     output.mkdirs()
                     output.resolve("args.txt").writeText(args.joinToString(" "))
+                    val templates = File(args[args.indexOf("--templates-output") + 1]).resolve("9.8.2")
+                    templates.mkdirs()
+                    templates.resolve("key.zip").writeText("template")
                 }
                 """);
         return project;
