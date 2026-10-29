@@ -20,6 +20,8 @@ object FeedJson {
             snapshot = json.flag("snapshot"),
             nightly = json.flag("nightly"),
             releaseNightly = json.flag("releaseNightly"),
+            checksum = json.text("checksum"),
+            wrapperChecksum = json.text("wrapperChecksum"),
         )
     }
 
