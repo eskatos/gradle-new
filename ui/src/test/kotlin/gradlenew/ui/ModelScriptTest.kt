@@ -27,8 +27,11 @@ class ModelScriptTest {
         assertEquals(true, initial["comments"])
 
         val form = script.map("formState", model, versions, json())
-        assertEquals(listOf("stable"), (form["channels"] as List<*>).map { (it as Map<*, *>)["id"] })
+        assertEquals(listOf("stable", "rc"), (form["channels"] as List<*>).map { (it as Map<*, *>)["id"] }, "the RC channel is always offered as a choice")
         assertEquals("9.8.2", ((form["channels"] as List<*>)[0] as Map<*, *>)["version"])
+        assertEquals(true, ((form["channels"] as List<*>)[0] as Map<*, *>)["available"])
+        assertEquals(null, ((form["channels"] as List<*>)[1] as Map<*, *>)["version"])
+        assertEquals(false, ((form["channels"] as List<*>)[1] as Map<*, *>)["available"])
         assertEquals(listOf("application", "library", "gradle-plugin", "basic"), (form["componentTypes"] as List<*>).map { (it as Map<*, *>)["id"] })
         assertEquals("Gradle plugin", ((form["componentTypes"] as List<*>)[2] as Map<*, *>)["label"])
         assertEquals(listOf("java", "kotlin", "groovy", "scala", "cpp", "swift"), (form["languages"] as List<*>).map { (it as Map<*, *>)["id"] })
@@ -43,6 +46,7 @@ class ModelScriptTest {
         val withRc = script.map("formState", model, versionsWithRc, json())
         assertEquals(listOf("stable", "rc"), (withRc["channels"] as List<*>).map { (it as Map<*, *>)["id"] })
         assertEquals("9.9.0-rc-1", ((withRc["channels"] as List<*>)[1] as Map<*, *>)["version"])
+        assertEquals(true, ((withRc["channels"] as List<*>)[1] as Map<*, *>)["available"])
     }
 
     @TestFactory

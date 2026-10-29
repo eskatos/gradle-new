@@ -75,7 +75,7 @@ function render() {
   const form = formState(current, state.versions, state.choices);
   state.choices = form.choices;
 
-  renderChoices('version', form.channels.map((c) => ({ id: c.id, label: c.id === 'rc' ? 'Release candidate' : 'Stable', note: c.version, channel: c.id })), form.choices.channel);
+  renderChoices('version', form.channels.map((c) => ({ id: c.id, label: c.id === 'rc' ? 'Release candidate' : 'Stable', note: c.version ?? 'None available', version: Boolean(c.version), disabled: !c.available, channel: c.id })), form.choices.channel);
   renderChoices('component-type', form.componentTypes, form.choices.componentType);
   renderChoices('language', form.languages, form.choices.language);
   renderChoices('dsl', form.dsls, form.choices.dsl);
@@ -103,7 +103,7 @@ function render() {
 
 function renderChoices(group, options, selected) {
   const container = $(`[data-group="${group}"]`);
-  const signature = options.map((o) => `${o.id}:${o.label}:${o.note ?? ''}`).join('|');
+  const signature = options.map((o) => `${o.id}:${o.label}:${o.note ?? ''}:${Boolean(o.disabled)}`).join('|');
   if (container.dataset.signature !== signature) {
     container.replaceChildren(...options.map((option) => {
       const label = document.createElement('label');
@@ -113,13 +113,14 @@ function renderChoices(group, options, selected) {
       input.type = 'radio';
       input.name = group;
       input.value = option.id;
+      input.disabled = Boolean(option.disabled);
       const text = document.createElement('span');
       text.className = 'choice-label';
       text.textContent = option.label;
       label.append(input, text);
       if (option.note) {
         const note = document.createElement('span');
-        note.className = 'choice-note channel-version';
+        note.className = option.version ? 'choice-note channel-version' : 'choice-note';
         note.textContent = option.note;
         label.append(note);
       }

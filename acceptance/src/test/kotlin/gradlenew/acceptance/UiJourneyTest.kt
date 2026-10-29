@@ -55,7 +55,8 @@ class UiJourneyTest {
     private fun channels(page: Page, offered: OfferedVersions) {
         assertTrue(page.isChecked("input[name=version][value=stable]"))
         assertEquals(offered.stable, page.textContent("[data-channel=stable] .channel-version")!!.trim())
-        assertEquals(if (offered.rc == null) 0 else 1, page.locator("input[name=version][value=rc]").count())
+        assertEquals(1, page.locator("input[name=version][value=rc]").count(), "the RC switch is always shown")
+        assertEquals(offered.rc == null, page.isDisabled("input[name=version][value=rc]"), "the RC switch is disabled exactly when no RC is offered")
         offered.rc?.let { assertEquals(it, page.textContent("[data-channel=rc] .channel-version")!!.trim()) }
         assertTrue(!hasVersionParameter(apiUrl(page)), "the stable channel is the API's default: ${apiUrl(page)}")
     }

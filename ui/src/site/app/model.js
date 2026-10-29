@@ -43,7 +43,7 @@ export function formState(model, versions, partial = {}) {
   return {
     choices,
     buildType: type.id,
-    channels: channels(versions),
+    channels: channelChoices(versions),
     componentTypes: componentTypes(model).map((c) => ({ id: c.id, label: c.displayName })),
     languages: languagesFor(model, choices.componentType).map((id) => ({ id, label: named(model.languages, id) })),
     dsls: type.dsls.values.map((id) => ({ id, label: named(model.dsls, id) })),
@@ -118,6 +118,13 @@ export function urlTokens(model, versions, partial = {}, origin = '') {
 export function apiUrl(model, versions, partial = {}, origin = '') {
   const [endpoint, ...params] = urlTokens(model, versions, partial, origin);
   return endpoint.text + params.map((p) => p.separator + p.text).join('');
+}
+
+export function channelChoices(versions) {
+  return [
+    { id: 'stable', version: versions?.stable ?? null, available: Boolean(versions?.stable) },
+    { id: 'rc', version: versions?.rc ?? null, available: Boolean(versions?.rc) },
+  ];
 }
 
 export function channels(versions) {

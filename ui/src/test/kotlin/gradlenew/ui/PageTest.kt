@@ -20,7 +20,12 @@ class PageTest {
         assertEquals("9.8.2", page.textContent("[data-stable-version]"))
         assertTrue(page.isChecked("input[name=version][value=stable]"))
         assertEquals("9.8.2", page.textContent("[data-channel=stable] .channel-version")!!.trim())
-        assertEquals(0, page.locator("input[name=version][value=rc]").count())
+        assertEquals(1, page.locator("input[name=version][value=rc]").count(), "the RC switch is always shown")
+        assertTrue(page.isDisabled("input[name=version][value=rc]"), "and disabled without an RC")
+        assertEquals("None available", page.textContent("[data-channel=rc] .choice-note")!!.trim())
+        assertEquals("not-allowed", page.evaluate("() => getComputedStyle(document.querySelector('[data-channel=rc]')).cursor"))
+        page.click("[data-channel=rc]", com.microsoft.playwright.Page.ClickOptions().setForce(true))
+        assertTrue(page.isChecked("input[name=version][value=stable]"), "a disabled RC switch cannot be selected")
         assertEquals(listOf("application", "library", "gradle-plugin", "basic"), values(page, "input[name=component-type]"))
         assertEquals(listOf("java", "kotlin", "groovy", "scala", "cpp", "swift"), values(page, "input[name=language]"))
         assertEquals(listOf("kotlin", "groovy"), values(page, "input[name=dsl]"))
@@ -207,6 +212,7 @@ class PageTest {
     @TestFactory
     fun offersTheReleaseCandidateChannel(): List<DynamicTest> = onPage(versions = Fixtures.versionsWithRc) { page, server ->
         assertEquals("9.9.0-rc-1", page.textContent("[data-channel=rc] .channel-version")!!.trim())
+        assertTrue(page.isEnabled("input[name=version][value=rc]"))
         page.check("input[name=version][value=rc]")
         page.waitForFunction("() => document.querySelector('#api-url').textContent.includes('version=rc')")
         page.waitForFunction("() => [...document.querySelectorAll('#command .token')].length > 0")

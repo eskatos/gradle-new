@@ -77,9 +77,13 @@ fieldset.field > legend { margin-bottom: var(--space-2); }
   transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 .choice:hover { border-color: var(--border-default); }
+.choice:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+.choice:has(input:disabled):hover { border-color: var(--border-subtle); }
+.choice:has(input:disabled) input { cursor: not-allowed; }
 .choice:has(input:checked) { border-color: var(--gradle-blue); background: color-mix(in srgb, var(--gradle-blue) 8%, var(--surface-card)); }
 .choice:has(input:focus-visible) { box-shadow: var(--shadow-focus); }
-.choice-note { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+.choice-note { font-size: var(--text-xs); color: var(--text-muted); }
+.channel-version { font-family: var(--font-mono); }
 
 input[type="radio"] {
   appearance: none;
