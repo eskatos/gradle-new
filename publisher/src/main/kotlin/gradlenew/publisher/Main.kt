@@ -13,6 +13,13 @@ import kotlin.system.exitProcess
 import kotlin.time.TimeSource
 
 fun main(args: Array<String>) {
+    when (args.firstOrNull()) {
+        "propose" -> exitProcess(ProposeCommand().run(args.drop(1), System.out, System.err))
+        else -> publish(args)
+    }
+}
+
+private fun publish(args: Array<String>) {
     val arguments = Arguments.parse(args.toList())
     val started = TimeSource.Monotonic.markNow()
     var inits = 0
