@@ -92,4 +92,28 @@ class KotlinCommonLibraryPluginTest {
 
         assertTrue(result.getOutput().contains("is deprecated. Use greeting"), result.getOutput());
     }
+
+    @Test
+    void jvmTestsHaveNativeAccess(@TempDir Path dir) throws IOException {
+        TestProject project = TestProject.in(dir)
+            .buildScript("plugins { id(\"gradlenew.kotlin-common-library\") }")
+            .file("src/commonMain/kotlin/probe/Greeting.kt", GREETING)
+            .file("src/jvmTest/kotlin/probe/NativeAccessTest.kt", """
+                package probe
+
+                import java.lang.management.ManagementFactory
+                import kotlin.test.Test
+                import kotlin.test.assertTrue
+
+                class NativeAccessTest {
+                    @Test
+                    fun hasNativeAccess() {
+                        val arguments = ManagementFactory.getRuntimeMXBean().inputArguments
+                        assertTrue("--enable-native-access=ALL-UNNAMED" in arguments, arguments.toString())
+                    }
+                }
+                """);
+
+        assertEquals(TaskOutcome.SUCCESS, project.run("jvmTest").task(":jvmTest").getOutcome());
+    }
 }

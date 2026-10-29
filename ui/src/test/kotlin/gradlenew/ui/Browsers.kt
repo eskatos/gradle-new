@@ -4,6 +4,8 @@ import com.microsoft.playwright.Browser
 import com.microsoft.playwright.BrowserType
 import com.microsoft.playwright.Playwright
 
+const val FIRST_LOAD_TIMEOUT = 30_000.0
+
 object Browsers {
 
     val engines: List<String> = (System.getProperty("playwright.engines") ?: "webkit,firefox,chromium").split(',').map { it.trim() }.filter { it.isNotEmpty() }

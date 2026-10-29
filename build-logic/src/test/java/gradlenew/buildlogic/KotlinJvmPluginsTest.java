@@ -117,4 +117,37 @@ class KotlinJvmPluginsTest {
             .file("src/test/kotlin/probe/Greeting.kt", withWarning);
         assertTrue(test.runAndFail("compileTestKotlin").getOutput().contains("is deprecated. Use greeting"));
     }
+
+    @Test
+    void testAndApplicationJvmsHaveNativeAccess(@TempDir Path dir) throws IOException {
+        TestProject library = TestProject.in(dir.resolve("library"))
+            .buildScript("plugins { id(\"gradlenew.kotlin-jvm-library\") }")
+            .file("src/test/kotlin/probe/NativeAccessTest.kt", """
+                package probe
+
+                import java.lang.management.ManagementFactory
+                import kotlin.test.Test
+                import kotlin.test.assertTrue
+
+                class NativeAccessTest {
+                    @Test
+                    fun hasNativeAccess() {
+                        val arguments = ManagementFactory.getRuntimeMXBean().inputArguments
+                        assertTrue("--enable-native-access=ALL-UNNAMED" in arguments, arguments.toString())
+                    }
+                }
+                """);
+        assertEquals(TaskOutcome.SUCCESS, library.run("test").task(":test").getOutcome());
+
+        TestProject application = TestProject.in(dir.resolve("application"))
+            .buildScript("plugins { id(\"gradlenew.kotlin-jvm-application\") }")
+            .file("src/main/kotlin/gradlenew/testproject/Main.kt", """
+                package gradlenew.testproject
+
+                import java.lang.management.ManagementFactory
+
+                fun main() = println("jvm arguments: " + ManagementFactory.getRuntimeMXBean().inputArguments)
+                """);
+        assertTrue(application.run("run").getOutput().contains("--enable-native-access=ALL-UNNAMED"));
+    }
 }

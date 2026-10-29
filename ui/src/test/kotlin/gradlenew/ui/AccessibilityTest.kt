@@ -66,8 +66,8 @@ class AccessibilityTest {
                     try {
                         val page = context.newPage()
                         page.setDefaultTimeout(5_000.0)
-                        page.navigate(server.url + "/")
-                        page.waitForSelector("#command .token")
+                        page.navigate(server.url + "/", Page.NavigateOptions().setTimeout(FIRST_LOAD_TIMEOUT))
+                        page.waitForSelector("#command .token", Page.WaitForSelectorOptions().setTimeout(FIRST_LOAD_TIMEOUT))
                         test(page, engine)
                     } finally {
                         context.close()

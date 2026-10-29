@@ -6,6 +6,10 @@ tasks.withType<JavaCompile>().configureEach {
     options.release = 17
 }
 
+tasks.withType<Test>().configureEach {
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+}
+
 dependencies {
     implementation(libs.kotlin.gradle.plugin)
     implementation(libs.kotlinx.serialization.gradle.plugin)

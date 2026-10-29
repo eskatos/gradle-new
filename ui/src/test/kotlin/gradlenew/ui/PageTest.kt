@@ -252,8 +252,8 @@ class PageTest {
                         val problems = mutableListOf<String>()
                         page.onConsoleMessage { if (it.type() == "error") problems.add(it.text()) }
                         page.onPageError { problems.add(it) }
-                        page.navigate(server.url + "/")
-                        page.waitForSelector("#command .token")
+                        page.navigate(server.url + "/", Page.NavigateOptions().setTimeout(FIRST_LOAD_TIMEOUT))
+                        page.waitForSelector("#command .token", Page.WaitForSelectorOptions().setTimeout(FIRST_LOAD_TIMEOUT))
                         test(page, server)
                         assertEquals(emptyList(), problems.filterNot { it.contains("status of 400") || it.contains("status of 500") || it.contains("400 (Bad Request)") || it.contains("500 (Internal Server Error)") }, "console errors in $engine")
                     } finally {
