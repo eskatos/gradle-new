@@ -11,7 +11,9 @@ final class JvmConventions {
 
     static void applyKotlinJvm(Project project, Catalog catalog) {
         project.getPluginManager().apply("org.jetbrains.kotlin.jvm");
-        project.getExtensions().getByType(KotlinJvmProjectExtension.class).jvmToolchain(catalog.jdk());
+        KotlinJvmProjectExtension kotlin = project.getExtensions().getByType(KotlinJvmProjectExtension.class);
+        kotlin.jvmToolchain(catalog.jdk());
+        kotlin.getCompilerOptions().getAllWarningsAsErrors().set(true);
         project.getDependencies().add("testImplementation", "org.jetbrains.kotlin:kotlin-test");
         project.getDependencies().addProvider("testRuntimeOnly", catalog.library("junit-platform-launcher"));
         project.getTasks().withType(Test.class).configureEach(Test::useJUnitPlatform);

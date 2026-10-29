@@ -57,7 +57,7 @@ class UiJourneyTest {
         assertEquals(offered.stable, page.textContent("[data-channel=stable] .channel-version")!!.trim())
         assertEquals(if (offered.rc == null) 0 else 1, page.locator("input[name=version][value=rc]").count())
         offered.rc?.let { assertEquals(it, page.textContent("[data-channel=rc] .channel-version")!!.trim()) }
-        assertTrue(apiUrl(page).contains("version=stable"), apiUrl(page))
+        assertTrue(!hasVersionParameter(apiUrl(page)), "the stable channel is the API's default: ${apiUrl(page)}")
     }
 
     private fun everyBuildTypeDrivesTheForm(page: Page, model: InitModel) {
@@ -70,23 +70,26 @@ class UiJourneyTest {
             for (language in languages.ifEmpty { listOf(null) }) {
                 if (language != null) page.check("input[name=language][value=$language]")
                 val type = types.first { it.language == language }
-                assertDependentFields(page, type)
+                assertDependentFields(page, model, type)
                 assertTrue(commandText(page).contains("--type ${type.id}"), commandText(page))
                 assertTrue(apiUrl(page).contains("type=${type.id}"), apiUrl(page))
-                assertTrue(apiUrl(page).contains("version=stable"), apiUrl(page))
+                assertTrue(!hasVersionParameter(apiUrl(page)), apiUrl(page))
             }
         }
     }
 
-    private fun assertDependentFields(page: Page, type: BuildType) {
+    private fun assertDependentFields(page: Page, model: InitModel, type: BuildType) {
         val modularization = type.modularization.default
         assertEquals(type.supportsPackage, page.isVisible("#field-package"), "package field for ${type.id}")
         assertEquals(type.supportsJavaVersion, page.isVisible("#field-java-version"), "Java version field for ${type.id}")
         assertEquals(type.modularization.values.size > 1, page.isVisible("#field-split-project"), "split project field for ${type.id}")
         assertEquals(type.testFrameworksFor(modularization).values.isNotEmpty(), page.isVisible("#field-test-framework"), "test framework field for ${type.id}")
         assertEquals(type.dsls.values.size > 1, page.isVisible("#field-dsl"), "DSL field for ${type.id}")
-        assertEquals(type.supportsPackage, commandText(page).contains("--package "), commandText(page))
-        assertEquals(type.supportsJavaVersion, commandText(page).contains("--java-version "), commandText(page))
+        val packageChanged = type.supportsPackage && page.inputValue("#package") != model.packageName.default
+        val javaVersionChanged = type.supportsJavaVersion && page.inputValue("#java-version") != model.javaVersion.default.toString()
+        assertEquals(packageChanged, commandText(page).contains("--package "), "--package only when changed: ${commandText(page)}")
+        assertEquals(javaVersionChanged, commandText(page).contains("--java-version "), "--java-version only when changed: ${commandText(page)}")
+        assertEquals(packageChanged, apiUrl(page).contains("package="), "package= only when changed: ${apiUrl(page)}")
     }
 
     private fun downloadMatchesApiAndGradleInit(page: Page, target: Target, model: InitModel, offered: OfferedVersions) {
@@ -157,7 +160,7 @@ class UiJourneyTest {
                     assertTrue(description.isNotBlank(), "$block fixed explanation")
                 }
             }
-            assertTrue(page.textContent("$block [data-kind=gradle], $block [data-kind=version]")!!.contains(offered.stable))
+            assertTrue(page.textContent("$block [data-kind=gradle], $block [data-kind=endpoint]")!!.contains(offered.stable))
             assertEquals(count, page.locator("$block svg.connectors path").count(), "$block connector lines")
         }
     }
@@ -199,7 +202,7 @@ class UiJourneyTest {
         val fromApi = target.getBytes(url.removePrefix(target.baseUrl))
         assertTrue(Files.readAllBytes(download.path()).contentEquals(fromApi.body()), "RC download differs from the API's zip")
         page.check("input[name=version][value=stable]")
-        page.waitForFunction("() => document.querySelector('#api-url').textContent.includes('version=stable')")
+        page.waitForFunction("() => !/[?&]version=/.test(document.querySelector('#api-url').textContent.replace(/\\s+/g, ''))")
     }
 
     private fun everyRequestStayedOnTheOrigin(requests: Set<String>, target: Target) {
@@ -212,6 +215,8 @@ class UiJourneyTest {
     private fun commandArguments(page: Page): List<String> = commandText(page).split(' ')
 
     private fun apiUrl(page: Page): String = page.textContent("#api-url")!!.replace(Regex("\\s+"), "")
+
+    private fun hasVersionParameter(url: String): Boolean = Regex("[?&]version=").containsMatchIn(url)
 
     companion object {
         private var opened: Target? = null

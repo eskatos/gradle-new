@@ -96,4 +96,25 @@ class KotlinJvmPluginsTest {
 
         assertTrue(result.getOutput().contains("main class derived"));
     }
+
+    @Test
+    void failsOnACompilerWarningInMainOrTestCode(@TempDir Path dir) throws IOException {
+        String withWarning = """
+            package probe
+
+            @Deprecated("Use greeting")
+            fun hello(name: String) = "Hello, $name"
+
+            fun greeting(name: String) = hello(name)
+            """;
+        TestProject main = TestProject.in(dir.resolve("main"))
+            .buildScript("plugins { id(\"gradlenew.kotlin-jvm-library\") }")
+            .file("src/main/kotlin/probe/Greeting.kt", withWarning);
+        assertTrue(main.runAndFail("compileKotlin").getOutput().contains("is deprecated. Use greeting"));
+
+        TestProject test = TestProject.in(dir.resolve("test"))
+            .buildScript("plugins { id(\"gradlenew.kotlin-jvm-library\") }")
+            .file("src/test/kotlin/probe/Greeting.kt", withWarning);
+        assertTrue(test.runAndFail("compileTestKotlin").getOutput().contains("is deprecated. Use greeting"));
+    }
 }

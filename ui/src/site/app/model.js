@@ -98,18 +98,20 @@ export function urlTokens(model, versions, partial = {}, origin = '') {
   const { choices, type } = normalize(model, versions, partial);
   const offered = channels(versions).map((c) => `${c.id} is currently Gradle ${c.version}`).join(', ');
   const tokens = [
-    { id: 'endpoint', text: `${origin}/api/generate`, kind: 'endpoint', description: 'The gradle.new API. It generates the same build and returns it as a zip archive.' },
-    { id: 'param-version', text: `version=${choices.channel}`, kind: 'version', separator: '?', description: `The Gradle version channel: ${offered}.` },
+    { id: 'endpoint', text: `${origin}/api/generate`, kind: 'endpoint', description: `The gradle.new API. It generates the same build and returns it as a zip archive. Options left out take Gradle's defaults, and without a version it uses the stable channel, currently Gradle ${versionOf(versions, 'stable')}.` },
   ];
+  if (choices.channel !== 'stable') {
+    tokens.push({ id: 'param-version', text: `version=${choices.channel}`, kind: 'version', description: `The Gradle version channel: ${offered}.` });
+  }
   for (const parameter of parameters(model, choices, type)) {
     const value = String(parameter.value);
     const token = optionToken(model, parameter.name, `${parameter.name}=${encodeURIComponent(value)}`, parameter.name, 'description');
     token.id = `param-${parameter.name}`;
-    token.separator = '&';
     if (parameter.flag) token.valueSetting = parameter.value ? 'Set to true.' : 'Set to false.';
     else { token.value = value; token.valueLabel = valueLabel(model, parameter.name, value); }
     tokens.push(token);
   }
+  tokens.slice(1).forEach((token, index) => { token.separator = index === 0 ? '?' : '&'; });
   return tokens;
 }
 
@@ -129,16 +131,16 @@ export function versionOf(versions, channel) {
 }
 
 function parameters(model, choices, type) {
-  const result = [{ name: 'type', value: type.id }];
-  if (type.dsls.values.length > 0) result.push({ name: 'dsl', value: choices.dsl });
-  if (choices.testFramework) result.push({ name: 'test-framework', value: choices.testFramework });
-  if (type.supportsProjectName) result.push({ name: 'project-name', value: choices.projectName });
-  if (type.supportsPackage) result.push({ name: 'package', value: choices.packageName });
-  if (type.supportsJavaVersion) result.push({ name: 'java-version', value: choices.javaVersion });
-  if (offersSplit(type)) result.push({ name: 'split-project', value: choices.splitProject, flag: true });
-  result.push({ name: 'incubating', value: choices.incubating, flag: true });
-  result.push({ name: 'comments', value: choices.comments, flag: true });
-  return result;
+  const result = [{ name: 'type', value: type.id, required: true }];
+  if (type.dsls.values.length > 0) result.push({ name: 'dsl', value: choices.dsl, default: type.dsls.default });
+  if (choices.testFramework) result.push({ name: 'test-framework', value: choices.testFramework, default: testFrameworkChoice(type, choices.splitProject).default });
+  if (type.supportsProjectName) result.push({ name: 'project-name', value: choices.projectName, required: true });
+  if (type.supportsPackage) result.push({ name: 'package', value: choices.packageName, default: model.packageName.default });
+  if (type.supportsJavaVersion) result.push({ name: 'java-version', value: choices.javaVersion, default: String(model.javaVersion.default) });
+  if (offersSplit(type)) result.push({ name: 'split-project', value: choices.splitProject, flag: true, default: type.modularization.default === WITH_LIBRARY_PROJECTS });
+  result.push({ name: 'incubating', value: choices.incubating, flag: true, default: false });
+  result.push({ name: 'comments', value: choices.comments, flag: true, default: true });
+  return result.filter((p) => p.required || String(p.value) !== String(p.default));
 }
 
 function optionToken(model, option, text, name, field) {

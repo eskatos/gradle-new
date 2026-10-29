@@ -90,13 +90,17 @@ class PageTest {
     fun commandAndUrlFollowTheChoices(): List<DynamicTest> = onPage { page, server ->
         page.fill("#project-name", "demo-app")
         assertEquals(
-            "gradle init \\\n  --type java-application \\\n  --dsl kotlin \\\n  --test-framework junit-jupiter \\\n  --project-name demo-app \\\n  --package org.example \\\n  --java-version 21 \\\n  --no-split-project \\\n  --no-incubating \\\n  --comments \\\n  --use-defaults",
+            "gradle init \\\n  --type java-application \\\n  --project-name demo-app \\\n  --use-defaults",
             page.textContent("#command"),
         )
-        assertEquals(
-            "${server.url}/api/generate?version=stable&type=java-application&dsl=kotlin&test-framework=junit-jupiter&project-name=demo-app&package=org.example&java-version=21&split-project=false&incubating=false&comments=true",
-            page.textContent("#api-url")!!.replace(Regex("\\s+"), ""),
-        )
+        assertEquals("${server.url}/api/generate?type=java-application&project-name=demo-app", page.textContent("#api-url")!!.replace(Regex("\\s+"), ""))
+        page.check("input[name=dsl][value=groovy]")
+        page.uncheck("#comments")
+        assertEquals("gradle init --type java-application --dsl groovy --project-name demo-app --no-comments --use-defaults", commandText(page))
+        assertEquals("${server.url}/api/generate?type=java-application&dsl=groovy&project-name=demo-app&comments=false", page.textContent("#api-url")!!.replace(Regex("\\s+"), ""))
+        page.check("input[name=dsl][value=kotlin]")
+        page.check("#comments")
+        assertEquals("gradle init --type java-application --project-name demo-app --use-defaults", commandText(page), "back at the defaults, the options disappear")
         page.click("#copy-command")
         page.waitForSelector("#copy-command.is-copied")
         assertEquals("Copied", page.textContent("#copy-command .copy-label"))
@@ -104,8 +108,8 @@ class PageTest {
         page.waitForSelector("#copy-url.is-copied")
         @Suppress("UNCHECKED_CAST")
         val copied = page.evaluate("() => window.__copied") as List<String>
-        assertEquals("gradle init --type java-application --dsl kotlin --test-framework junit-jupiter --project-name demo-app --package org.example --java-version 21 --no-split-project --no-incubating --comments --use-defaults", copied[0])
-        assertTrue(copied[1].startsWith(server.url + "/api/generate?version=stable&type=java-application"), copied[1])
+        assertEquals("gradle init --type java-application --project-name demo-app --use-defaults", copied[0])
+        assertEquals(server.url + "/api/generate?type=java-application&project-name=demo-app", copied[1])
     }
 
     @TestFactory
@@ -124,11 +128,11 @@ class PageTest {
         page.hover("#command .token[data-token-id=option-type]")
         assertTrue(page.getAttribute("#explain-command .explanation-item[data-token-id=option-type]", "class")!!.contains("is-active"))
         assertTrue(page.getAttribute("#explain-command svg.connectors path[data-token-id=option-type]", "class")!!.contains("is-active"))
-        page.focus("#explain-command .explanation-item[data-token-id=option-dsl]")
-        assertTrue(page.getAttribute("#command .token[data-token-id=option-dsl]", "class")!!.contains("is-active"))
+        page.focus("#explain-command .explanation-item[data-token-id=option-project-name]")
+        assertTrue(page.getAttribute("#command .token[data-token-id=option-project-name]", "class")!!.contains("is-active"))
 
         page.click("#explain-url-toggle")
-        assertTrue(page.textContent("#explain-url [data-kind=version] .explanation-description")!!.contains("9.8.2"))
+        assertTrue(page.textContent("#explain-url [data-kind=endpoint] .explanation-description")!!.contains("9.8.2"))
         page.waitForFunction("() => document.querySelectorAll('#explain-url svg.connectors path').length > 0")
         assertEquals(page.locator("#api-url .token").count(), page.locator("#explain-url svg.connectors path").count())
 
@@ -146,9 +150,9 @@ class PageTest {
     @TestFactory
     fun clickingATokenRevealsItsExplanation(): List<DynamicTest> = onPage { page, _ ->
         page.setViewportSize(1280, 500)
-        val packageToken = "#command .token[data-token-id=option-package]"
-        val packageItem = "#explain-command .explanation-item[data-token-id=option-package]"
-        val box = page.locator(packageToken).boundingBox()!!
+        val nameToken = "#command .token[data-token-id=option-project-name]"
+        val nameItem = "#explain-command .explanation-item[data-token-id=option-project-name]"
+        val box = page.locator(nameToken).boundingBox()!!
         page.mouse().move(box.x + 2, box.y + box.height / 2)
         page.mouse().down()
         page.mouse().move(box.x + box.width - 2, box.y + box.height / 2)
@@ -156,24 +160,24 @@ class PageTest {
         assertTrue(!page.isVisible("#explain-command"), "selecting text must not open the explanation")
         page.evaluate("() => getSelection().removeAllRanges()")
 
-        page.click(packageToken)
+        page.click(nameToken)
         assertEquals("true", page.getAttribute("#explain-command-toggle", "aria-expanded"))
         assertTrue(page.isVisible("#explain-command"))
-        assertTrue(page.getAttribute(packageItem, "class")!!.contains("is-active"))
-        assertTrue(page.getAttribute(packageToken, "class")!!.contains("is-active"))
-        page.waitForFunction("""selector => { const r = document.querySelector(selector).getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight }""", packageItem)
+        assertTrue(page.getAttribute(nameItem, "class")!!.contains("is-active"))
+        assertTrue(page.getAttribute(nameToken, "class")!!.contains("is-active"))
+        page.waitForFunction("""selector => { const r = document.querySelector(selector).getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight }""", nameItem)
 
-        page.click("#command .token[data-token-id=option-dsl]")
-        assertTrue(page.getAttribute("#explain-command .explanation-item[data-token-id=option-dsl]", "class")!!.contains("is-active"))
-        assertTrue(!page.getAttribute(packageItem, "class")!!.contains("is-active"))
+        page.click("#command .token[data-token-id=option-type]")
+        assertTrue(page.getAttribute("#explain-command .explanation-item[data-token-id=option-type]", "class")!!.contains("is-active"))
+        assertTrue(!page.getAttribute(nameItem, "class")!!.contains("is-active"))
 
         page.click("#explain-command-toggle")
         assertTrue(!page.isVisible("#explain-command"))
-        assertTrue(!page.getAttribute("#command .token[data-token-id=option-dsl]", "class")!!.contains("is-active"))
+        assertTrue(!page.getAttribute("#command .token[data-token-id=option-type]", "class")!!.contains("is-active"))
 
-        page.click("#api-url .token[data-token-id=param-package]")
+        page.click("#api-url .token[data-token-id=param-project-name]")
         assertEquals("true", page.getAttribute("#explain-url-toggle", "aria-expanded"))
-        assertTrue(page.getAttribute("#explain-url .explanation-item[data-token-id=param-package]", "class")!!.contains("is-active"))
+        assertTrue(page.getAttribute("#explain-url .explanation-item[data-token-id=param-project-name]", "class")!!.contains("is-active"))
         assertEquals("pointer", page.evaluate("() => getComputedStyle(document.querySelector('#api-url .token')).cursor"))
     }
 
@@ -183,7 +187,7 @@ class PageTest {
         val download = page.waitForDownload { page.click("#download") }
         assertEquals("demo-app.zip", download.suggestedFilename())
         assertTrue(java.nio.file.Files.readAllBytes(download.path()).contentEquals(zip))
-        assertTrue(server.requests.any { it.startsWith("/api/generate?version=stable&type=java-application") })
+        assertTrue(server.requests.any { it.startsWith("/api/generate?type=java-application") })
         assertTrue(page.textContent("#form-status")!!.contains("demo-app.zip"))
 
         page.fill("#package", "com.ac\$me")

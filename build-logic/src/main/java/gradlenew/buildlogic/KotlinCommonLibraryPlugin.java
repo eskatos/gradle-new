@@ -20,6 +20,7 @@ public abstract class KotlinCommonLibraryPlugin implements Plugin<Project> {
         KotlinMultiplatformExtension kotlin = project.getExtensions().getByType(KotlinMultiplatformExtension.class);
         kotlin.jvm();
         kotlin.jvmToolchain(catalog.jdk());
+        kotlin.getCompilerOptions().getAllWarningsAsErrors().set(true);
         project.getDependencies().add("commonTestImplementation", "org.jetbrains.kotlin:kotlin-test");
         project.getDependencies().addProvider("jvmTestRuntimeOnly", catalog.library("junit-platform-launcher"));
         project.getTasks().withType(Test.class).configureEach(Test::useJUnitPlatform);

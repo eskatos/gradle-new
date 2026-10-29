@@ -37,7 +37,7 @@ class ModelScriptTest {
         assertEquals("JUnit 4", ((form["testFrameworks"] as List<*>)[0] as Map<*, *>)["label"])
         assertEquals(true, form["splitProject"])
         assertEquals(true, form["packageName"])
-        assertEquals<Map<Any?, Any?>>(mapOf("minimum" to 7, "maximum" to 31), (form["javaVersion"] as Map<Any?, Any?>).filterKeys { it != "supported" })
+        assertEquals<Map<*, *>>(mapOf("minimum" to 7, "maximum" to 31), (form["javaVersion"] as Map<*, *>).filterKeys { it != "supported" })
         assertEquals("java-application", form["buildType"])
 
         val withRc = script.map("formState", model, versionsWithRc, json())
@@ -90,31 +90,43 @@ class ModelScriptTest {
 
     @TestFactory
     fun commandLine(): List<DynamicTest> = inEveryEngine { script ->
-        val tokens = script.list("commandTokens", model, versions, json("projectName" to "demo-app", "packageName" to "com.acme.demo", "javaVersion" to "17"))
+        val defaults = json("projectName" to "demo-app", "packageName" to "com.acme.demo", "javaVersion" to "17")
+        val tokens = script.list("commandTokens", model, versions, defaults)
         assertEquals(
-            listOf("gradle", "init", "--type java-application", "--dsl kotlin", "--test-framework junit-jupiter", "--project-name demo-app", "--package com.acme.demo", "--java-version 17", "--no-split-project", "--no-incubating", "--comments", "--use-defaults"),
+            listOf("gradle", "init", "--type java-application", "--project-name demo-app", "--package com.acme.demo", "--java-version 17", "--use-defaults"),
             tokens.map { it["text"] },
+            "options at their default value are left to --use-defaults",
         )
-        assertEquals("gradle init --type java-application --dsl kotlin --test-framework junit-jupiter --project-name demo-app --package com.acme.demo --java-version 17 --no-split-project --no-incubating --comments --use-defaults",
-            script.call("commandLine", model, versions, json("projectName" to "demo-app", "packageName" to "com.acme.demo", "javaVersion" to "17")))
+        assertEquals("gradle init --type java-application --project-name demo-app --package com.acme.demo --java-version 17 --use-defaults",
+            script.call("commandLine", model, versions, defaults))
         val type = tokens[2]
         assertEquals("type", type["option"])
         assertEquals("java-application", type["value"])
         assertEquals("Set the type of project to generate.", type["description"])
         assertEquals("Application in Java", type["valueLabel"])
-        assertEquals("Kotlin DSL", tokens[3]["valueLabel"])
-        assertEquals("JUnit Jupiter", tokens[4]["valueLabel"])
-        assertEquals(null, tokens[5]["valueLabel"])
-        assertEquals("no-split-project", tokens[8]["option"])
-        assertEquals("Disables option --split-project.", tokens[8]["description"])
-        assertEquals("Include clarifying comments in files.", tokens[10]["description"])
+        assertEquals(null, tokens[3]["valueLabel"])
+        assertEquals("Use default values for options not configured explicitly", tokens.last()["description"])
         assertEquals("gradle", tokens[0]["kind"])
         assertTrue((tokens[0]["description"] as String).contains("9.8.2"))
         assertEquals("init", tokens[1]["kind"])
         assertEquals(tokens.map { it["id"] }.toSet().size, tokens.size, "token ids are unique")
 
+        val chosen = script.list("commandTokens", model, versions, json("dsl" to "groovy", "testFramework" to "spock", "incubating" to true, "comments" to false))
+        assertEquals(
+            listOf("gradle", "init", "--type java-application", "--dsl groovy", "--test-framework spock", "--project-name demo", "--incubating", "--no-comments", "--use-defaults"),
+            chosen.map { it["text"] },
+        )
+        assertEquals("Groovy DSL", chosen[3]["valueLabel"])
+        assertEquals("Spock", chosen[4]["valueLabel"])
+        assertEquals("Disables option --comments.", chosen[7]["description"])
+
+        val split = script.list("commandTokens", model, versions, json("splitProject" to true))
+        assertEquals(listOf("gradle", "init", "--type java-application", "--project-name demo", "--split-project", "--use-defaults"), split.map { it["text"] },
+            "JUnit Jupiter is the default test framework of the split layout")
+        assertEquals("Split functionality across multiple subprojects?", split[4]["description"])
+
         val basic = script.list("commandTokens", model, versions, json("componentType" to "basic", "incubating" to true)).map { it["text"] }
-        assertEquals(listOf("gradle", "init", "--type basic", "--dsl kotlin", "--project-name demo", "--incubating", "--comments", "--use-defaults"), basic)
+        assertEquals(listOf("gradle", "init", "--type basic", "--project-name demo", "--incubating", "--use-defaults"), basic)
 
         val rc = script.list("commandTokens", model, versionsWithRc, json("channel" to "rc"))
         assertTrue((rc[0]["description"] as String).contains("9.9.0-rc-1"))
@@ -124,26 +136,31 @@ class ModelScriptTest {
     fun apiUrl(): List<DynamicTest> = inEveryEngine { script ->
         val choices = json("projectName" to "demo-app", "packageName" to "com.ac\$me")
         assertEquals(
-            "https://gradle.example/api/generate?version=stable&type=java-application&dsl=kotlin&test-framework=junit-jupiter&project-name=demo-app&package=com.ac%24me&java-version=21&split-project=false&incubating=false&comments=true",
+            "https://gradle.example/api/generate?type=java-application&project-name=demo-app&package=com.ac%24me",
             script.call("apiUrl", model, versions, choices, "\"https://gradle.example\""),
+            "the stable channel and options at their default value are left out",
         )
         val tokens = script.list("urlTokens", model, versions, choices, "\"https://gradle.example\"")
         assertEquals("https://gradle.example/api/generate", tokens[0]["text"])
         assertEquals("endpoint", tokens[0]["kind"])
-        assertEquals("version=stable", tokens[1]["text"])
-        assertEquals("version", tokens[1]["kind"])
-        assertTrue((tokens[1]["description"] as String).contains("9.8.2"))
-        assertEquals("type=java-application", tokens[2]["text"])
-        assertEquals("type", tokens[2]["option"])
-        assertEquals("Set the type of project to generate.", tokens[2]["description"])
-        assertEquals("Application in Java", tokens[2]["valueLabel"])
-        assertEquals("split-project", tokens[8]["option"])
-        assertEquals("Split functionality across multiple subprojects?", tokens[8]["description"])
+        assertTrue((tokens[0]["description"] as String).contains("9.8.2"))
+        assertEquals("type=java-application", tokens[1]["text"])
+        assertEquals("type", tokens[1]["option"])
+        assertEquals("Set the type of project to generate.", tokens[1]["description"])
+        assertEquals("Application in Java", tokens[1]["valueLabel"])
         assertEquals("?", tokens[1]["separator"])
         assertEquals("&", tokens[2]["separator"])
 
-        val rc = script.call("apiUrl", model, versionsWithRc, json("channel" to "rc", "componentType" to "basic"), "\"https://gradle.example\"") as String
-        assertTrue(rc.startsWith("https://gradle.example/api/generate?version=rc&type=basic&dsl=kotlin&project-name=demo&incubating=false&comments=true"), rc)
+        val chosen = script.list("urlTokens", model, versions, json("javaVersion" to "17", "splitProject" to true, "comments" to false), "\"https://gradle.example\"")
+        assertEquals(listOf("https://gradle.example/api/generate", "type=java-application", "project-name=demo", "java-version=17", "split-project=true", "comments=false"), chosen.map { it["text"] })
+        assertEquals("Split functionality across multiple subprojects?", chosen[4]["description"])
+        assertEquals("Set to true.", chosen[4]["valueSetting"])
+
+        val rc = script.list("urlTokens", model, versionsWithRc, json("channel" to "rc", "componentType" to "basic"), "\"https://gradle.example\"")
+        assertEquals(listOf("https://gradle.example/api/generate", "version=rc", "type=basic", "project-name=demo"), rc.map { it["text"] })
+        assertEquals("version", rc[1]["kind"])
+        assertEquals("?", rc[1]["separator"])
+        assertTrue((rc[1]["description"] as String).contains("9.9.0-rc-1"))
     }
 
     private fun inEveryEngine(test: (Script) -> Unit): List<DynamicTest> =

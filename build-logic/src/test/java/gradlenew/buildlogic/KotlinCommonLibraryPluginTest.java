@@ -74,4 +74,22 @@ class KotlinCommonLibraryPluginTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":b:checkDependencyFree").getOutcome());
     }
+
+    @Test
+    void failsOnACompilerWarning(@TempDir Path dir) throws IOException {
+        TestProject project = TestProject.in(dir)
+            .buildScript("plugins { id(\"gradlenew.kotlin-common-library\") }")
+            .file("src/commonMain/kotlin/probe/Greeting.kt", """
+                package probe
+
+                @Deprecated("Use greeting")
+                fun hello(name: String) = "Hello, $name"
+
+                fun greeting(name: String) = hello(name)
+                """);
+
+        BuildResult result = project.runAndFail("compileKotlinJvm");
+
+        assertTrue(result.getOutput().contains("is deprecated. Use greeting"), result.getOutput());
+    }
 }
