@@ -1,0 +1,76 @@
+/* Gradle Build Tool — Color tokens
+   Values from the official Gradle Color Palette. */
+:root {
+  /* ---- Brand core ---- */
+  --gradle-blue: #209bc4;      /* Gradle Blue — gradient start */
+  --gradle-teal: #4dc9c0;      /* Gradle Green — gradient end */
+  --gradle-dark: #2e3135;      /* Dark Background */
+  --gradle-dark-2: #0b0d0f;    /* Gray 1 — deepest */
+  --gradle-gradient: linear-gradient(120deg, #209bc4 0%, #4dc9c0 100%); /* @kind color */
+  --gradle-gradient-soft: linear-gradient(120deg, #209bc4 0%, #4dc9c0 100%); /* @kind color */
+
+  /* Secondary blues */
+  --core-blue:  #3099e3;
+  --light-blue: #77def0;
+
+  /* ---- Neutrals (official Gray ramp) ---- */
+  --neutral-0:   #ffffff;      /* White */
+  --neutral-50:  #f8f8f8;      /* Light Background 100 */
+  --neutral-100: #efefef;      /* Light Background 200 */
+  --neutral-200: #e5e5e5;      /* Gray 5 */
+  --neutral-300: #b2b2b2;      /* Gray 4 */
+  --neutral-400: #808080;      /* Gray 3 */
+  --neutral-500: #666666;
+  --neutral-600: #4d4d4d;      /* Gray 2 */
+  --neutral-700: #383838;
+  --neutral-800: #2e3135;      /* Dark Background */
+  --neutral-900: #222222;      /* Gray 1 (R34 G34 B34) */
+  --neutral-950: #0b0d0f;
+
+  /* ---- Semantic status (official) ---- */
+  --green-500:  #00c851;   /* Core Success */
+  --green-700:  #007e33;   /* Dark Success */
+  --green-100:  #d5f6e2;
+  --amber-500:  #ffbb33;   /* Core Warning */
+  --amber-700:  #ff8800;   /* Dark Warning */
+  --amber-100:  #fff1d6;
+  --red-500:    #ff4444;   /* Core Error */
+  --red-700:    #cc0000;   /* Dark Error */
+  --red-100:    #ffe0e0;
+  --blue-500:   #3099e3;   /* Core Blue */
+  --blue-100:   #dceffb;
+
+  /* ---- Semantic aliases: text ---- */
+  --text-strong:  var(--neutral-900);
+  --text-body:    var(--neutral-700);
+  --text-muted:   var(--neutral-500);
+  --text-subtle:  var(--neutral-400);
+  --text-inverse: var(--neutral-0);
+  --text-link:    var(--gradle-blue);
+  --text-on-brand: #ffffff;
+
+  /* ---- Semantic aliases: surfaces ---- */
+  --surface-page:    var(--neutral-0);
+  --surface-subtle:  var(--neutral-50);
+  --surface-card:    var(--neutral-0);
+  --surface-sunken:  var(--neutral-100);
+  --surface-dark:    var(--gradle-dark);
+  --surface-dark-2:  var(--gradle-dark-2);
+  --surface-inverse: var(--gradle-dark);
+
+  /* ---- Semantic aliases: borders ---- */
+  --border-subtle: var(--neutral-200);
+  --border-default: var(--neutral-300);
+  --border-strong: var(--neutral-400);
+  --border-focus: var(--gradle-blue);
+  --border-on-dark: rgba(255,255,255,0.14);
+
+  /* ---- Semantic aliases: accents ---- */
+  --accent: var(--gradle-blue);
+  --accent-hover: #1b87ab;
+  --accent-teal: var(--gradle-teal);
+  --success: var(--green-500);
+  --warning: var(--amber-700);
+  --danger:  var(--red-500);
+  --info:    var(--blue-500);
+}
