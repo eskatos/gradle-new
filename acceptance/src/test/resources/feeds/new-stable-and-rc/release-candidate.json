@@ -1,0 +1,22 @@
+{
+  "version" : "9.10.0-rc-1",
+  "buildTime" : "20260922122455+0000",
+  "commitId" : "3f6a53434a2cf4f33486af2ae5eabd1fc830352d",
+  "current" : false,
+  "snapshot" : false,
+  "nightly" : false,
+  "releaseNightly" : false,
+  "activeRc" : true,
+  "rcFor" : "9.10.0",
+  "milestoneFor" : "",
+  "broken" : false,
+  "downloadUrl" : "https://services.gradle.org/distributions/gradle-9.10.0-rc-1-bin.zip",
+  "checksumUrl" : "https://services.gradle.org/distributions/gradle-9.10.0-rc-1-bin.zip.sha256",
+  "checksum" : "a068e9c506ea61501c689900aec9010eda810b112e682146b1ae4291df3dab6a",
+  "wrapperChecksumUrl" : "https://services.gradle.org/distributions/gradle-9.10.0-rc-1-wrapper.jar.sha256",
+  "wrapperChecksum" : "238e777fcddd7e34f9708186085def2abd6e08e658505b38718d79d74c21abd5",
+  "released" : false,
+  "releasedOrActiveRc" : true,
+  "publicationSlot" : "9.10.0-rc-1",
+  "final" : false
+}
