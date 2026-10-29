@@ -54,7 +54,7 @@ val sampleModel = InitModel(
             furtherReading = null,
         ),
     ),
-    javaVersion = JavaVersionParameter(minimum = 7, default = 21),
+    javaVersion = JavaVersionParameter(minimum = 7, default = 21, maximum = 31),
     packageName = TextParameter(pattern = "^[A-Za-z_$][A-Za-z0-9_$]*(\\.[A-Za-z_$][A-Za-z0-9_$]*)*$", default = "org.example"),
     projectName = TextParameter(pattern = null, default = null),
 )

@@ -50,7 +50,7 @@ class SitePublisherTest {
                 furtherReading = null,
             ),
         ),
-        javaVersion = JavaVersionParameter(7, 21),
+        javaVersion = JavaVersionParameter(7, 21, 31),
         packageName = TextParameter(null, "org.example"),
         projectName = TextParameter(null, null),
     )

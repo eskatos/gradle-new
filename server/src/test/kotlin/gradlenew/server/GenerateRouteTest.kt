@@ -50,7 +50,7 @@ class GenerateRouteTest {
                 supportsPackage = true, supportsJavaVersion = true, supportsProjectName = true, furtherReading = null,
             ),
         ),
-        javaVersion = JavaVersionParameter(7, 21),
+        javaVersion = JavaVersionParameter(7, 21, 31),
         packageName = TextParameter("^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$", "org.example"),
         projectName = TextParameter(null, null),
     )

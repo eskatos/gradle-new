@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 
 class InitModelConverterTest {
 
-    private final InitModelConverter converter = new InitModelConverter("9.8.2", 7, 21, "org.example");
+    private final InitModelConverter converter = new InitModelConverter("9.8.2", 7, 21, 31, "org.example");
 
     @Test
     void convertsVocabulariesFromTheEnums() {
@@ -39,6 +39,7 @@ class InitModelConverterTest {
         assertTrue(model.getTestFrameworks().stream().map(Model.Named::getId).toList().containsAll(List.of("junit-jupiter", "kotlintest", "cpptest")));
         assertEquals(7, model.getJavaVersion().getMinimum());
         assertEquals(21, model.getJavaVersion().getDefault());
+        assertEquals(31, model.getJavaVersion().getMaximum());
         assertEquals("org.example", model.getPackageName().getDefault());
         assertNull(model.getProjectName().getPattern());
     }

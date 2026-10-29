@@ -55,7 +55,7 @@ fun model(vararg buildTypes: BuildType = arrayOf(javaApplication, groovyLibrary,
     modularizationOptions = listOf(ModularizationOption("single-project", "Single"), ModularizationOption("with-library-projects", "Split")),
     testFrameworks = listOf("junit", "junit-jupiter", "spock", "kotlintest", "cpptest").map { TestFramework(it, it) },
     buildTypes = buildTypes.toList(),
-    javaVersion = JavaVersionParameter(minimum = 7, default = 21),
+    javaVersion = JavaVersionParameter(minimum = 7, default = 21, maximum = 31),
     packageName = TextParameter("^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$", "org.example"),
     projectName = TextParameter(null, null),
 )

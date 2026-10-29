@@ -30,6 +30,7 @@ final class InitModelBuilder implements ToolingModelBuilder {
             project.getGradle().getGradleVersion(),
             constant("MINIMUM_VERSION_SUPPORTED_BY_FOOJAY_API"),
             constant("DEFAULT_JAVA_VERSION"),
+            JavaVersions.highestKnown(),
             constant("SOURCE_PACKAGE_DEFAULT"));
         return converter.convert(generators);
     }

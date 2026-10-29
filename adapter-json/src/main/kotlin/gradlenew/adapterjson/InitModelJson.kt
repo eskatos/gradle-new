@@ -39,7 +39,14 @@ object InitModelJson {
         putJsonArray("modularizationOptions") { model.modularizationOptions.forEach { add(named(it.id, it.displayName)) } }
         putJsonArray("testFrameworks") { model.testFrameworks.forEach { add(named(it.id, it.displayName)) } }
         putJsonArray("buildTypes") { model.buildTypes.forEach { add(toJson(it)) } }
-        put("javaVersion", buildJsonObject { put("minimum", model.javaVersion.minimum); put("default", model.javaVersion.default) })
+        put(
+            "javaVersion",
+            buildJsonObject {
+                put("minimum", model.javaVersion.minimum)
+                put("default", model.javaVersion.default)
+                put("maximum", model.javaVersion.maximum)
+            },
+        )
         put("packageName", toJson(model.packageName))
         put("projectName", toJson(model.projectName))
     }
@@ -95,7 +102,7 @@ object InitModelJson {
         modularizationOptions = json.array("modularizationOptions").map { it.jsonObject.let { o -> ModularizationOption(o.string("id"), o.string("displayName")) } },
         testFrameworks = json.array("testFrameworks").map { it.jsonObject.let { o -> TestFramework(o.string("id"), o.string("displayName")) } },
         buildTypes = json.array("buildTypes").map { buildType(it.jsonObject) },
-        javaVersion = json.obj("javaVersion").let { JavaVersionParameter(it.int("minimum"), it.int("default")) },
+        javaVersion = json.obj("javaVersion").let { JavaVersionParameter(it.int("minimum"), it.int("default"), it.int("maximum")) },
         packageName = textParameter(json.obj("packageName")),
         projectName = textParameter(json.obj("projectName")),
     )

@@ -22,7 +22,7 @@ internal object ModelMapping {
         modularizationOptions = model.modularizationOptions.map { ModularizationOption(it.id, it.displayName) },
         testFrameworks = model.testFrameworks.map { TestFramework(it.id, it.displayName) },
         buildTypes = model.buildTypes.map { toDomain(it) },
-        javaVersion = JavaVersionParameter(model.javaVersion.minimum, model.javaVersion.default),
+        javaVersion = JavaVersionParameter(model.javaVersion.minimum, model.javaVersion.default, model.javaVersion.maximum),
         packageName = TextParameter(model.packageName.pattern, model.packageName.default),
         projectName = TextParameter(model.projectName.pattern, model.projectName.default),
     )

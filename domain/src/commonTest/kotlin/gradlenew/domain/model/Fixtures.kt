@@ -50,7 +50,7 @@ fun model(
     dsls: List<Dsl> = listOf(kotlinDsl, groovyDsl),
     modularizationOptions: List<ModularizationOption> = listOf(singleProject, withLibraries),
     testFrameworks: List<TestFramework> = listOf(junitJupiter, spock),
-    javaVersion: JavaVersionParameter = JavaVersionParameter(minimum = 7, default = 21),
+    javaVersion: JavaVersionParameter = JavaVersionParameter(minimum = 7, default = 21, maximum = 31),
 ) = InitModel(
     gradleVersion = "9.8.2",
     componentTypes = componentTypes,

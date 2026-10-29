@@ -41,6 +41,8 @@ class InitModelRequestTest {
             assertEquals("cpp", model.buildType("cpp-application").language)
             assertEquals(7, model.javaVersion.minimum)
             assertEquals(21, model.javaVersion.default)
+            if (version == "9.8.2") assertEquals(31, model.javaVersion.maximum)
+            assertTrue(model.javaVersion.maximum >= model.javaVersion.default)
             assertEquals("org.example", model.packageName.default)
             assertEquals(listOf("kotlin", "groovy"), model.dsls.map { it.id })
         }

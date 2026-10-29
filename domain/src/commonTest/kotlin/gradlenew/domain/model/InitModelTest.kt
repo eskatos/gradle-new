@@ -54,9 +54,10 @@ class InitModelTest {
     }
 
     @Test
-    fun javaVersionDefaultMustNotBeBelowTheMinimum() {
-        assertFailsWith<IllegalArgumentException> { JavaVersionParameter(minimum = 17, default = 11) }
-        assertEquals(JavaVersionParameter(7, 21), model().javaVersion)
+    fun javaVersionDefaultMustLieBetweenTheMinimumAndTheMaximum() {
+        assertFailsWith<IllegalArgumentException> { JavaVersionParameter(minimum = 17, default = 11, maximum = 31) }
+        assertFailsWith<IllegalArgumentException> { JavaVersionParameter(minimum = 7, default = 21, maximum = 17) }
+        assertEquals(JavaVersionParameter(7, 21, 31), model().javaVersion)
     }
 
     @Test

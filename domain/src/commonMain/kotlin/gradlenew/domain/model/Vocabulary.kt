@@ -24,9 +24,10 @@ data class TestFrameworkChoice(val modularization: String, val values: List<Stri
     }
 }
 
-data class JavaVersionParameter(val minimum: Int, val default: Int) {
+data class JavaVersionParameter(val minimum: Int, val default: Int, val maximum: Int) {
     init {
         require(default >= minimum) { "Default Java version $default is below the minimum $minimum" }
+        require(maximum >= default) { "Highest known Java version $maximum is below the default $default" }
     }
 }
 

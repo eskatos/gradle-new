@@ -219,10 +219,12 @@ final class Model {
     static final class JavaVersion implements JavaVersionParameter, Serializable {
         private final int minimum;
         private final int defaultVersion;
+        private final int maximum;
 
-        JavaVersion(int minimum, int defaultVersion) {
+        JavaVersion(int minimum, int defaultVersion, int maximum) {
             this.minimum = minimum;
             this.defaultVersion = defaultVersion;
+            this.maximum = maximum;
         }
 
         @Override
@@ -233,6 +235,11 @@ final class Model {
         @Override
         public int getDefault() {
             return defaultVersion;
+        }
+
+        @Override
+        public int getMaximum() {
+            return maximum;
         }
     }
 

@@ -19,12 +19,14 @@ final class InitModelConverter {
     private final String gradleVersion;
     private final int minimumJavaVersion;
     private final int defaultJavaVersion;
+    private final int maximumJavaVersion;
     private final String defaultPackageName;
 
-    InitModelConverter(String gradleVersion, int minimumJavaVersion, int defaultJavaVersion, String defaultPackageName) {
+    InitModelConverter(String gradleVersion, int minimumJavaVersion, int defaultJavaVersion, int maximumJavaVersion, String defaultPackageName) {
         this.gradleVersion = gradleVersion;
         this.minimumJavaVersion = minimumJavaVersion;
         this.defaultJavaVersion = defaultJavaVersion;
+        this.maximumJavaVersion = maximumJavaVersion;
         this.defaultPackageName = defaultPackageName;
     }
 
@@ -53,7 +55,7 @@ final class InitModelConverter {
                 .map(framework -> new Model.Named(framework.getId(), framework.toString()))
                 .toList(),
             types,
-            new Model.JavaVersion(minimumJavaVersion, defaultJavaVersion),
+            new Model.JavaVersion(minimumJavaVersion, defaultJavaVersion, maximumJavaVersion),
             new Model.Text(PACKAGE_PATTERN, defaultPackageName),
             new Model.Text(null, null));
     }

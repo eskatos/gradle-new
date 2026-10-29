@@ -127,7 +127,8 @@
     ],
     "javaVersion": {
         "minimum": 7,
-        "default": 21
+        "default": 21,
+        "maximum": 31
     },
     "packageName": {
         "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*(\\.[A-Za-z_$][A-Za-z0-9_$]*)*$",
