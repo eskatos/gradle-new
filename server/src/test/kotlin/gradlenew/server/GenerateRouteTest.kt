@@ -135,6 +135,7 @@ class GenerateRouteTest {
             "Target Java version: '6' is not a supported target version. It must be equal to or greater than 7",
             ErrorJson.decode(response.bodyAsText()),
         )
+        assertEquals("java-version", ErrorJson.parameter(response.bodyAsText()))
     }
 
     @Test

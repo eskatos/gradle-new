@@ -11,7 +11,7 @@ fun interface TemplateSource {
 
 sealed interface GenerationResult {
     data class Generated(val files: FileSet, val filename: String, val immutable: Boolean) : GenerationResult
-    data class Rejected(val message: String) : GenerationResult
+    data class Rejected(val message: String, val parameter: String? = null) : GenerationResult
 }
 
 class BuildGeneration(
@@ -22,13 +22,13 @@ class BuildGeneration(
 ) {
     fun generate(parameters: List<Pair<String, String>>): GenerationResult {
         val repeated = parameters.groupingBy { it.first }.eachCount().filterValues { it > 1 }.keys
-        if (repeated.isNotEmpty()) return GenerationResult.Rejected("Option '${repeated.first()}' is given more than once.")
+        if (repeated.isNotEmpty()) return GenerationResult.Rejected("Option '${repeated.first()}' is given more than once.", repeated.first())
         return generate(parameters.toMap())
     }
 
     fun generate(options: Map<String, String>): GenerationResult =
         when (val resolution = RequestValidation.resolve(options, offered, indexes, models)) {
-            is Resolution.Rejected -> GenerationResult.Rejected(resolution.message)
+            is Resolution.Rejected -> GenerationResult.Rejected(resolution.message, resolution.parameter)
             is Resolution.Accepted -> generate(resolution.request)
         }
 

@@ -223,6 +223,30 @@ class RequestValidationTest {
         assertEquals(32, accepted("type" to "java-library", "project-name" to "p", "java-version" to "32", index = groovyEnumerated).inputs.javaVersion)
     }
 
+    @Test
+    fun rejectionsNameTheParameterTheyConcern() {
+        assertEquals("version", rejectedParameter("version" to "rc", "type" to "basic", "project-name" to "p"))
+        assertEquals("type", rejectedParameter("project-name" to "p"))
+        assertEquals("type", rejectedParameter("type" to "pom", "project-name" to "p"))
+        assertEquals("overwrite", rejectedParameter("type" to "basic", "project-name" to "p", "overwrite" to "true"))
+        assertEquals("project-name", rejectedParameter("type" to "basic", "project-name" to "p".repeat(257)))
+        assertEquals("project-name", rejectedParameter("type" to "basic"))
+        assertEquals("project-name", rejectedParameter("type" to "basic", "project-name" to "1x"))
+        assertEquals("package", rejectedParameter("type" to "cpp-application", "project-name" to "p", "package" to "org.example"))
+        assertEquals("package", rejectedParameter("type" to "java-application", "project-name" to "p", "package" to "com.ac\$me"))
+        assertEquals("java-version", rejectedParameter("type" to "java-application", "project-name" to "p", "java-version" to "6"))
+        assertEquals("dsl", rejectedParameter("type" to "java-application", "project-name" to "p", "dsl" to "yaml"))
+        assertEquals("test-framework", rejectedParameter("type" to "basic", "project-name" to "p", "test-framework" to "junit"))
+        assertEquals("split-project", rejectedParameter("type" to "java-library", "project-name" to "p", "split-project" to "true"))
+        assertEquals("incubating", rejectedParameter("type" to "basic", "project-name" to "p", "incubating" to "maybe"))
+    }
+
+    private fun rejectedParameter(vararg options: Pair<String, String>): String? =
+        when (val resolution = RequestValidation.resolve(mapOf(*options), stableOnly) { gradle982Model }) {
+            is Resolution.Accepted -> fail("Expected rejection of ${options.toList()}, got: ${resolution.request}")
+            is Resolution.Rejected -> resolution.parameter
+        }
+
     private val groovyEnumerated = TemplateIndex(setOf("groovy-library"))
 
     private fun accepted(vararg options: Pair<String, String>, offered: OfferedVersions = stableOnly, model: InitModel = gradle982Model, index: TemplateIndex = TemplateIndex.NONE): ResolvedRequest =

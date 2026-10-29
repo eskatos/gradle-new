@@ -31,7 +31,7 @@ fun Application.gradleNew(siteDir: File, templatesDir: File) {
         }
         get("/api/generate") {
             when (val result = site.generation.generate(call.request.queryParameters.flattenEntries())) {
-                is GenerationResult.Rejected -> call.respondText(ErrorJson.encode(result.message), ContentType.Application.Json, HttpStatusCode.BadRequest)
+                is GenerationResult.Rejected -> call.respondText(ErrorJson.encode(result.message, result.parameter), ContentType.Application.Json, HttpStatusCode.BadRequest)
                 is GenerationResult.Generated -> {
                     val zip = Zip.write(result.files)
                     val etag = entityTag(zip)

@@ -12,7 +12,7 @@ data class ResolvedRequest(val version: String, val fromAlias: Boolean, val spec
 
 sealed interface Resolution {
     data class Accepted(val request: ResolvedRequest) : Resolution
-    data class Rejected(val message: String) : Resolution
+    data class Rejected(val message: String, val parameter: String? = null) : Resolution
 }
 
 object RequestValidation {
@@ -31,7 +31,7 @@ object RequestValidation {
         "throw", "throws", "transient", "try", "void", "volatile", "while", "_", "true", "false", "null",
     )
 
-    private class Rejection(message: String) : Exception(message)
+    private class Rejection(message: String, val parameter: String?) : Exception(message)
 
     fun resolve(
         options: Map<String, String>,
@@ -42,7 +42,7 @@ object RequestValidation {
         try {
             Resolution.Accepted(Resolver(options).resolve(offered, indexFor, modelFor))
         } catch (rejection: Rejection) {
-            Resolution.Rejected(rejection.message!!)
+            Resolution.Rejected(rejection.message!!, rejection.parameter)
         }
 
     private class Resolver(private val options: Map<String, String>) {
@@ -73,8 +73,8 @@ object RequestValidation {
 
         private fun checkOptions() {
             for ((name, value) in options) {
-                if (name !in RequestValidation.options) reject("Unknown option '$name'. Supported options:" + list(RequestValidation.options))
-                if (value.length > MAX_VALUE_LENGTH) reject("Value of option '$name' is too long (at most $MAX_VALUE_LENGTH characters).")
+                if (name !in RequestValidation.options) reject("Unknown option '$name'. Supported options:" + list(RequestValidation.options), name)
+                if (value.length > MAX_VALUE_LENGTH) reject("Value of option '$name' is too long (at most $MAX_VALUE_LENGTH characters).", name)
             }
         }
 
@@ -82,27 +82,27 @@ object RequestValidation {
             val offeredVersions = listOfNotNull(offered.stable, offered.rc)
             return when (val requested = value("version")) {
                 null, "stable" -> offered.stable to true
-                "rc" -> (offered.rc ?: reject("No release candidate is currently offered.")) to true
+                "rc" -> (offered.rc ?: reject("No release candidate is currently offered.", "version")) to true
                 in offeredVersions -> requested to false
-                else -> reject("Gradle version '$requested' is not offered. Offered versions:" + list(offeredVersions))
+                else -> reject("Gradle version '$requested' is not offered. Offered versions:" + list(offeredVersions), "version")
             }
         }
 
         private fun type(model: InitModel): BuildType {
-            val requested = value("type") ?: reject("Missing required option 'type'.")
+            val requested = value("type") ?: reject("Missing required option 'type'.", "type")
             return model.buildTypes.firstOrNull { it.id == requested }
-                ?: reject("The requested build type '$requested' is not supported. Supported types:" + list(model.buildTypes.map { it.id }.sorted()))
+                ?: reject("The requested build type '$requested' is not supported. Supported types:" + list(model.buildTypes.map { it.id }.sorted()), "type")
         }
 
         private fun javaVersion(model: InitModel, type: BuildType, enumerated: Boolean): Int? {
             if (!type.supportsJavaVersion) return null
             val requested = value("java-version") ?: return model.javaVersion.default
-            val parsed = requested.toIntOrNull() ?: reject("Invalid target Java version '$requested'. The version must be an integer.")
+            val parsed = requested.toIntOrNull() ?: reject("Invalid target Java version '$requested'. The version must be an integer.", "java-version")
             if (parsed < model.javaVersion.minimum) {
-                reject("Target Java version: '$requested' is not a supported target version. It must be equal to or greater than ${model.javaVersion.minimum}")
+                reject("Target Java version: '$requested' is not a supported target version. It must be equal to or greater than ${model.javaVersion.minimum}", "java-version")
             }
             if (enumerated && parsed > model.javaVersion.maximum) {
-                reject("Target Java version: '$requested' is not offered for '${type.id}' build type - it must be between ${model.javaVersion.minimum} and ${model.javaVersion.maximum}.")
+                reject("Target Java version: '$requested' is not offered for '${type.id}' build type - it must be between ${model.javaVersion.minimum} and ${model.javaVersion.maximum}.", "java-version")
             }
             return parsed
         }
@@ -110,12 +110,12 @@ object RequestValidation {
         private fun projectName(type: BuildType): String {
             val requested = value("project-name")
             if (!type.supportsProjectName) {
-                if (requested != null) reject("Project name is not supported for '${type.id}' build type.")
-                reject("Build type '${type.id}' does not take a project name, which this service requires.")
+                if (requested != null) reject("Project name is not supported for '${type.id}' build type.", "project-name")
+                reject("Build type '${type.id}' does not take a project name, which this service requires.", "project-name")
             }
-            requested ?: reject("Missing required option 'project-name'.")
+            requested ?: reject("Missing required option 'project-name'.", "project-name")
             if (!projectNamePattern.matches(requested)) {
-                reject("Project name: '$requested' is not valid - it must start with a letter, contain only letters, digits, '.', '_' and '-', and not end with '.'.")
+                reject("Project name: '$requested' is not valid - it must start with a letter, contain only letters, digits, '.', '_' and '-', and not end with '.'.", "project-name")
             }
             return requested
         }
@@ -123,16 +123,16 @@ object RequestValidation {
         private fun modularization(type: BuildType): String {
             val split = boolean("split-project", default = type.modularization.default == TemplateSpec.WITH_LIBRARY_PROJECTS)
             val modularization = if (split) TemplateSpec.WITH_LIBRARY_PROJECTS else type.modularization.values.first { it != TemplateSpec.WITH_LIBRARY_PROJECTS }
-            if (modularization !in type.modularization.values) reject("Split project is not supported for '${type.id}' build type.")
+            if (modularization !in type.modularization.values) reject("Split project is not supported for '${type.id}' build type.", "split-project")
             return modularization
         }
 
         private fun dsl(model: InitModel, type: BuildType): String {
             val requested = value("dsl") ?: return type.dsls.default
             if (model.dsls.none { it.id == requested }) {
-                reject("The requested build script DSL '$requested' is not supported. Supported DSLs:" + list(model.dsls.map { it.id }))
+                reject("The requested build script DSL '$requested' is not supported. Supported DSLs:" + list(model.dsls.map { it.id }), "dsl")
             }
-            if (requested !in type.dsls.values) reject("The requested DSL '$requested' is not supported for '${type.id}' build type")
+            if (requested !in type.dsls.values) reject("The requested DSL '$requested' is not supported for '${type.id}' build type", "dsl")
             return requested
         }
 
@@ -141,7 +141,7 @@ object RequestValidation {
             val requested = value("test-framework") ?: return choice.default
             val supported = choice.values.ifEmpty { listOf(TemplateSpec.NO_TEST_FRAMEWORK) }
             if (requested !in supported) {
-                reject("The requested test framework '$requested' is not supported for '${type.id}' build type. Supported frameworks:" + list(supported))
+                reject("The requested test framework '$requested' is not supported for '${type.id}' build type. Supported frameworks:" + list(supported), "test-framework")
             }
             return requested.takeIf { choice.values.isNotEmpty() }
         }
@@ -149,14 +149,14 @@ object RequestValidation {
         private fun packageName(model: InitModel, type: BuildType): String? {
             val requested = value("package")
             if (!type.supportsPackage) {
-                if (requested != null) reject("Package name is not supported for '${type.id}' build type.")
+                if (requested != null) reject("Package name is not supported for '${type.id}' build type.", "package")
                 return null
             }
-            val packageName = requested ?: model.packageName.default ?: reject("Missing required option 'package'.")
+            val packageName = requested ?: model.packageName.default ?: reject("Missing required option 'package'.", "package")
             if (!isValidPackage(model, packageName)) {
-                reject("Package name: '$packageName' is not valid - it may contain invalid characters or reserved words.")
+                reject("Package name: '$packageName' is not valid - it may contain invalid characters or reserved words.", "package")
             }
-            if ('$' in packageName) reject("Package name: '$packageName' is not supported by this service - it must not contain '\$'.")
+            if ('$' in packageName) reject("Package name: '$packageName' is not supported by this service - it must not contain '\$'.", "package")
             return packageName
         }
 
@@ -170,11 +170,11 @@ object RequestValidation {
             null -> default
             "true" -> true
             "false" -> false
-            else -> reject("Invalid value '$requested' for option '$name'. Expected 'true' or 'false'.")
+            else -> reject("Invalid value '$requested' for option '$name'. Expected 'true' or 'false'.", name)
         }
 
         private fun list(values: List<String>) = values.joinToString("") { "\n    - '$it'" }
 
-        private fun reject(message: String): Nothing = throw Rejection(message)
+        private fun reject(message: String, parameter: String?): Nothing = throw Rejection(message, parameter)
     }
 }

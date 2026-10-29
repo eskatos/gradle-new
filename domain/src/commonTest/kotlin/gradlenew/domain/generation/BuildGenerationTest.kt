@@ -56,7 +56,7 @@ class BuildGenerationTest {
     fun rejectsRepeatedOptions() {
         val result = generation.generate(listOf("type" to "java-application", "project-name" to "a", "project-name" to "b"))
 
-        assertEquals(GenerationResult.Rejected("Option 'project-name' is given more than once."), result)
+        assertEquals(GenerationResult.Rejected("Option 'project-name' is given more than once.", "project-name"), result)
     }
 
     @Test
@@ -70,7 +70,7 @@ class BuildGenerationTest {
     fun passesRejectionsThroughWithoutReadingATemplate() {
         val result = generation.generate(mapOf("type" to "cpp-application", "project-name" to "demo", "package" to "org.example"))
 
-        assertEquals(GenerationResult.Rejected("Package name is not supported for 'cpp-application' build type."), result)
+        assertEquals(GenerationResult.Rejected("Package name is not supported for 'cpp-application' build type.", "package"), result)
         assertTrue(requested.isEmpty())
     }
 
