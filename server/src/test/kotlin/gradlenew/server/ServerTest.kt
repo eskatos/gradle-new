@@ -19,6 +19,10 @@ class ServerTest {
         resolve("versions.json").writeText("""{"stable":"9.8.2","rc":null}""")
         resolve("v/9.8.2").mkdirs()
         resolve("v/9.8.2/model.json").writeText("""{"gradleVersion":"9.8.2"}""")
+        resolve("app").mkdirs()
+        resolve("app/main.js").writeText("export {}")
+        resolve("assets/fonts").mkdirs()
+        resolve("assets/fonts/lato-latin-400-normal.woff2").writeBytes(byteArrayOf(0x77, 0x4f, 0x46, 0x32))
     }
 
     private val templates: File = Files.createTempDirectory("templates").toFile()
@@ -72,5 +76,29 @@ class ServerTest {
         assertEquals(File("/templates"), templatesDirFrom(emptyMap()))
         assertEquals(File("/tmp/s"), siteDirFrom(mapOf("SITE_DIR" to "/tmp/s")))
         assertEquals(File("/tmp/t"), templatesDirFrom(mapOf("TEMPLATES_DIR" to "/tmp/t")))
+    }
+
+    @Test
+    fun everyResponseCarriesTheContentSecurityPolicy() = testApplication {
+        application { gradleNew(site, templates) }
+
+        for (path in listOf("/", "/app/main.js", "/assets/fonts/lato-latin-400-normal.woff2", "/api/versions", "/v/9.8.2/model.json", "/api/generate", "/missing.txt")) {
+            val response = client.get(path)
+            assertEquals("default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'", response.headers["Content-Security-Policy"], path)
+            assertEquals("nosniff", response.headers["X-Content-Type-Options"], path)
+        }
+    }
+
+    @Test
+    fun servesThePageAndItsScriptsFreshAndTheVendoredAssetsCached() = testApplication {
+        application { gradleNew(site, templates) }
+
+        val index = client.get("/")
+        assertEquals(ContentType.Text.Html, index.contentType()?.withoutParameters())
+        assertEquals("no-cache", index.headers[HttpHeaders.CacheControl])
+        assertEquals("no-cache", client.get("/app/main.js").headers[HttpHeaders.CacheControl])
+        val font = client.get("/assets/fonts/lato-latin-400-normal.woff2")
+        assertEquals("public, max-age=86400", font.headers[HttpHeaders.CacheControl])
+        assertEquals("font/woff2", font.contentType()?.withoutParameters()?.toString())
     }
 }
