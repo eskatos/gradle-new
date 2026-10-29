@@ -20,7 +20,7 @@ public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
         JavaApplication application = project.getExtensions().getByType(JavaApplication.class);
         application.getMainClass().set(mainClassFor(project.getName()));
 
-        OfferedVersions offered = OfferedVersions.of(project.getProviders());
+        OfferedVersions offered = OfferedVersions.of(project);
         Directory rootDir = project.getLayout().getSettingsDirectory();
         PublishedSiteExtension site = project.getExtensions().create("publishedSite", PublishedSiteExtension.class);
         site.getStable().convention(offered.stable());
