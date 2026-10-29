@@ -46,7 +46,7 @@ code, pre, .mono { font-family: var(--font-mono); }
 
 .main { margin-top: calc(-1 * var(--space-7)); padding-bottom: var(--space-8); }
 
-.card { background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-6); box-shadow: var(--shadow-md); }
+.card { background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-6); box-shadow: var(--shadow-sm); }
 .form-loading { color: var(--text-muted); }
 
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5) var(--space-6); }
@@ -79,7 +79,7 @@ fieldset.field > legend { margin-bottom: var(--space-2); }
   transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 .choice:hover { border-color: var(--border-default); }
-.choice:has(input:checked) { border-color: var(--gradle-blue); background: var(--blue-100); }
+.choice:has(input:checked) { border-color: var(--gradle-blue); background: color-mix(in srgb, var(--gradle-blue) 8%, var(--surface-card)); }
 .choice:has(input:focus-visible) { box-shadow: var(--shadow-focus); }
 .choice-note { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
 
@@ -209,7 +209,7 @@ input.switch:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .token-command { color: var(--gradle-teal); font-weight: var(--weight-bold); }
 .token-separator { color: rgba(255, 255, 255, 0.45); }
 .continuation { color: rgba(255, 255, 255, 0.35); user-select: none; }
-.token.is-active { background: rgba(77, 201, 192, 0.18); color: var(--text-inverse); }
+.token.is-active { background: color-mix(in srgb, var(--gradle-teal) 18%, transparent); color: var(--text-inverse); }
 
 .explain-toggle {
   display: flex;
@@ -243,7 +243,7 @@ input.switch:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 .explanation-item:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-.explanation-item.is-active { border-color: var(--gradle-teal); background: rgba(77, 201, 192, 0.08); }
+.explanation-item.is-active { border-color: var(--gradle-teal); background: color-mix(in srgb, var(--gradle-teal) 8%, transparent); }
 .explanation-token { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--light-blue); overflow-wrap: anywhere; }
 .explanation-item dd { margin: 2px 0 0; }
 .explanation-description { color: rgba(255, 255, 255, 0.88); font-size: var(--text-sm); }
