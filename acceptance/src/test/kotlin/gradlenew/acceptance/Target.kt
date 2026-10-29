@@ -29,6 +29,7 @@ class Target private constructor(val baseUrl: String, private val container: Gen
             val container = GenericContainer(imageRef)
                 .withExposedPorts(8080)
                 .waitingFor(Wait.forHttp("/api/versions").forPort(8080))
+                .withStartupAttempts(3)
             container.start()
             return Target("http://${container.host}:${container.getMappedPort(8080)}", container)
         }
