@@ -20,8 +20,13 @@ object Browsers {
                 "chromium" -> playwright.chromium()
                 else -> error("Unknown engine '$engine'")
             }
-            type.launch(BrowserType.LaunchOptions().setHeadless(true))
+            val options = BrowserType.LaunchOptions().setHeadless(true)
+            if (engine == "firefox") options.setFirefoxUserPrefs(mapOf("accessibility.tabfocus" to 7))
+            type.launch(options)
         }
+
+    fun focusNextKey(engine: String): String =
+        if (engine == "webkit" && System.getProperty("os.name").startsWith("Mac")) "Alt+Tab" else "Tab"
 
     init {
         Runtime.getRuntime().addShutdownHook(Thread {

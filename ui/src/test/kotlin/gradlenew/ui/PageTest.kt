@@ -144,6 +144,40 @@ class PageTest {
     }
 
     @TestFactory
+    fun clickingATokenRevealsItsExplanation(): List<DynamicTest> = onPage { page, _ ->
+        page.setViewportSize(1280, 500)
+        val packageToken = "#command .token[data-token-id=option-package]"
+        val packageItem = "#explain-command .explanation-item[data-token-id=option-package]"
+        val box = page.locator(packageToken).boundingBox()!!
+        page.mouse().move(box.x + 2, box.y + box.height / 2)
+        page.mouse().down()
+        page.mouse().move(box.x + box.width - 2, box.y + box.height / 2)
+        page.mouse().up()
+        assertTrue(!page.isVisible("#explain-command"), "selecting text must not open the explanation")
+        page.evaluate("() => getSelection().removeAllRanges()")
+
+        page.click(packageToken)
+        assertEquals("true", page.getAttribute("#explain-command-toggle", "aria-expanded"))
+        assertTrue(page.isVisible("#explain-command"))
+        assertTrue(page.getAttribute(packageItem, "class")!!.contains("is-active"))
+        assertTrue(page.getAttribute(packageToken, "class")!!.contains("is-active"))
+        page.waitForFunction("""selector => { const r = document.querySelector(selector).getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight }""", packageItem)
+
+        page.click("#command .token[data-token-id=option-dsl]")
+        assertTrue(page.getAttribute("#explain-command .explanation-item[data-token-id=option-dsl]", "class")!!.contains("is-active"))
+        assertTrue(!page.getAttribute(packageItem, "class")!!.contains("is-active"))
+
+        page.click("#explain-command-toggle")
+        assertTrue(!page.isVisible("#explain-command"))
+        assertTrue(!page.getAttribute("#command .token[data-token-id=option-dsl]", "class")!!.contains("is-active"))
+
+        page.click("#api-url .token[data-token-id=param-package]")
+        assertEquals("true", page.getAttribute("#explain-url-toggle", "aria-expanded"))
+        assertTrue(page.getAttribute("#explain-url .explanation-item[data-token-id=param-package]", "class")!!.contains("is-active"))
+        assertEquals("pointer", page.evaluate("() => getComputedStyle(document.querySelector('#api-url .token')).cursor"))
+    }
+
+    @TestFactory
     fun downloadsTheBuildOrPlacesTheRejection(): List<DynamicTest> = onPage { page, server ->
         page.fill("#project-name", "demo-app")
         val download = page.waitForDownload { page.click("#download") }

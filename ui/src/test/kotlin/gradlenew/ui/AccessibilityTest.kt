@@ -11,7 +11,7 @@ import org.junit.jupiter.api.TestFactory
 class AccessibilityTest {
 
     @TestFactory
-    fun everyControlIsNamedAndGrouped(): List<DynamicTest> = onPage { page ->
+    fun everyControlIsNamedAndGrouped(): List<DynamicTest> = onPage { page, _ ->
         val tree = page.locator("main").ariaSnapshot()
         for (group in listOf("Gradle version", "Project type", "Language", "Build script DSL", "Test framework")) {
             assertTrue(tree.contains("group \"$group\""), "group $group\n$tree")
@@ -29,7 +29,7 @@ class AccessibilityTest {
     }
 
     @TestFactory
-    fun announcesTheExpandedStateOfTheExplanations(): List<DynamicTest> = onPage { page ->
+    fun announcesTheExpandedStateOfTheExplanations(): List<DynamicTest> = onPage { page, _ ->
         assertTrue(!page.locator("#snippet-command").ariaSnapshot().contains("[expanded]"))
         page.click("#explain-command-toggle")
         assertTrue(page.locator("#snippet-command").ariaSnapshot().contains("button \"Explain this command\" [expanded]"), page.locator("#snippet-command").ariaSnapshot())
@@ -37,13 +37,13 @@ class AccessibilityTest {
     }
 
     @TestFactory
-    fun theKeyboardReachesEveryControlInReadingOrderWithAVisibleFocus(): List<DynamicTest> = onPage { page ->
+    fun theKeyboardReachesEveryControlInReadingOrderWithAVisibleFocus(): List<DynamicTest> = onPage { page, engine ->
         val expected = listOf("version", "component-type", "language", "dsl", "test-framework", "project-name", "package", "java-version",
             "split-project", "incubating", "comments", "download", "copy-command", "explain-command-toggle", "copy-url", "explain-url-toggle")
         val reached = mutableListOf<String>()
         page.focus("body")
         repeat(expected.size) {
-            page.keyboard().press("Tab")
+            page.keyboard().press(Browsers.focusNextKey(engine))
             val focused = page.evaluate("""() => {
                 const e = document.activeElement;
                 const ring = e.type === 'radio' ? getComputedStyle(e.closest('.choice')).boxShadow : getComputedStyle(e).boxShadow;
@@ -55,7 +55,7 @@ class AccessibilityTest {
         assertEquals(expected, reached)
     }
 
-    private fun onPage(test: (Page) -> Unit): List<DynamicTest> =
+    private fun onPage(test: (Page, String) -> Unit): List<DynamicTest> =
         Browsers.engines.map { engine ->
             DynamicTest.dynamicTest(engine) {
                 SiteServer(SiteServer.siteDir, mapOf(
@@ -68,7 +68,7 @@ class AccessibilityTest {
                         page.setDefaultTimeout(5_000.0)
                         page.navigate(server.url + "/")
                         page.waitForSelector("#command .token")
-                        test(page)
+                        test(page, engine)
                     } finally {
                         context.close()
                     }

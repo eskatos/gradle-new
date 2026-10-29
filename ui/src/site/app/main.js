@@ -207,6 +207,7 @@ function tokenElement(token, snippet) {
     if (rest.length > 0) element.append(span('token-option', name), document.createTextNode(`=${rest.join('=')}`));
     else element.textContent = token.text;
   }
+  element.addEventListener('click', () => explain(snippet, token.id));
   element.addEventListener('mouseenter', () => highlight(snippet, 'hover', token.id));
   element.addEventListener('mouseleave', () => highlight(snippet, 'hover', null));
   return element;
@@ -246,12 +247,7 @@ function renderExplanation(name, tokens) {
 function bindSnippet(name, text) {
   const toggle = $(`#explain-${name}-toggle`);
   const panel = $(`#explain-${name}`);
-  toggle.addEventListener('click', () => {
-    const expanded = toggle.getAttribute('aria-expanded') !== 'true';
-    toggle.setAttribute('aria-expanded', String(expanded));
-    panel.hidden = !expanded;
-    drawConnectors(name);
-  });
+  toggle.addEventListener('click', () => setExpanded(name, panel.hidden));
   const copy = $(name === 'command' ? '#copy-command' : '#copy-url');
   copy.addEventListener('click', async () => {
     await copyText(text());
@@ -282,6 +278,22 @@ async function copyText(text) {
   area.select();
   document.execCommand('copy');
   area.remove();
+}
+
+function setExpanded(name, expanded) {
+  $(`#explain-${name}-toggle`).setAttribute('aria-expanded', String(expanded));
+  $(`#explain-${name}`).hidden = !expanded;
+  if (!expanded) state.active[name].pinned = null;
+  drawConnectors(name);
+  applyHighlight(name);
+}
+
+function explain(name, id) {
+  if (String(getSelection()).length > 0) return;
+  if ($(`#explain-${name}`).hidden) setExpanded(name, true);
+  highlight(name, 'pinned', id);
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  $(`#explain-${name} .explanation-item[data-token-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
 }
 
 function highlight(name, source, id) {

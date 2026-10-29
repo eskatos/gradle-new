@@ -204,7 +204,7 @@ input.switch:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   overflow-x: auto;
   tab-size: 2;
 }
-.token { border-radius: var(--radius-xs); transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.token { cursor: pointer; border-radius: var(--radius-xs); transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
 .token-option { color: var(--light-blue); }
 .token-command { color: var(--gradle-teal); font-weight: var(--weight-bold); }
 .token-separator { color: rgba(255, 255, 255, 0.45); }
