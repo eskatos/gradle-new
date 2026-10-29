@@ -17,7 +17,7 @@ class VerificationTest {
     private val sink = TemplateSink { entry, files -> written += entry; files.entries.sumOf { it.content.size }.toLong() }
 
     private fun verification(init: (TemplateSpec, ProjectInputs) -> FileSet) =
-        Verification(InitGenerator { spec, inputs -> InitOutcome.Generated(init(spec, inputs)) }, sink, budgetBytes = Long.MAX_VALUE)
+        Verification(InitGenerator { spec, inputs -> InitOutcome.Generated(init(spec, inputs)) }, sink, budgetBytes = Long.MAX_VALUE, wrapper = fakeWrapper)
 
     @Test
     fun passesEveryCheckAndWritesTheWholeMatrix() {
@@ -25,7 +25,8 @@ class VerificationTest {
 
         assertTrue(report.passed, report.toString())
         assertEquals("9.8.2", report.version)
-        assertEquals(Check.entries, report.checks.map { it.check })
+        assertEquals(Check.entries - Check.DISTRIBUTION, report.checks.map { it.check }, "the distribution is checked by the publisher before verification")
+        assertEquals(written.size, report.check(Check.WRAPPER)!!.checked)
         assertEquals(TemplateCatalog.of(model), written)
         assertEquals(written.size, report.check(Check.HYGIENE)!!.checked)
         assertEquals(emptyList(), report.javaEnumeratedTypes)
@@ -65,6 +66,7 @@ class VerificationTest {
             },
             sink,
             budgetBytes = Long.MAX_VALUE,
+            wrapper = fakeWrapper,
         )
 
         val report = rejecting.verify(model)
@@ -85,5 +87,21 @@ class VerificationTest {
         assertTrue(report.passed, report.toString())
         assertEquals(TemplateCatalog.of(model, setOf("groovy-library")), written)
         assertEquals((7..31).toSet(), written.filter { it.spec.type == "groovy-library" }.map { it.spec.javaVersion }.toSet())
+    }
+
+    @Test
+    fun aWrapperJarThatIsNotThePinnedOneFailsBeforeTheMatrix() {
+        val report = verification { spec, inputs ->
+            FileSet.of(fakeInit(inputs, spec.type).entries.map {
+                if (it.path == WrapperCheck.PATH) gradlenew.substitution.FileEntry(it.path, it.content + 0x01, it.executable) else it
+            })
+        }.verify(model)
+
+        assertFalse(report.passed)
+        val wrapper = report.check(Check.WRAPPER)!!
+        assertEquals(Outcome.FAILED, wrapper.outcome)
+        assertEquals(model.buildTypes.size, wrapper.failures.size, "one failure per sampled build type")
+        assertEquals(Outcome.SKIPPED, report.check(Check.BUDGET)!!.outcome)
+        assertEquals(emptyList(), written)
     }
 }

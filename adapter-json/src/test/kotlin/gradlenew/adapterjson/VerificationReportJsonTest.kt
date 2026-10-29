@@ -3,6 +3,7 @@ package gradlenew.adapterjson
 import gradlenew.domain.generation.TemplateIndex
 import gradlenew.verification.Check
 import gradlenew.verification.CheckResult
+import gradlenew.verification.ChecksumSource
 import gradlenew.verification.Failure
 import gradlenew.verification.VerificationReport
 import gradlenew.verification.VersionReport
@@ -36,6 +37,7 @@ class VerificationReportJsonTest {
                     {
                         "version": "9.8.2",
                         "passed": false,
+                        "checksums": "pinned",
                         "javaEnumeratedTypes": [
                             "groovy-library"
                         ],
@@ -75,6 +77,10 @@ class VerificationReportJsonTest {
     @Test
     fun roundTrips() {
         assertEquals(report, VerificationReportJson.decode(VerificationReportJson.encode(report)))
+        val published = VerificationReport(listOf(VersionReport("9.8.0-rc-3", listOf(CheckResult.of(Check.DISTRIBUTION, 1, emptyList()), CheckResult.of(Check.WRAPPER, 224, emptyList())), emptyList(), ChecksumSource.PUBLISHED)))
+        val encoded = VerificationReportJson.encode(published)
+        assertEquals(published, VerificationReportJson.decode(encoded))
+        assert("\"checksums\": \"published\"" in encoded) { encoded }
     }
 
     @Test

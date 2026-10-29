@@ -2,6 +2,7 @@ package gradlenew.adapterjson
 
 import gradlenew.verification.Check
 import gradlenew.verification.CheckResult
+import gradlenew.verification.ChecksumSource
 import gradlenew.verification.Failure
 import gradlenew.verification.Outcome
 import gradlenew.verification.VerificationReport
@@ -29,6 +30,7 @@ object VerificationReportJson {
     private fun toJson(version: VersionReport) = buildJsonObject {
         put("version", version.version)
         put("passed", version.passed)
+        put("checksums", version.checksums.id)
         putJsonArray("javaEnumeratedTypes") { version.javaEnumeratedTypes.forEach { add(JsonPrimitive(it)) } }
         putJsonArray("checks") { version.checks.forEach { add(toJson(it)) } }
     }
@@ -46,6 +48,7 @@ object VerificationReportJson {
         version = json.string("version"),
         checks = json.array("checks").map { check(it.jsonObject) },
         javaEnumeratedTypes = json.strings("javaEnumeratedTypes"),
+        checksums = json.stringOrNull("checksums")?.let(ChecksumSource::of) ?: ChecksumSource.PINNED,
     )
 
     private fun check(json: JsonObject) = CheckResult(

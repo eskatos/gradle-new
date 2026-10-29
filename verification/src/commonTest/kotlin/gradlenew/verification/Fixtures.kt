@@ -68,10 +68,16 @@ fun fakeInit(inputs: ProjectInputs, type: String, extra: List<FileEntry> = empty
         buildList {
             add(text("settings.gradle.kts", "rootProject.name = \"${inputs.projectName}\" // $type"))
             add(FileEntry("gradlew", "#!/bin/sh".encodeToByteArray(), true))
-            add(FileEntry("gradle/wrapper/gradle-wrapper.jar", byteArrayOf(0x50, 0x4b, 0x03, 0x04, 0x00, 0xff.toByte()), false))
+            add(FileEntry("gradle/wrapper/gradle-wrapper.jar", FAKE_WRAPPER_JAR, false))
             if (packagePath != null) add(text("src/main/java/$packagePath/App.java", "package ${inputs.packageName};"))
             if (inputs.javaVersion != null) add(text("build.gradle.kts", "languageVersion = JavaLanguageVersion.of(${inputs.javaVersion})"))
             addAll(extra)
         },
     )
 }
+
+val FAKE_WRAPPER_JAR = byteArrayOf(0x50, 0x4b, 0x03, 0x04, 0x00, 0xff.toByte())
+
+fun hex(bytes: ByteArray): String = bytes.joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
+
+val fakeWrapper = WrapperDigest(hex(FAKE_WRAPPER_JAR).padEnd(64, '0')) { hex(it).padEnd(64, '0') }

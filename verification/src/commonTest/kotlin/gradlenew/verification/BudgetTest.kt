@@ -23,6 +23,7 @@ class BudgetTest {
         },
         sink,
         budgetBytes,
+        wrapper = fakeWrapper,
         sizeOf = ::size,
     )
 

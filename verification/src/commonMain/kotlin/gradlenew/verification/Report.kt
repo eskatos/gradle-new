@@ -1,11 +1,13 @@
 package gradlenew.verification
 
 enum class Check(val id: String) {
+    DISTRIBUTION("distribution"),
     MODEL("model"),
     DETERMINISM("determinism"),
     JAVA_VERSION("java-version"),
     DIFFERENTIAL("differential"),
     HYGIENE("hygiene"),
+    WRAPPER("wrapper"),
     BUDGET("budget");
 
     companion object {
@@ -14,6 +16,15 @@ enum class Check(val id: String) {
 }
 
 enum class Outcome { PASSED, FAILED, SKIPPED }
+
+enum class ChecksumSource(val id: String) {
+    PINNED("pinned"),
+    PUBLISHED("published");
+
+    companion object {
+        fun of(id: String): ChecksumSource = requireNotNull(entries.firstOrNull { it.id == id }) { "Unknown checksum source '$id'" }
+    }
+}
 
 data class Failure(val subject: String, val message: String)
 
@@ -30,7 +41,12 @@ data class CheckResult(val check: Check, val outcome: Outcome, val checked: Int,
     }
 }
 
-data class VersionReport(val version: String, val checks: List<CheckResult>, val javaEnumeratedTypes: List<String>) {
+data class VersionReport(
+    val version: String,
+    val checks: List<CheckResult>,
+    val javaEnumeratedTypes: List<String>,
+    val checksums: ChecksumSource = ChecksumSource.PINNED,
+) {
     init {
         require(checks.map { it.check }.toSet().size == checks.size) { "Each check is reported once for Gradle $version" }
     }
@@ -53,6 +69,7 @@ data class VerificationReport(val versions: List<VersionReport>) {
     fun summary(): String = buildString {
         for (version in versions) {
             appendLine("Gradle ${version.version}: ${if (version.passed) "passed" else "FAILED"}")
+            if (version.checksums == ChecksumSource.PUBLISHED) appendLine("  checksums: as published by services.gradle.org, not pinned")
             for (result in version.checks) {
                 when (result.outcome) {
                     Outcome.PASSED -> appendLine("  ${result.check.id}: passed (${result.checked} checked)")

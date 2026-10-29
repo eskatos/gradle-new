@@ -14,6 +14,7 @@ class Verification(
     private val init: InitGenerator,
     private val sink: TemplateSink,
     private val budgetBytes: Long,
+    private val wrapper: WrapperDigest,
     private val sizeOf: (FileSet) -> Long = { files -> files.entries.sumOf { it.content.size.toLong() } },
 ) {
 
@@ -24,8 +25,10 @@ class Verification(
         val determinism = DeterminismCheck.run(sample, generations)
         val java = JavaVersionCheck.run(model, sample, generations)
         val differential = DifferentialCheck.run(model, sample, java.enumeratedTypes, generations)
-        val sampledHygiene = hygiene(model, sample.mapNotNull { entry -> generations.template(entry)?.let { entry to it } })
-        val sampled = listOf(ModelCheck.run(model, generations.rejections), determinism, java.result, differential, sampledHygiene)
+        val sampledTemplates = sample.mapNotNull { entry -> generations.template(entry)?.let { entry to it } }
+        val sampledHygiene = hygiene(model, sampledTemplates)
+        val sampledWrapper = CheckResult.of(Check.WRAPPER, sampledTemplates.size, sampledTemplates.flatMap { (entry, files) -> WrapperCheck.inspect(entry.spec.key, files, wrapper) })
+        val sampled = listOf(ModelCheck.run(model, generations.rejections), determinism, java.result, differential, sampledHygiene, sampledWrapper)
         if (sampled.any { it.outcome != Outcome.PASSED }) {
             return VersionReport(model.gradleVersion, sampled + CheckResult.skipped(Check.BUDGET), java.enumeratedTypes)
         }
@@ -47,13 +50,16 @@ class Verification(
         val inspected = mutableListOf<Pair<CatalogEntry, FileSet>>()
         var totalBytes = 0L
         val hygieneFailures = mutableListOf<Failure>()
+        val wrapperFailures = mutableListOf<Failure>()
         for (entry in catalog) {
             val files = generations.cachedOrFresh(entry) ?: continue
             hygieneFailures += hygieneOf(model, entry, files)
+            wrapperFailures += WrapperCheck.inspect(entry.spec.key, files, wrapper)
             inspected += entry to files
             totalBytes += sink.write(entry, files)
         }
         val hygiene = CheckResult.of(Check.HYGIENE, inspected.size, hygieneFailures)
+        val wrapperResult = CheckResult.of(Check.WRAPPER, inspected.size, wrapperFailures)
         val budget = CheckResult.of(
             Check.BUDGET,
             inspected.size,
@@ -61,7 +67,7 @@ class Verification(
         )
         return VersionReport(
             model.gradleVersion,
-            listOf(ModelCheck.run(model, generations.rejections), determinism, java.result, differential, hygiene, budget),
+            listOf(ModelCheck.run(model, generations.rejections), determinism, java.result, differential, hygiene, wrapperResult, budget),
             java.enumeratedTypes,
         )
     }

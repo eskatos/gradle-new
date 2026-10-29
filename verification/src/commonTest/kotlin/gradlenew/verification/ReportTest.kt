@@ -80,7 +80,14 @@ class ReportTest {
 
     @Test
     fun checksHaveStableIdentifiers() {
-        assertEquals(listOf("model", "determinism", "java-version", "differential", "hygiene", "budget"), Check.entries.map { it.id })
+        assertEquals(listOf("distribution", "model", "determinism", "java-version", "differential", "hygiene", "wrapper", "budget"), Check.entries.map { it.id })
         assertEquals(Check.JAVA_VERSION, Check.of("java-version"))
+    }
+
+    @Test
+    fun saysWhenTheChecksumsWereNotPinned() {
+        val passed = VersionReport("9.8.0-rc-3", listOf(CheckResult.of(Check.DISTRIBUTION, 1, emptyList())), emptyList(), ChecksumSource.PUBLISHED)
+        assertTrue(VerificationReport(listOf(passed)).summary().contains("checksums: as published by services.gradle.org, not pinned"))
+        assertTrue(!VerificationReport(listOf(passed.copy(checksums = ChecksumSource.PINNED))).summary().contains("not pinned"))
     }
 }
