@@ -11,6 +11,7 @@ dependencies {
     implementation(projects.adapterZip)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.server.rate.limit)
     runtimeOnly(libs.slf4j.simple)
     testImplementation(libs.ktor.server.test.host)
 }

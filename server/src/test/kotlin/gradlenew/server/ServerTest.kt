@@ -101,4 +101,13 @@ class ServerTest {
         assertEquals("public, max-age=86400", font.headers[HttpHeaders.CacheControl])
         assertEquals("font/woff2", font.contentType()?.withoutParameters()?.toString())
     }
+
+    @Test
+    fun asksBrowsersToUseHttpsForAYearOnThisHostOnly() = testApplication {
+        application { gradleNew(site, templates) }
+
+        for (path in listOf("/", "/api/versions", "/v/9.8.2/model.json", "/missing")) {
+            assertEquals("max-age=31536000", client.get(path).headers["Strict-Transport-Security"], path)
+        }
+    }
 }

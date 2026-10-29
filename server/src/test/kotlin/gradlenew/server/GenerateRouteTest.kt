@@ -191,4 +191,48 @@ class GenerateRouteTest {
         assertEquals(HttpStatusCode.BadRequest, response.status)
         assertEquals("Option 'project-name' is given more than once.", ErrorJson.decode(response.bodyAsText()))
     }
+
+    @Test
+    fun theDefaultLimitsAreSixtyBuildsAndSixHundredRequestsPerMinutePerClient() {
+        assertEquals(RateLimits(generatePerMinute = 60, overallPerMinute = 600), RateLimits.DEFAULT)
+    }
+
+    @Test
+    fun limitsGeneratedBuildsPerClientWithRetryAfterAndAJsonMessage() = testApplication {
+        application { gradleNew(site, templates, RateLimits(generatePerMinute = 3, overallPerMinute = 100)) }
+        val url = "/api/generate?type=java-application&project-name=demo"
+
+        repeat(3) { assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Forwarded-For", "203.0.113.7") }.status) }
+        val limited = client.get(url) { header("X-Forwarded-For", "203.0.113.7") }
+
+        assertEquals(HttpStatusCode.TooManyRequests, limited.status)
+        val retryAfter = assertNotNull(limited.headers[HttpHeaders.RetryAfter]).toLong()
+        assertTrue(retryAfter in 1..60, "Retry-After $retryAfter")
+        assertEquals(ContentType.Application.Json, limited.contentType()?.withoutParameters())
+        assertEquals("Too many builds were requested from your address in a short time. Try again in $retryAfter seconds.", ErrorJson.decode(limited.bodyAsText()))
+        assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Forwarded-For", "198.51.100.4") }.status, "another client has its own limit")
+    }
+
+    @Test
+    fun theClientIsTheRightmostForwardedForEntrySoSpoofedEntriesDoNotHelp() = testApplication {
+        application { gradleNew(site, templates, RateLimits(generatePerMinute = 2, overallPerMinute = 100)) }
+        val url = "/api/generate?type=java-application&project-name=demo"
+
+        assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Forwarded-For", "10.0.0.1, 203.0.113.7") }.status)
+        assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Forwarded-For", "10.0.0.2, 203.0.113.7") }.status)
+
+        assertEquals(HttpStatusCode.TooManyRequests, client.get(url) { header("X-Forwarded-For", "10.0.0.3,203.0.113.7") }.status)
+    }
+
+    @Test
+    fun limitsEveryRequestOverallPerClient() = testApplication {
+        application { gradleNew(site, templates, RateLimits(generatePerMinute = 100, overallPerMinute = 4)) }
+
+        repeat(4) { assertEquals(HttpStatusCode.OK, client.get("/api/versions").status) }
+        val limited = client.get("/api/versions")
+
+        assertEquals(HttpStatusCode.TooManyRequests, limited.status)
+        assertNotNull(limited.headers[HttpHeaders.RetryAfter])
+        assertEquals(HttpStatusCode.TooManyRequests, client.get("/api/generate?type=java-application&project-name=demo").status, "the overall limit covers the API too")
+    }
 }
