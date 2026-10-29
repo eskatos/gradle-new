@@ -46,7 +46,7 @@ public abstract class AcceptanceTestsPlugin implements Plugin<Project> {
             publisherInputs.getPublisherClasspath().setFrom(publisherClasspath);
             publisherInputs.getBuilderSources().set(rootDir.dir("builder"));
             publisherInputs.getBuilderSourceFiles().setFrom(rootDir.dir("builder").getAsFileTree()
-                .matching(pattern -> pattern.exclude("build", ".gradle", ".kotlin", "**/build/**", "**/.gradle/**", "**/.kotlin/**")));
+                .matching(pattern -> pattern.exclude(BuilderSources.EXCLUDED)));
             publisherInputs.getVersionCatalog().set(rootDir.file("gradle/libs.versions.toml"));
             publisherInputs.getVersionCatalogFiles().setFrom(rootDir.file("gradle/libs.versions.toml"));
             test.getJvmArgumentProviders().add(publisherInputs);

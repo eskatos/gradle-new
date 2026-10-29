@@ -27,7 +27,29 @@ class PublishSiteTest {
         assertTrue(recorded.contains("--catalog " + dir.toRealPath().resolve("catalog.toml") + " "), recorded);
         assertTrue(recorded.contains("--output " + dir.toRealPath().resolve("my-tool/build/site") + " "), recorded);
         assertTrue(recorded.contains("--templates-output " + dir.toRealPath().resolve("my-tool/build/templates") + " "), recorded);
-        assertTrue(recorded.contains("--work-dir " + dir.toRealPath().resolve("my-tool/build/publisher-work")), recorded);
+        assertTrue(recorded.contains("--work-dir " + dir.toRealPath().resolve("my-tool/build/publisher-work") + " "), recorded);
+        assertTrue(recorded.contains("--report-output " + dir.toRealPath().resolve("my-tool/build/verification") + " "), recorded);
+        assertTrue(recorded.endsWith("--template-budget-mb 64"), recorded);
+    }
+
+    @Test
+    void takesTheTemplateBudgetFromAGradleProperty(@TempDir Path dir) throws IOException {
+        TestProject project = publisherProject(dir);
+
+        project.run(":my-tool:publishSite", "-Pgradlenew.offered.stable=9.8.2", "-Pgradlenew.templates.budget-mb=5");
+
+        assertTrue(Files.readString(project.path("my-tool/build/site/args.txt")).endsWith("--template-budget-mb 5"));
+    }
+
+    @Test
+    void failsOnANonZeroExitAndNamesTheReport(@TempDir Path dir) throws IOException {
+        TestProject project = publisherProject(dir);
+
+        BuildResult result = project.runAndFail(":my-tool:publishSite", "-Pgradlenew.offered.stable=9.9.9");
+
+        assertEquals(TaskOutcome.FAILED, result.task(":my-tool:publishSite").getOutcome());
+        assertTrue(result.getOutput().contains("The publisher exited with 2"), result.getOutput());
+        assertTrue(result.getOutput().contains(dir.toRealPath().resolve("my-tool/build/verification/verification-report.json").toString()), result.getOutput());
     }
 
     @Test
@@ -38,10 +60,12 @@ class PublishSiteTest {
         project.run(arguments);
         project.file("builder/build/libs/stale.jar", "changes between runs");
         project.file("builder/.gradle/file-hashes.bin", "changes between runs");
+        project.file("builder/builder-plugin/build/libs/stale.jar", "changes between runs");
         assertEquals(TaskOutcome.UP_TO_DATE, project.run(arguments).task(":my-tool:publishSite").getOutcome());
 
         project.run(":my-tool:clean");
         assertEquals(TaskOutcome.FROM_CACHE, project.run(arguments).task(":my-tool:publishSite").getOutcome());
+        assertTrue(Files.exists(project.path("my-tool/build/verification/verification-report.json")));
 
         Files.writeString(project.path("builder/settings.gradle.kts"), "rootProject.name = \"changed\"\n");
         assertEquals(TaskOutcome.SUCCESS, project.run(arguments).task(":my-tool:publishSite").getOutcome());
@@ -111,6 +135,8 @@ class PublishSiteTest {
                     val output = File(args[args.indexOf("--output") + 1])
                     output.mkdirs()
                     output.resolve("args.txt").writeText(args.joinToString(" "))
+                    File(args[args.indexOf("--report-output") + 1]).resolve("verification-report.json").writeText("{}")
+                    if (args[args.indexOf("--stable") + 1] == "9.9.9") kotlin.system.exitProcess(2)
                     val templates = File(args[args.indexOf("--templates-output") + 1]).resolve("9.8.2")
                     templates.mkdirs()
                     templates.resolve("key.zip").writeText("template")

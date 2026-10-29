@@ -10,6 +10,9 @@ import org.gradle.api.tasks.TaskProvider;
 
 public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
 
+    static final String TEMPLATE_BUDGET_PROPERTY = "gradlenew.templates.budget-mb";
+    private static final int DEFAULT_TEMPLATE_BUDGET_MEGABYTES = 64;
+
     @Override
     public void apply(Project project) {
         JvmConventions.applyKotlinJvm(project, Catalog.of(project));
@@ -24,6 +27,7 @@ public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
         site.getRc().convention(offered.rc());
         site.getBuilderSources().convention(rootDir.dir("builder"));
         site.getVersionCatalog().convention(rootDir.file("gradle/libs.versions.toml"));
+        site.getTemplateBudgetMegabytes().convention(project.getProviders().gradleProperty(TEMPLATE_BUDGET_PROPERTY).map(Integer::valueOf).orElse(DEFAULT_TEMPLATE_BUDGET_MEGABYTES));
 
         SourceSet main = project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets().getByName("main");
         TaskProvider<PublishSiteTask> publishSite = project.getTasks().register("publishSite", PublishSiteTask.class, task -> {
@@ -35,11 +39,13 @@ public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
             task.getRc().set(site.getRc());
             task.getBuilderSources().set(site.getBuilderSources());
             task.getBuilderSourceFiles().setFrom(site.getBuilderSources().map(dir ->
-                dir.getAsFileTree().matching(pattern -> pattern.exclude("build", ".gradle", ".kotlin"))));
+                dir.getAsFileTree().matching(pattern -> pattern.exclude(BuilderSources.EXCLUDED))));
             task.getVersionCatalog().set(site.getVersionCatalog());
             task.getOutputDirectory().set(project.getLayout().getBuildDirectory().dir("site"));
             task.getTemplatesOutputDirectory().set(project.getLayout().getBuildDirectory().dir("templates"));
             task.getWorkDirectory().set(project.getLayout().getBuildDirectory().dir("publisher-work"));
+            task.getReportDirectory().set(project.getLayout().getBuildDirectory().dir("verification"));
+            task.getTemplateBudgetMegabytes().set(site.getTemplateBudgetMegabytes());
         });
 
         project.getConfigurations().consumable("siteElements", configuration -> {

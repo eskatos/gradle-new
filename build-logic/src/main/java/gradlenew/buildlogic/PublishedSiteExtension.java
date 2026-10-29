@@ -13,4 +13,6 @@ public abstract class PublishedSiteExtension {
     public abstract DirectoryProperty getBuilderSources();
 
     public abstract RegularFileProperty getVersionCatalog();
+
+    public abstract Property<Integer> getTemplateBudgetMegabytes();
 }
