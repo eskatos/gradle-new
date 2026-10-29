@@ -42,10 +42,12 @@ class PublisherScenarioTest {
     fun publisherScenario() {
         proposesOfferedVersionChanges()
         val model = publishesTheRealStable()
-        refusesNondeterministicOutput()
+        val javaTarget = model.buildTypes.firstOrNull { it.supportsJavaVersion && it.componentType == "library" }
+            ?: model.buildTypes.first { it.supportsJavaVersion }
+        refusesNondeterministicOutput(model)
         refusesAnUnknownProjectNameForm()
-        enumeratesATypeWhoseOutputDependsOnTheJavaVersion(model)
-        refusesTemplatesOverTheBudget()
+        enumeratesATypeWhoseOutputDependsOnTheJavaVersion(model, javaTarget.id)
+        refusesTemplatesOverTheBudget(javaTarget.id)
     }
 
     private fun proposesOfferedVersionChanges() {
@@ -145,23 +147,24 @@ class PublisherScenarioTest {
         val report = run.report()
         assertEquals(Check.entries.toSet(), report.checks.map { it.check }.toSet())
         assertTrue(report.checks.all { it.outcome == Outcome.PASSED }, report.toString())
-        assertEquals(emptyList(), report.javaEnumeratedTypes)
 
         assertEquals(listOf("v"), run.site.list()!!.toList())
         val model = InitModelJson.decode(run.site.resolve("v/$stable/model.json").readText())
-        val expectedKeys = TemplateCatalog.of(model).map { "${it.spec.key}.zip" }.toSet()
+        val enumerated = report.javaEnumeratedTypes.toSet()
+        val expectedKeys = TemplateCatalog.of(model, enumerated).map { "${it.spec.key}.zip" }.toSet()
         assertEquals(expectedKeys, run.templateKeys())
-        assertEquals(emptySet(), TemplateIndexJson.decode(run.templates.resolve("$stable/index.json").readText()).javaEnumeratedTypes)
+        assertEquals(enumerated, TemplateIndexJson.decode(run.templates.resolve("$stable/index.json").readText()).javaEnumeratedTypes)
         return model
     }
 
-    private fun refusesNondeterministicOutput() {
+    private fun refusesNondeterministicOutput(model: InitModel) {
         val run = publish("nondeterministic", initScript = "nondeterministic.gradle")
 
         assertEquals(1, run.exitCode, run.output)
         val determinism = run.report().result(Check.DETERMINISM)
         assertEquals(Outcome.FAILED, determinism.outcome)
-        assertTrue(determinism.failures.any { it.subject.startsWith("java-application.") }, determinism.toString())
+        val typeIds = model.buildTypes.map { it.id }
+        assertTrue(determinism.failures.isNotEmpty() && determinism.failures.all { failure -> typeIds.any { failure.subject.startsWith("$it.") } }, determinism.toString())
         assertTrue(determinism.failures.all { it.message.contains("generated-at.txt") }, determinism.toString())
         run.assertNothingPublished()
     }
@@ -177,33 +180,33 @@ class PublisherScenarioTest {
         run.assertNothingPublished()
     }
 
-    private fun enumeratesATypeWhoseOutputDependsOnTheJavaVersion(model: InitModel) {
-        val run = publish("java-version-elsewhere", initScript = "java-version-comment.gradle")
+    private fun enumeratesATypeWhoseOutputDependsOnTheJavaVersion(model: InitModel, target: String) {
+        val run = publish("java-version-elsewhere", initScript = "java-version-comment.gradle", faultTarget = target)
 
         assertEquals(0, run.exitCode, run.output)
         val report = run.report()
         assertTrue(report.checks.all { it.outcome == Outcome.PASSED }, report.toString())
-        assertEquals(listOf("groovy-library"), report.javaEnumeratedTypes)
-        assertEquals(setOf("groovy-library"), TemplateIndexJson.decode(run.templates.resolve("$stable/index.json").readText()).javaEnumeratedTypes)
+        assertEquals(listOf(target), report.javaEnumeratedTypes)
+        assertEquals(setOf(target), TemplateIndexJson.decode(run.templates.resolve("$stable/index.json").readText()).javaEnumeratedTypes)
 
         val keys = run.templateKeys()
         val range = model.javaVersion.minimum..model.javaVersion.maximum
-        val groovyLibrary = keys.filter { it.startsWith("groovy-library.") }
-        val combinations = TemplateCatalog.of(model).count { it.spec.type == "groovy-library" }
-        assertEquals(combinations * (range.last - range.first + 1), groovyLibrary.size)
-        assertEquals(range.toSet(), groovyLibrary.map { it.removeSuffix(".zip").substringAfterLast(".java").toInt() }.toSet())
-        assertTrue(keys.filterNot { it.startsWith("groovy-library.") }.none { it.contains(".java") }, keys.toString())
+        val targetKeys = keys.filter { it.startsWith("$target.") }
+        val combinations = TemplateCatalog.of(model).count { it.spec.type == target }
+        assertEquals(combinations * (range.last - range.first + 1), targetKeys.size)
+        assertEquals(range.toSet(), targetKeys.map { it.removeSuffix(".zip").substringAfterLast(".java").toInt() }.toSet())
+        assertTrue(keys.filterNot { it.startsWith("$target.") }.none { it.contains(".java") }, keys.toString())
     }
 
-    private fun refusesTemplatesOverTheBudget() {
-        val run = publish("over-budget", initScript = "java-version-comment.gradle", budgetMegabytes = 1)
+    private fun refusesTemplatesOverTheBudget(target: String) {
+        val run = publish("over-budget", initScript = "java-version-comment.gradle", faultTarget = target, budgetMegabytes = 1)
 
         assertEquals(1, run.exitCode, run.output)
         assertEquals(Outcome.FAILED, run.report().result(Check.BUDGET).outcome)
         run.assertNothingPublished()
     }
 
-    private fun publish(name: String, initScript: String? = null, budgetMegabytes: Int? = null): PublisherRun {
+    private fun publish(name: String, initScript: String? = null, faultTarget: String? = null, budgetMegabytes: Int? = null): PublisherRun {
         val dir = workRoot.resolve(name)
         val arguments = buildList {
             addAll(listOf("publish", "--version", stable))
@@ -212,6 +215,7 @@ class PublisherScenarioTest {
             addAll(listOf("--report-output", dir.resolve("report").path, "--work-dir", dir.resolve("work").path))
             budgetMegabytes?.let { addAll(listOf("--template-budget-mb", it.toString())) }
             initScript?.let { addAll(listOf("--gradle-argument", "--init-script", "--gradle-argument", faultInjection(it).path)) }
+            faultTarget?.let { addAll(listOf("--gradle-argument", "-Dgradlenew.fault.type=$it")) }
         }
         val java = File(System.getProperty("java.home"), "bin/java").path
         val started = TimeSource.Monotonic.markNow()
