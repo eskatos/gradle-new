@@ -187,6 +187,18 @@ class PageTest {
     }
 
     @TestFactory
+    fun showsTheRateLimitMessageNextToTheDownloadButton(): List<DynamicTest> = onPage { page, server ->
+        page.fill("#project-name", "busy")
+        page.click("#download")
+
+        page.waitForSelector("#form-error:not([hidden])")
+        assertEquals("Too many builds were requested from your address in a short time. Try again in 42 seconds.", page.textContent("#form-error .error-text")!!.trim())
+        assertEquals("Download the build", page.textContent("#download .btn-label")!!.trim())
+        assertEquals(null, page.getAttribute("#download", "aria-busy"))
+        assertTrue(server.requests.any { it.contains("project-name=busy") })
+    }
+
+    @TestFactory
     fun downloadsTheBuildOrPlacesTheRejection(): List<DynamicTest> = onPage { page, server ->
         page.fill("#project-name", "demo-app")
         val download = page.waitForDownload { page.click("#download") }
@@ -255,7 +267,7 @@ class PageTest {
                         page.navigate(server.url + "/", Page.NavigateOptions().setTimeout(FIRST_LOAD_TIMEOUT))
                         page.waitForSelector("#command .token", Page.WaitForSelectorOptions().setTimeout(FIRST_LOAD_TIMEOUT))
                         test(page, server)
-                        assertEquals(emptyList(), problems.filterNot { it.contains("status of 400") || it.contains("status of 500") || it.contains("400 (Bad Request)") || it.contains("500 (Internal Server Error)") }, "console errors in $engine")
+                        assertEquals(emptyList(), problems.filterNot { it.contains("status of 400") || it.contains("status of 500") || it.contains("400 (Bad Request)") || it.contains("500 (Internal Server Error)") || it.contains("status of 429") || it.contains("429 (Too Many Requests)") }, "console errors in $engine")
                     } finally {
                         context.close()
                     }
@@ -280,6 +292,9 @@ class PageTest {
             query.contains("package=com.ac\$me") -> SiteServer.respond(exchange, 400, "application/json",
                 "{\"error\": \"Package name: 'com.ac\$me' is not supported by this service - it must not contain '\$'.\", \"parameter\": \"package\"}".toByteArray())
             query.contains("project-name=boom") -> SiteServer.respond(exchange, 500, "text/plain", "boom".toByteArray())
+            query.contains("project-name=busy") -> SiteServer.respond(exchange, 429, "application/json",
+                "{\"error\": \"Too many builds were requested from your address in a short time. Try again in 42 seconds.\", \"parameter\": null}".toByteArray(),
+                mapOf("Retry-After" to "42"))
             else -> SiteServer.respond(exchange, 200, "application/zip", zip, mapOf("Content-Disposition" to "attachment; filename=\"demo-app.zip\""))
         }
     }

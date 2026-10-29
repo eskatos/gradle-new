@@ -409,6 +409,11 @@ async function download() {
       }
       return;
     }
+    if (response.status === 429) {
+      const body = await response.json().catch(() => null);
+      showFormError(body?.error ?? `Too many builds were requested in a short time. Try again in ${response.headers.get('Retry-After') ?? 'a few'} seconds.`);
+      return;
+    }
     if (!response.ok) throw new Error(`The server answered ${response.status}.`);
     const filename = filenameOf(response) ?? `${state.choices.projectName}.zip`;
     const blob = await response.blob();
