@@ -8,5 +8,6 @@ dependencies {
     testImplementation(projects.domain)
     testImplementation(projects.verification)
     testImplementation(projects.adapterJson)
+    testImplementation(projects.versions)
     testImplementation(projects.adapterToolingApi)
 }

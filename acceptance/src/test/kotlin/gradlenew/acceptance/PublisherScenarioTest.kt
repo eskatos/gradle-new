@@ -1,6 +1,7 @@
 package gradlenew.acceptance
 
 import gradlenew.adapterjson.InitModelJson
+import gradlenew.adapterjson.ProposalsJson
 import gradlenew.adapterjson.TemplateIndexJson
 import gradlenew.adapterjson.VerificationReportJson
 import gradlenew.adapterjson.VersionsJson
@@ -9,7 +10,13 @@ import gradlenew.domain.model.InitModel
 import gradlenew.verification.Check
 import gradlenew.verification.Outcome
 import gradlenew.verification.VersionReport
+import gradlenew.versions.Pin
+import gradlenew.versions.Proposal
+import gradlenew.versions.Slot
+import com.sun.net.httpserver.HttpServer
 import java.io.File
+import java.net.InetSocketAddress
+import java.net.ServerSocket
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import kotlin.test.AfterTest
@@ -34,12 +41,103 @@ class PublisherScenarioTest {
 
     @Test
     fun publisherScenario() {
+        proposesOfferedVersionChanges()
         val model = publishesTheRealStable()
         refusesNondeterministicOutput()
         refusesAnUnknownProjectNameForm()
         enumeratesATypeWhoseOutputDependsOnTheJavaVersion(model)
         refusesTemplatesOverTheBudget()
     }
+
+    private fun proposesOfferedVersionChanges() {
+        RecordedFeeds().use { feeds ->
+            val unchanged = propose(feeds, "unchanged", Pin("9.8.2", null), write = true)
+            assertEquals(emptyList(), unchanged.proposals())
+            assertEquals("stable=9.8.2\nrc=\n", unchanged.pinText())
+
+            assertEquals(
+                listOf(Proposal(Slot.RC, "Offer Gradle 9.9.0-rc-1", Pin("9.8.2", "9.9.0-rc-1"))),
+                propose(feeds, "active-rc", Pin("9.8.2", null)).proposals(),
+            )
+            assertEquals(
+                listOf(Proposal(Slot.STABLE, "Offer Gradle 9.9.0", Pin("9.9.0", null))),
+                propose(feeds, "final-retires-rc", Pin("9.8.2", "9.9.0-rc-2")).proposals(),
+            )
+
+            val both = propose(feeds, "new-stable-and-rc", Pin("9.8.2", null), write = true)
+            assertEquals(
+                listOf(
+                    Proposal(Slot.STABLE, "Offer Gradle 9.9.0", Pin("9.9.0", null)),
+                    Proposal(Slot.RC, "Offer Gradle 9.10.0-rc-1", Pin("9.8.2", "9.10.0-rc-1")),
+                ),
+                both.proposals(),
+            )
+            assertEquals("stable=9.9.0\nrc=9.10.0-rc-1\n", both.pinText())
+
+            assertEquals(emptyList(), propose(feeds, "broken-stable", Pin("9.8.2", null)).proposals())
+            assertEquals(
+                listOf(Proposal(Slot.RC, "Stop offering Gradle 9.9.0-rc-1", Pin("9.8.2", null))),
+                propose(feeds, "inactive-rc", Pin("9.8.2", "9.9.0-rc-1")).proposals(),
+            )
+            assertEquals(emptyList(), propose(feeds, "inactive-rc", Pin("9.8.2", null)).proposals())
+            assertEquals(emptyList(), propose(feeds, "milestone-and-nightly", Pin("9.8.2", null)).proposals())
+            assertEquals(emptyList(), propose(feeds, "older-stable", Pin("9.8.2", null)).proposals())
+        }
+
+        val unreachable = propose(null, "unreachable", Pin("9.8.2", "9.9.0-rc-1"), write = true)
+        assertEquals(1, unreachable.exitCode, unreachable.output)
+        assertTrue(unreachable.output.contains("feed"), unreachable.output)
+        assertEquals("stable=9.8.2\nrc=9.9.0-rc-1\n", unreachable.pinText())
+    }
+
+    private fun propose(feeds: RecordedFeeds?, case: String, pin: Pin, write: Boolean = false): ProposeRun {
+        feeds?.serve(case)
+        val pinFile = workRoot.resolve("propose/$case-${System.nanoTime()}/offered-gradle-versions.properties")
+        pinFile.parentFile.mkdirs()
+        pinFile.writeText("stable=${pin.stable}\nrc=${pin.rc ?: ""}\n")
+        val feedsUrl = feeds?.url ?: "http://127.0.0.1:${unusedPort()}/versions/"
+        val arguments = listOf("propose", "--pin", pinFile.path, "--feeds-url", feedsUrl) + if (write) listOf("--write") else emptyList()
+        val process = ProcessBuilder(listOf(java(), "-Xmx256m", "-cp", classpath, "gradlenew.publisher.MainKt") + arguments).start()
+        val stdout = process.inputStream.bufferedReader().readText()
+        val stderr = process.errorStream.bufferedReader().readText()
+        assertTrue(process.waitFor(2, TimeUnit.MINUTES), "propose did not finish")
+        val run = ProposeRun(process.exitValue(), stdout, "$stdout\n$stderr", pinFile)
+        if (feeds != null) assertEquals(0, run.exitCode, "propose for '$case' failed:\n${run.output}")
+        return run
+    }
+
+    private class ProposeRun(val exitCode: Int, val stdout: String, val output: String, private val pinFile: File) {
+        fun proposals(): List<Proposal> = ProposalsJson.decode(stdout)
+        fun pinText(): String = pinFile.readText()
+    }
+
+    private class RecordedFeeds : AutoCloseable {
+        private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        private var case: String = "unchanged"
+        val url: String get() = "http://127.0.0.1:${server.address.port}/versions/"
+
+        init {
+            for (feed in listOf("current", "release-candidate")) {
+                server.createContext("/versions/$feed") { exchange ->
+                    val body = requireNotNull(javaClass.getResource("/feeds/$case/$feed.json")) { "missing feed fixture $case/$feed" }.readBytes()
+                    exchange.responseHeaders.add("Content-Type", "application/json")
+                    exchange.sendResponseHeaders(200, body.size.toLong())
+                    exchange.responseBody.use { it.write(body) }
+                }
+            }
+            server.start()
+        }
+
+        fun serve(case: String) {
+            this.case = case
+        }
+
+        override fun close() = server.stop(0)
+    }
+
+    private fun unusedPort(): Int = ServerSocket(0).use { it.localPort }
+
+    private fun java(): String = File(System.getProperty("java.home"), "bin/java").path
 
     private fun publishesTheRealStable(): InitModel {
         val run = publish("real-stable")
