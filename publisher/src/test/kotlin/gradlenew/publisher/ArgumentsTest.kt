@@ -20,6 +20,7 @@ class ArgumentsTest {
             required + listOf(
                 "--template-budget-mb", "12", "--gradle-argument", "--init-script", "--gradle-argument", "fault.gradle",
                 "--distribution-sha256", "a".repeat(64), "--wrapper-sha256", "b".repeat(64), "--distributions-url", "http://localhost:1/d/",
+                "--java-home", "/opt/jdk-21",
             ),
         )
 
@@ -29,6 +30,7 @@ class ArgumentsTest {
                 output = File("out"), templatesOutput = File("tpl"), reportOutput = File("report"), workDir = File("work"),
                 templateBudgetBytes = 12L * 1024 * 1024, gradleArguments = listOf("--init-script", "fault.gradle"),
                 checksums = Checksums("a".repeat(64), "b".repeat(64)), distributionCache = File("dists"), distributionsUrl = URI("http://localhost:1/d/"),
+                javaHome = File("/opt/jdk-21"),
             ),
             arguments,
         )
@@ -42,6 +44,7 @@ class ArgumentsTest {
         assertEquals(emptyList(), arguments.gradleArguments)
         assertEquals(null, arguments.checksums, "no pinned checksums means the published ones are used")
         assertEquals(Distributions.DEFAULT_BASE_URL, arguments.distributionsUrl)
+        assertEquals(null, arguments.javaHome, "without a Java home, Gradle runs on the publisher's own Java")
     }
 
     @Test

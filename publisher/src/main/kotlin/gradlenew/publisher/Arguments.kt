@@ -17,6 +17,7 @@ data class Arguments(
     val checksums: Checksums?,
     val distributionCache: File,
     val distributionsUrl: URI,
+    val javaHome: File? = null,
 ) {
     companion object {
         private const val MEGABYTE = 1024L * 1024
@@ -56,6 +57,7 @@ data class Arguments(
                 checksums = if (distributionSha256 != null && wrapperSha256 != null) Checksums(distributionSha256, wrapperSha256) else null,
                 distributionCache = File(required("distribution-cache")),
                 distributionsUrl = options["distributions-url"]?.let(::URI) ?: Distributions.DEFAULT_BASE_URL,
+                javaHome = options["java-home"]?.let(::File),
             )
         }
     }

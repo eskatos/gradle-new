@@ -17,7 +17,7 @@ fun main(args: Array<String>) {
         "index" -> IndexCommand.run(args.drop(1))
         "propose" -> exitProcess(ProposeCommand().run(args.drop(1), System.out, System.err))
         else -> {
-            System.err.println("usage: publish --version <v> ... | index --stable <v> [--rc <v>] --output <dir> | propose --pin <file> [--feeds-url <url>] [--write]")
+            System.err.println("usage: publish --version <v> [--java-home <dir>] ... | index --stable <v> [--rc <v>] --previous <v> --output <dir> | ${ProposeCommand.USAGE.removePrefix("usage: ")}")
             exitProcess(1)
         }
     }
@@ -36,13 +36,13 @@ private fun publish(args: List<String>) {
             }
         },
         modelFor = { distribution ->
-            val gradle = GradleDistribution(distribution.version, arguments.gradleArguments, distribution.zip)
+            val gradle = GradleDistribution(distribution.version, arguments.gradleArguments, distribution.zip, arguments.javaHome)
             val workDir = arguments.workDir.resolve("model/${distribution.version}")
             val jars = BuilderCompiler.compile(gradle, arguments.builderSources, arguments.versionCatalog, workDir)
             InitModelRequest.request(gradle, jars, workDir)
         },
         initFor = { distribution ->
-            val init = InitRunner(GradleDistribution(distribution.version, arguments.gradleArguments, distribution.zip))
+            val init = InitRunner(GradleDistribution(distribution.version, arguments.gradleArguments, distribution.zip, arguments.javaHome))
             InitGenerator { spec, inputs ->
                 inits++
                 try {
