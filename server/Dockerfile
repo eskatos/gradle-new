@@ -14,3 +14,5 @@ COPY --from=build /build/server /server
 COPY templates /templates
 COPY agent /agent
 COPY site /site
+LABEL org.opencontainers.image.source="https://github.com/eskatos/gradle-new" \
+      org.opencontainers.image.licenses="Apache-2.0"
