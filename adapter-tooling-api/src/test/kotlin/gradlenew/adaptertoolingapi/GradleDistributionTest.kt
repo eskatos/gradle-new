@@ -1,24 +1,43 @@
 package gradlenew.adaptertoolingapi
 
+import java.io.File
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import org.gradle.tooling.model.build.BuildEnvironment
 
 class GradleDistributionTest {
 
     @Test
     fun runsTasksAgainstTheRequestedVersionAndCapturesOutput() {
         for (version in Pinned.versions) {
-            val output = GradleDistribution(version).runTasks(emptyBuild(), listOf("help", "--task", "init", "--quiet", "--offline"))
+            val output = Pinned.distribution(version).runTasks(emptyBuild(), listOf("help", "--task", "init", "--quiet", "--offline"))
             assertTrue(output.contains("--type"), output)
             assertTrue(output.contains("java-application"), output)
         }
     }
 
     @Test
+    fun runsTheDaemonOnTheJavaItIsGiven() {
+        val javaHome = File(System.getProperty("java.home")).canonicalFile
+        val gradle = GradleDistribution(Pinned.stable, javaHome = javaHome)
+        assertEquals(javaHome, gradle.javaHome)
+        val environment = gradle.requestModel(emptyBuild(), BuildEnvironment::class.java, listOf("--offline"))
+        assertEquals(javaHome, environment.java.javaHome.canonicalFile)
+    }
+
+    @Test
+    fun refusesAJavaHomeThatIsNotAJava() {
+        val notAJava = Files.createTempDirectory("not-a-java").toFile()
+        assertFails { GradleDistribution(Pinned.stable, javaHome = notAJava).runTasks(emptyBuild(), listOf("help", "--quiet", "--offline")) }
+    }
+
+    @Test
     fun reportsTheGradleVersionItRuns() {
-        val output = GradleDistribution(Pinned.stable).runTasks(emptyBuild(), listOf("--version", "--quiet"))
+        val output = Pinned.distribution(Pinned.stable).runTasks(emptyBuild(), listOf("--version", "--quiet"))
         assertTrue(output.contains("Gradle ${Pinned.stable}"), output)
     }
 
@@ -36,7 +55,7 @@ class GradleDistributionTest {
         val initScript = build.resolve("print-idle-timeout.gradle.kts").apply {
             writeText("println(\"idle-timeout=\" + System.getProperty(\"org.gradle.daemon.idletimeout\"))\n")
         }
-        val output = GradleDistribution(Pinned.stable).runTasks(build, listOf("--init-script", initScript.absolutePath, "help", "--offline"))
+        val output = Pinned.distribution(Pinned.stable).runTasks(build, listOf("--init-script", initScript.absolutePath, "help", "--offline"))
         assertTrue(output.contains("idle-timeout=${GradleDistribution.DAEMON_IDLE_TIMEOUT.inWholeMilliseconds}"), output)
     }
 
@@ -53,9 +72,9 @@ class GradleDistributionTest {
     @Test
     fun aFailingBuildRaisesWithItsOutput() {
         val failure = assertFailsWith<GradleBuildFailed> {
-            GradleDistribution(Pinned.stable).runTasks(emptyBuild(), listOf("noSuchTask", "--quiet"))
+            Pinned.distribution(Pinned.stable).runTasks(emptyBuild(), listOf("noSuchTask", "--quiet"))
         }
         assertTrue(failure.output.contains("noSuchTask"), failure.output)
-        assertEquals(Pinned.stable, GradleDistribution(Pinned.stable).version)
+        assertEquals(Pinned.stable, Pinned.distribution(Pinned.stable).version)
     }
 }

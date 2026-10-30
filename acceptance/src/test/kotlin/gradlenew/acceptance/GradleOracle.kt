@@ -8,7 +8,7 @@ import java.nio.file.Files
 
 class GradleOracle(version: String, javaHome: File? = null) {
 
-    private val gradle = GradleDistribution(version, listOfNotNull(javaHome?.let { "-Dorg.gradle.java.home=${it.absolutePath}" }))
+    private val gradle = GradleDistribution(version, javaHome = javaHome)
 
     fun initOptionValues(): Map<String, Set<String>> {
         val help = gradle.runTasks(emptyBuild(), listOf("help", "--task", "init", "--quiet", "--offline"))

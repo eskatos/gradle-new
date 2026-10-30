@@ -13,7 +13,7 @@ class BuilderCompilerTest {
         for (version in Pinned.versions) {
             val workDir = Files.createTempDirectory("builder-compile").toFile()
 
-            val jars = BuilderCompiler.compile(GradleDistribution(version), Pinned.builderSources, Pinned.versionCatalog, workDir)
+            val jars = BuilderCompiler.compile(Pinned.distribution(version), Pinned.builderSources, Pinned.versionCatalog, workDir)
 
             assertTrue(jars.plugin.isFile, jars.plugin.path)
             assertTrue(jars.api.isFile, jars.api.path)

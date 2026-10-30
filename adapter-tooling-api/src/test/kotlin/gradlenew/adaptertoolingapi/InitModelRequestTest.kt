@@ -11,7 +11,7 @@ class InitModelRequestTest {
     @Test
     fun requestsAModelThatAgreesWithTheVersionUnderTest() {
         for (version in Pinned.versions) {
-            val gradle = GradleDistribution(version)
+            val gradle = Pinned.distribution(version)
             val model = InitHelp.model(gradle)
             val optionValues = InitHelp.optionValues(gradle)
 

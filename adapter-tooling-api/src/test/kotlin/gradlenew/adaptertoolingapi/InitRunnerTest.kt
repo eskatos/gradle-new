@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
 
 class InitRunnerTest {
 
-    private val init = InitRunner(GradleDistribution(Pinned.stable))
+    private val init = InitRunner(Pinned.distribution(Pinned.stable))
 
     @Test
     fun runsInitInAFreshDirectoryAndReturnsTheGeneratedFiles() {
@@ -44,7 +44,7 @@ class InitRunnerTest {
 
         val rejection = assertFailsWith<InitRejected> { init.run(arguments) }
         val raw = assertFailsWith<GradleBuildFailed> {
-            GradleDistribution(Pinned.stable).runTasks(Files.createTempDirectory("raw-init").toFile(), listOf("init", "--use-defaults", "--offline", "--quiet") + arguments)
+            Pinned.distribution(Pinned.stable).runTasks(Files.createTempDirectory("raw-init").toFile(), listOf("init", "--use-defaults", "--offline", "--quiet") + arguments)
         }
 
         assertTrue(rejection.reason.contains("no-such-type"), rejection.reason)
@@ -53,7 +53,7 @@ class InitRunnerTest {
 
     @Test
     fun substitutedTemplatesEqualInitOutputForRealInputs() {
-        val model = InitHelp.model(GradleDistribution(Pinned.stable))
+        val model = InitHelp.model(Pinned.distribution(Pinned.stable))
         val catalog = TemplateCatalog.of(model)
         val cases = listOf<Pair<(BuildType) -> Boolean, ProjectInputs>>(
             { type: BuildType -> type.language == "cpp" } to ProjectInputs("demo-app", null, null),
