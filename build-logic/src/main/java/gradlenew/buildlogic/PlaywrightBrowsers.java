@@ -21,7 +21,10 @@ final class PlaywrightBrowsers {
     static void wire(Project project, Catalog catalog) {
         project.getDependencies().addProvider("testImplementation", catalog.library("playwright"));
         boolean withDeps = project.getProviders().gradleProperty(WITH_DEPS_PROPERTY).map(Boolean::parseBoolean).getOrElse(false);
+        Provider<BrowserTestsService> oneAtATime = project.getGradle().getSharedServices()
+            .registerIfAbsent(SERVICE, BrowserTestsService.class, spec -> spec.getMaxParallelUsages().set(1));
         TaskProvider<JavaExec> install = project.getTasks().register(INSTALL_TASK, JavaExec.class, task -> {
+            task.usesService(oneAtATime);
             task.setGroup("verification");
             task.setDescription("Installs WebKit, Firefox and Chromium's headless shell into Playwright's browser cache, and with -P" + WITH_DEPS_PROPERTY + "=true the system libraries they need, through apt.");
             task.setClasspath(project.getConfigurations().getByName("testRuntimeClasspath"));
@@ -34,8 +37,6 @@ final class PlaywrightBrowsers {
             task.doNotTrackState("Playwright keeps its browsers in a cache outside the build");
         });
         String engines = project.getProviders().gradleProperty(ENGINES_PROPERTY).getOrElse(ENGINES);
-        Provider<BrowserTestsService> oneAtATime = project.getGradle().getSharedServices()
-            .registerIfAbsent(SERVICE, BrowserTestsService.class, spec -> spec.getMaxParallelUsages().set(1));
         project.getTasks().withType(Test.class).configureEach(test -> {
             test.usesService(oneAtATime);
             test.dependsOn(install);
