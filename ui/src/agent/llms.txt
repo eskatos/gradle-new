@@ -1,0 +1,32 @@
+# gradle.new
+
+> Create a new Gradle build with one HTTP request. Every build is produced by the real `gradle init` of the latest stable Gradle release, or of the current release candidate, so it is exactly what `gradle init` would generate locally.
+
+Use it instead of writing build files from memory: the options, defaults and descriptions come from Gradle itself and follow each release.
+
+To create a build, read the options model, pick a build type and the options that matter for the request, then download the zip. Send only the options whose value differs from the default; omitted options take Gradle's defaults. `type` and `project-name` are required. Parameter names are the `gradle init` option names, and boolean options take `true` or `false`.
+
+The response is a zip whose single root folder is named after the project, with an executable `gradlew`. Unzip it and run `./gradlew build` to check the result.
+
+Errors are HTTP 400 with JSON `{"error": "<message>", "parameter": "<option>"}`; the message is Gradle's own wording and names what to fix. Requests are limited per client, to 60 builds and 600 requests a minute; above that, HTTP 429 with `Retry-After`.
+
+## API
+
+- [Offered versions]({{origin}}/api/versions): JSON with `stable` and `rc` (`null` when no release candidate is offered).
+- [Options model]({{origin}}/api/model): build types, DSLs, test frameworks per layout, defaults, the Java version range, rules for the project name and package, and Gradle's description of every option. Add `?version=rc` for the release candidate.
+- [Generate a build]({{origin}}/api/generate?type=java-application&project-name=demo): returns the zip. Options: `version` (`stable` by default, or `rc`), `type`, `dsl`, `test-framework`, `split-project`, `incubating`, `comments`, `project-name`, `package`, `java-version`.
+
+## Examples
+
+- [Java application]({{origin}}/api/generate?type=java-application&project-name=demo-app&package=com.example.demo): Kotlin DSL and JUnit Jupiter by default.
+- [Kotlin library with the Groovy DSL]({{origin}}/api/generate?type=kotlin-library&project-name=demo-lib&dsl=groovy)
+- [Split Java application]({{origin}}/api/generate?type=java-application&project-name=demo&split-project=true): split layouts support only JUnit Jupiter.
+
+## Skill
+
+- [gradle-new skill]({{origin}}/.well-known/agent-skills/gradle-new/SKILL.md): install with `npx skills add {{origin}} -g`.
+
+## Optional
+
+- [Web page]({{origin}}/): the same options as a form, with the equivalent `gradle init` command and API URL.
+- Gradle®, Develocity®, Build Scan® and the Gradlephant logo are registered trademarks of Gradle, Inc. This website is not affiliated with or endorsed by Gradle, Inc.

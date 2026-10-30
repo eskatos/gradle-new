@@ -28,10 +28,11 @@ class StaticSitePluginTest {
     }
 
     @Test
-    void testsReceiveTheAssembledSiteAndInstalledBrowsers(@TempDir Path dir) throws IOException {
+    void testsReceiveTheAssembledSiteTheAgentFilesAndInstalledBrowsers(@TempDir Path dir) throws IOException {
         TestProject project = TestProject.in(dir)
             .buildScript("plugins { id(\"gradlenew.static-site\") }")
             .file("src/site/index.html", "<!doctype html><title>site</title>")
+            .file("src/agent/SKILL.md", "---\nname: test\n---\n")
             .file("src/test/kotlin/SiteTest.kt", """
                 import java.io.File
                 import kotlin.test.Test
@@ -42,6 +43,7 @@ class StaticSitePluginTest {
                     @Test
                     fun seesTheSite() {
                         assertTrue(File(System.getProperty("ui.siteDir"), "index.html").isFile)
+                        assertTrue(File(System.getProperty("ui.agentDir"), "SKILL.md").isFile)
                         assertEquals("1", System.getenv("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD"))
                         assertEquals("webkit,firefox,chromium", System.getProperty("playwright.engines"))
                         Class.forName("com.microsoft.playwright.Playwright")

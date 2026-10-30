@@ -11,6 +11,7 @@ import org.gradle.api.tasks.testing.Test;
 public abstract class StaticSitePlugin implements Plugin<Project> {
 
     static final String SITE_DIR_PROPERTY = "ui.siteDir";
+    static final String AGENT_DIR_PROPERTY = "ui.agentDir";
 
     @Override
     public void apply(Project project) {
@@ -38,6 +39,10 @@ public abstract class StaticSitePlugin implements Plugin<Project> {
             site.getSystemProperty().set(SITE_DIR_PROPERTY);
             site.getDirectory().set(project.getLayout().dir(assembleSite.map(Sync::getDestinationDir)));
             test.getJvmArgumentProviders().add(site);
+            DirectoryArgumentProvider agent = project.getObjects().newInstance(DirectoryArgumentProvider.class);
+            agent.getSystemProperty().set(AGENT_DIR_PROPERTY);
+            agent.getDirectory().set(project.getLayout().getProjectDirectory().dir("src/agent"));
+            test.getJvmArgumentProviders().add(agent);
         });
     }
 }
