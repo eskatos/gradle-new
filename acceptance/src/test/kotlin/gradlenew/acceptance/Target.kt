@@ -1,5 +1,6 @@
 package gradlenew.acceptance
 
+import java.net.Socket
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -19,6 +20,13 @@ class Target private constructor(val baseUrl: String, private val container: Gen
 
     fun hasShell(): Boolean? = container?.let {
         runCatching { it.execInContainer("sh", "-c", "true").exitCode == 0 }.getOrDefault(false)
+    }
+
+    fun statusWithHost(path: String, host: String): Int? = container?.let {
+        Socket(it.host, it.getMappedPort(8080)).use { socket ->
+            socket.getOutputStream().write("GET $path HTTP/1.1\r\nHost: $host\r\nConnection: close\r\n\r\n".toByteArray())
+            socket.getInputStream().bufferedReader().readLine().split(' ')[1].toInt()
+        }
     }
 
     override fun close() {

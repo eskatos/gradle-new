@@ -5,8 +5,10 @@ import gradlenew.adapterjson.VersionsJson
 import gradlenew.domain.generation.TemplateCatalog
 import gradlenew.domain.model.InitModel
 import gradlenew.domain.model.OfferedVersions
+import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpResponse
+import java.security.MessageDigest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -29,6 +31,9 @@ class ApiJourneyTest {
             rejectInvalidRequest(target, model, oracle)
             offered.rc?.let { rc -> generateApplication(target, readModel(target, rc), GradleOracle(rc), "rc") }
             templatesAreNotServed(target, model)
+            agentSkill(target)
+            llmsTxt(target)
+            target.statusWithHost("/llms.txt", "not a host/name")?.let { assertEquals(400, it, "an invalid Host header is rejected") }
             target.hasShell()?.let { assertEquals(false, it, "the image has no shell") }
         }
     }
@@ -147,6 +152,52 @@ class ApiJourneyTest {
         val key = TemplateCatalog.of(model).first().spec.key
         assertEquals(404, target.get("/v/${model.gradleVersion}/templates/$key.zip").statusCode())
     }
+
+    private fun agentSkill(target: Target) {
+        val indexPath = "/.well-known/agent-skills/index.json"
+        val response = target.get(indexPath)
+        assertEquals(200, response.statusCode())
+        assertJson(response)
+        val index = response.body()
+        assertEquals("https://schemas.agentskills.io/discovery/0.2.0/schema.json", field(index, "\$schema"))
+        assertEquals(1, Regex("\"name\"\\s*:").findAll(index).count(), "one skill in $index")
+        assertEquals("gradle-new", field(index, "name"))
+        assertEquals("skill-md", field(index, "type"))
+        assertTrue(field(index, "description").isNotBlank())
+
+        val url = URI.create(target.baseUrl + indexPath).resolve(field(index, "url")).toString()
+        assertTrue(url.startsWith(target.baseUrl + "/"), url)
+        val skill = target.getBytes(url.removePrefix(target.baseUrl))
+        assertEquals(200, skill.statusCode())
+        assertEquals("text/plain", skill.headers().firstValue("content-type").orElse("").substringBefore(';'))
+        assertEquals(field(index, "digest"), "sha256:" + sha256(skill.body()), "the index digest matches the served skill")
+        val text = String(skill.body(), Charsets.UTF_8)
+        val frontMatter = text.removePrefix("---\n").substringBefore("\n---\n")
+        assertTrue(text.startsWith("---\n") && frontMatter.lines().contains("name: gradle-new"), text)
+        assertTrue(frontMatter.lines().any { it.startsWith("description: ") }, text)
+        assertTrue(text.contains(target.baseUrl + "/api/model"), "the skill names this server: $text")
+    }
+
+    private fun llmsTxt(target: Target) {
+        val response = target.get("/llms.txt")
+        assertEquals(200, response.statusCode())
+        assertEquals("text/plain", response.headers().firstValue("content-type").orElse("").substringBefore(';'))
+        val links = Regex("\\]\\((\\S+?)\\)").findAll(response.body()).map { it.groupValues[1] }.toList()
+        assertTrue(links.size >= 5, "links in llms.txt: $links")
+        for (link in links) {
+            assertTrue(link.startsWith(target.baseUrl + "/"), "llms.txt links to this server: $link")
+            val linked = target.getBytes(link.removePrefix(target.baseUrl))
+            assertEquals(200, linked.statusCode(), link)
+            if (link.contains("/api/generate?")) {
+                assertEquals("application/zip", linked.headers().firstValue("content-type").orElse(""), link)
+            }
+        }
+    }
+
+    private fun field(json: String, name: String): String =
+        Regex("\"" + Regex.escape(name) + "\"\\s*:\\s*\"([^\"]*)\"").find(json)?.groupValues?.get(1) ?: error("no string field '$name' in $json")
+
+    private fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
     private fun encode(value: String) = URLEncoder.encode(value, Charsets.UTF_8)
 
