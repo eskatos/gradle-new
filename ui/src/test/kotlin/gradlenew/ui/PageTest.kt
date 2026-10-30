@@ -307,7 +307,7 @@ class PageTest {
     @TestFactory
     fun downloadsTheBuildOrPlacesTheRejection(): List<DynamicTest> = onPage { page, server ->
         page.fill("#project-name", "demo-app")
-        val download = page.waitForDownload { page.click("#download") }
+        val download = page.waitForDownload(Page.WaitForDownloadOptions().setTimeout(FIRST_LOAD_TIMEOUT)) { page.click("#download") }
         assertEquals("demo-app.zip", download.suggestedFilename())
         assertTrue(java.nio.file.Files.readAllBytes(download.path()).contentEquals(zip))
         assertTrue(server.requests.any { it.startsWith("/api/generate?type=java-application") })
