@@ -29,20 +29,18 @@ class VersionFeedsTest {
     }
 
     @Test
-    fun fetchesTheCurrentAndReleaseCandidateFeedsAsTheyAre() {
-        serve("/versions/current", 200, "{ \"version\" : \"9.8.2\" }")
-        serve("/versions/release-candidate", 200, "{ }")
+    fun fetchesTheListOfAllVersionsAsItIs() {
+        serve("/versions/all", 200, "[ { \"version\" : \"9.8.2\", \"current\" : true } ]")
 
-        assertEquals(RawFeeds("{ \"version\" : \"9.8.2\" }", "{ }"), VersionFeeds(baseUrl).fetch())
+        assertEquals("[ { \"version\" : \"9.8.2\", \"current\" : true } ]", VersionFeeds(baseUrl).fetchAll())
     }
 
     @Test
     fun reportsANonSuccessfulResponseWithTheUrlAndStatus() {
-        serve("/versions/current", 200, "{ }")
-        serve("/versions/release-candidate", 503, "unavailable")
+        serve("/versions/all", 503, "unavailable")
 
-        val failure = assertFailsWith<FeedUnavailable> { VersionFeeds(baseUrl).fetch() }
-        assertTrue(failure.message!!.contains("${baseUrl}release-candidate"), failure.message)
+        val failure = assertFailsWith<SourceUnavailable> { VersionFeeds(baseUrl).fetchAll() }
+        assertTrue(failure.message!!.contains("${baseUrl}all"), failure.message)
         assertTrue(failure.message!!.contains("503"), failure.message)
     }
 
@@ -50,16 +48,15 @@ class VersionFeedsTest {
     fun reportsAnUnreachableServer() {
         val closedPort = ServerSocket(0).use { it.localPort }
 
-        val failure = assertFailsWith<FeedUnavailable> { VersionFeeds(URI("http://127.0.0.1:$closedPort/versions/")).fetch() }
+        val failure = assertFailsWith<SourceUnavailable> { VersionFeeds(URI("http://127.0.0.1:$closedPort/versions/")).fetchAll() }
         assertTrue(failure.message!!.contains("127.0.0.1:$closedPort"), failure.message)
     }
 
     @Test
     fun givesUpAfterTheTimeout() {
-        serve("/versions/current", 200, "{ }", delayMillis = 2_000)
-        serve("/versions/release-candidate", 200, "{ }")
+        serve("/versions/all", 200, "[ ]", delayMillis = 2_000)
 
-        assertFailsWith<FeedUnavailable> { VersionFeeds(baseUrl, timeout = 300.milliseconds).fetch() }
+        assertFailsWith<SourceUnavailable> { VersionFeeds(baseUrl, timeout = 300.milliseconds).fetchAll() }
     }
 
     @Test
