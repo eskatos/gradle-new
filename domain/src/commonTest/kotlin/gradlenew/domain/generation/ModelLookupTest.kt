@@ -6,8 +6,8 @@ import kotlin.test.assertEquals
 
 class ModelLookupTest {
 
-    private val stableOnly = OfferedVersions("9.8.2", null)
-    private val withRc = OfferedVersions("9.8.2", "9.9.0-rc-1")
+    private val stableOnly = OfferedVersions("9.8.2", null, "8.14.6")
+    private val withRc = OfferedVersions("9.8.2", "9.9.0-rc-1", "8.14.6")
 
     @Test
     fun theStableChannelIsTheDefault() {
@@ -25,6 +25,12 @@ class ModelLookupTest {
     }
 
     @Test
+    fun thePreviousMajorChannelResolvesToItsVersion() {
+        assertEquals(ModelLookup.Found("8.14.6", immutable = false), ModelLookup.resolve(listOf("version" to "previous"), stableOnly))
+        assertEquals(ModelLookup.Found("8.14.6", immutable = true), ModelLookup.resolve(listOf("version" to "8.14.6"), stableOnly))
+    }
+
+    @Test
     fun aConcreteOfferedVersionIsImmutable() {
         assertEquals(ModelLookup.Found("9.8.2", immutable = true), ModelLookup.resolve(listOf("version" to "9.8.2"), withRc))
         assertEquals(ModelLookup.Found("9.9.0-rc-1", immutable = true), ModelLookup.resolve(listOf("version" to "9.9.0-rc-1"), withRc))
@@ -33,7 +39,7 @@ class ModelLookupTest {
     @Test
     fun rejectsWhatGenerationRejects() {
         assertEquals(
-            ModelLookup.Rejected("Gradle version '9.7.0' is not offered. Offered versions:\n    - '9.8.2'", "version"),
+            ModelLookup.Rejected("Gradle version '9.7.0' is not offered. Offered versions:\n    - '9.8.2'\n    - '8.14.6'", "version"),
             ModelLookup.resolve(listOf("version" to "9.7.0"), stableOnly),
         )
         assertEquals(

@@ -21,7 +21,7 @@ class BuildGenerationTest {
         FileEntry("gradlew", "#!/bin/sh".encodeToByteArray(), true),
     )
 
-    private val generation = BuildGeneration(OfferedVersions("9.8.2", null), { gradle982Model }) { version, key ->
+    private val generation = BuildGeneration(OfferedVersions("9.8.2", null, "8.14.6"), { gradle982Model }) { version, key ->
         requested += version to key
         template.takeIf { key.startsWith("java-application.") }
     }
@@ -88,7 +88,7 @@ class BuildGenerationTest {
             text("lib/build.gradle", "languageVersion = JavaLanguageVersion.of(17)\n// targets Java 17"),
         )
         val keys = mutableListOf<String>()
-        val enumerated = BuildGeneration(OfferedVersions("9.8.2", null), { gradle982Model }, indexes = { TemplateIndex(setOf("groovy-library")) }) { version, key ->
+        val enumerated = BuildGeneration(OfferedVersions("9.8.2", null, "8.14.6"), { gradle982Model }, indexes = { TemplateIndex(setOf("groovy-library")) }) { version, key ->
             keys += key
             enumeratedTemplate.takeIf { version == "9.8.2" }
         }

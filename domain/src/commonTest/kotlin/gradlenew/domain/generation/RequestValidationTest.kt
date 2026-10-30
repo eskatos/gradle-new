@@ -12,8 +12,8 @@ import kotlin.test.fail
 class RequestValidationTest {
 
     private val rcModel = gradle982Model.copy(gradleVersion = "9.9.0-rc-1")
-    private val withRc = OfferedVersions("9.8.2", "9.9.0-rc-1")
-    private val stableOnly = OfferedVersions("9.8.2", null)
+    private val withRc = OfferedVersions("9.8.2", "9.9.0-rc-1", "8.14.6")
+    private val stableOnly = OfferedVersions("9.8.2", null, "8.14.6")
 
     @Test
     fun appliesTheModelDefaultsForOmittedOptions() {
@@ -50,13 +50,23 @@ class RequestValidationTest {
     }
 
     @Test
+    fun resolvesThePreviousMajorByChannelOrVersion() {
+        val byChannel = accepted("version" to "previous", "type" to "basic", "project-name" to "p")
+        assertEquals("8.14.6", byChannel.version)
+        assertTrue(byChannel.fromAlias)
+        val byVersion = accepted("version" to "8.14.6", "type" to "basic", "project-name" to "p")
+        assertEquals("8.14.6", byVersion.version)
+        assertFalse(byVersion.fromAlias)
+    }
+
+    @Test
     fun resolvesVersionAliases() {
         assertEquals("9.8.2", accepted("version" to "stable", "type" to "basic", "project-name" to "p", offered = withRc).version)
         assertEquals("9.9.0-rc-1", accepted("version" to "rc", "type" to "basic", "project-name" to "p", offered = withRc).version)
         assertEquals("9.9.0-rc-1", accepted("version" to "9.9.0-rc-1", "type" to "basic", "project-name" to "p", offered = withRc).version)
         assertEquals("No release candidate is currently offered.", rejected("version" to "rc", "type" to "basic", "project-name" to "p"))
         assertEquals(
-            "Gradle version '9.7.0' is not offered. Offered versions:\n    - '9.8.2'\n    - '9.9.0-rc-1'",
+            "Gradle version '9.7.0' is not offered. Offered versions:\n    - '9.8.2'\n    - '9.9.0-rc-1'\n    - '8.14.6'",
             rejected("version" to "9.7.0", "type" to "basic", "project-name" to "p", offered = withRc),
         )
     }

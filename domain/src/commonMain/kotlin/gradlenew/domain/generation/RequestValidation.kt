@@ -91,10 +91,11 @@ object RequestValidation {
         }
 
         fun version(offered: OfferedVersions): Pair<String, Boolean> {
-            val offeredVersions = listOfNotNull(offered.stable, offered.rc)
+            val offeredVersions = offered.versions
             return when (val requested = value("version")) {
                 null, "stable" -> offered.stable to true
                 "rc" -> (offered.rc ?: reject("No release candidate is currently offered.", "version")) to true
+                "previous" -> offered.previous to true
                 in offeredVersions -> requested to false
                 else -> reject("Gradle version '$requested' is not offered. Offered versions:" + list(offeredVersions), "version")
             }
