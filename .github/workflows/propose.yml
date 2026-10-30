@@ -1,0 +1,68 @@
+name: Propose
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: propose
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    name: propose
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-provider: basic
+          cache-read-only: true
+      - name: Read Gradle's version feed and write one directory per proposal
+        run: |
+          ./gradlew :publisher:proposeVersions "-Pgradlenew.proposals-dir=$RUNNER_TEMP/proposals"
+          git checkout -- offered-gradle-versions.properties
+      - name: Open, update or close one pull request per slot
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh auth setup-git
+          for slot in stable rc previous; do
+            proposal="$RUNNER_TEMP/proposals/$slot"
+            if [ -d "$proposal" ]; then
+              cp "$proposal/offered-gradle-versions.properties" offered-gradle-versions.properties
+            fi
+            .github/scripts/open-pull-request.sh "offer-gradle/$slot" "$(cat "$proposal/title" 2>/dev/null || echo "Offer Gradle versions ($slot)")" true \
+              "Proposed by the propose workflow from Gradle's version feed. It merges by itself once CI is green." \
+              offered-gradle-versions.properties
+          done
+      - name: Heartbeat, so that GitHub keeps the schedule enabled
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          last="$(git log -1 --format=%ct origin/main -- status.json)"
+          if [ -n "$last" ] && [ $(( $(date +%s) - last )) -lt $(( 7 * 24 * 3600 )) ]; then
+            echo "status.json changed less than 7 days ago."
+            exit 0
+          fi
+          if [ -n "$(gh pr list --head heartbeat --state open --json number --jq '.[0].number // empty')" ]; then
+            echo "A heartbeat pull request is already open."
+            exit 0
+          fi
+          gh auth setup-git
+          printf '{"lastRun": "%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > status.json
+          .github/scripts/open-pull-request.sh heartbeat "Heartbeat" true \
+            "Keeps the repository active so that GitHub does not disable the scheduled propose workflow." \
+            status.json

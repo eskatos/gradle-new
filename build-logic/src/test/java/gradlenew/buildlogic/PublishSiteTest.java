@@ -251,12 +251,16 @@ class PublishSiteTest {
 
         BuildResult first = project.run(":my-tool:proposeVersions", "-Pgradlenew.feeds-url=http://127.0.0.1:9/versions/");
         BuildResult second = project.run(":my-tool:proposeVersions");
+        BuildResult third = project.run(":my-tool:proposeVersions", "-Pgradlenew.proposals-dir=proposals");
 
         assertEquals(TaskOutcome.SUCCESS, first.task(":my-tool:proposeVersions").getOutcome());
         assertEquals(TaskOutcome.SUCCESS, second.task(":my-tool:proposeVersions").getOutcome());
         String pin = dir.toRealPath().resolve("offered-gradle-versions.properties").toString();
-        assertEquals("propose --pin " + pin + " --write", Files.readString(project.path("propose-args.txt")));
         assertTrue(first.getOutput().contains("propose --pin " + pin + " --write --feeds-url http://127.0.0.1:9/versions/"), first.getOutput());
+        assertTrue(second.getOutput().contains("propose --pin " + pin + " --write\n"), second.getOutput());
+        String proposals = dir.toRealPath().resolve("proposals").toString();
+        assertEquals("propose --pin " + pin + " --write --proposals-dir " + proposals, Files.readString(project.path("propose-args.txt")));
+        assertTrue(third.getOutput().contains("--proposals-dir " + proposals), third.getOutput());
     }
 
     private static TestProject publisherProject(Path dir) throws IOException {

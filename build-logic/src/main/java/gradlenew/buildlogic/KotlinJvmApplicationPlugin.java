@@ -20,6 +20,7 @@ public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
 
     static final String TEMPLATE_BUDGET_PROPERTY = "gradlenew.templates.budget-mb";
     static final String FEEDS_URL_PROPERTY = "gradlenew.feeds-url";
+    static final String PROPOSALS_DIR_PROPERTY = "gradlenew.proposals-dir";
     private static final int DEFAULT_TEMPLATE_BUDGET_MEGABYTES = 64;
     private static final String PUBLISHING_GROUP = "publishing";
 
@@ -101,6 +102,9 @@ public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
         });
 
         Provider<String> feedsUrl = project.getProviders().gradleProperty(FEEDS_URL_PROPERTY);
+        File settingsDir = rootDir.getAsFile();
+        Provider<String> proposalsDir = project.getProviders().gradleProperty(PROPOSALS_DIR_PROPERTY)
+            .map(path -> new File(path).isAbsolute() ? path : new File(settingsDir, path).getAbsolutePath());
         String pinFile = OfferedVersions.pinFile(project).getAsFile().getAbsolutePath();
         project.getTasks().register("proposeVersions", JavaExec.class, task -> {
             task.setGroup(PUBLISHING_GROUP);
@@ -111,6 +115,7 @@ public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
             ProposeArgumentProvider arguments = project.getObjects().newInstance(ProposeArgumentProvider.class);
             arguments.getPinFile().set(pinFile);
             arguments.getFeedsUrl().set(feedsUrl);
+            arguments.getProposalsDirectory().set(proposalsDir);
             task.getArgumentProviders().add(arguments);
         });
     }
