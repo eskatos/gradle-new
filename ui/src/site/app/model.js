@@ -3,6 +3,7 @@ const DEFAULT_PROJECT_NAME = 'demo';
 const WITH_LIBRARY_PROJECTS = 'with-library-projects';
 const SKILL_PATH = '/.well-known/agent-skills/gradle-new/SKILL.md';
 const CLAUDE_CODE_SKILL = '~/.claude/skills/gradle-new/SKILL.md';
+const SKILLS_CLI_MINIMUM_NODE = '22.20';
 
 export function initialChoices(model) {
   const componentType = firstComponentType(model);
@@ -133,7 +134,7 @@ export function installTokens(tool, origin) {
     ];
   }
   return [
-    { id: 'npx', text: 'npx', kind: 'program', description: 'Runs the latest skills command-line tool from the npm registry with Node.js, downloading it first if needed.' },
+    { id: 'npx', text: 'npx', kind: 'program', description: `Runs the latest skills command-line tool from the npm registry with Node.js, downloading it first if needed. The skills CLI needs Node.js ${SKILLS_CLI_MINIMUM_NODE} or later.` },
     { id: 'skills-add', text: 'skills add', kind: 'program', description: 'Installs agent skills from a website or repository, checking each one against the digest its source publishes. The open-source skills CLI sends anonymous usage data to skills.sh unless DISABLE_TELEMETRY=1 is set.' },
     { id: 'site', text: origin, kind: 'address', description: 'This website. The CLI reads its skill index at /.well-known/agent-skills/index.json and downloads the gradle-new skill it lists.' },
     { id: 'global', text: '-g', kind: 'flag', description: 'Installs the skill for your user, available in every project, instead of into the current project. The CLI asks which of your coding agents to install it for.' },

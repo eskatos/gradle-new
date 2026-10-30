@@ -179,6 +179,7 @@ class ModelScriptTest {
         val npx = script.list("installTokens", "\"npx\"", origin)
         assertEquals(listOf("npx", "skills add", "https://gradle.example", "-g"), npx.map { it["text"] })
         assertEquals(listOf("program", "program", "address", "flag"), npx.map { it["kind"] })
+        assertTrue((npx[0]["description"] as String).endsWith("The skills CLI needs Node.js 22.20 or later."), npx[0].toString())
         assertTrue((npx[2]["description"] as String).contains("/.well-known/agent-skills/index.json"), npx[2].toString())
         assertTrue((npx[3]["description"] as String).contains("every project"), npx[3].toString())
 
