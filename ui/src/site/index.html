@@ -147,6 +147,35 @@
       <button class="explain-toggle" id="explain-url-toggle" type="button" aria-expanded="false" aria-controls="explain-url"><span class="icon icon-chevron" aria-hidden="true"></span><span class="explain-label">Explain this URL</span></button>
     </div>
   </section>
+
+  <section class="snippets" aria-labelledby="agent-title">
+    <h2 id="agent-title">Or let your coding agent do it</h2>
+    <p class="section-lead">Install the gradle-new skill once, then ask your agent for a new Gradle project.</p>
+
+    <div class="snippet" id="snippet-skill">
+      <div class="code-bar">
+        <span class="code-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="code-title"><span class="icon icon-terminal" aria-hidden="true"></span>Agent skill</span>
+        <div class="code-tabs" id="skill-tabs" role="tablist" aria-label="Install with">
+          <button class="code-tab" id="tab-npx" type="button" role="tab" data-tool="npx" aria-selected="true" aria-controls="skill-panel" tabindex="0">npx</button>
+          <button class="code-tab" id="tab-curl" type="button" role="tab" data-tool="curl" aria-selected="false" aria-controls="skill-panel" tabindex="-1">curl</button>
+        </div>
+        <button class="copy" id="copy-skill" type="button" aria-label="Copy the install command"><span class="icon icon-copy" aria-hidden="true"></span><span class="copy-label">Copy</span></button>
+      </div>
+      <div class="snippet-body" id="skill-panel" role="tabpanel" aria-labelledby="tab-npx" tabindex="0">
+        <pre class="code-lines" id="skill-command"></pre>
+        <div class="explanation" id="explain-skill" hidden>
+          <svg class="connectors" aria-hidden="true" focusable="false"></svg>
+          <dl class="explanation-list"></dl>
+        </div>
+      </div>
+      <button class="explain-toggle" id="explain-skill-toggle" type="button" aria-expanded="false" aria-controls="explain-skill"><span class="icon icon-chevron" aria-hidden="true"></span><span class="explain-label">Explain this command</span></button>
+      <div class="code-links">
+        <a class="code-link" id="read-skill" href="/.well-known/agent-skills/gradle-new/SKILL.md">Read the skill</a>
+        <a class="code-link" id="read-llms" href="/llms.txt">llms.txt</a>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer class="site-footer">

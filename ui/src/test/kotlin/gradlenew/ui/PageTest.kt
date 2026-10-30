@@ -216,6 +216,82 @@ class PageTest {
     }
 
     @TestFactory
+    fun offersTheAgentSkillWithNpxOrCurl(): List<DynamicTest> = onPage { page, server ->
+        val npx = "npx skills add ${server.url} -g"
+        val curl = "curl -fsSL --create-dirs -o ~/.claude/skills/gradle-new/SKILL.md ${server.url}/.well-known/agent-skills/gradle-new/SKILL.md"
+        assertEquals("Or let your coding agent do it", page.textContent("#agent-title")!!.trim())
+        assertEquals("Install the gradle-new skill once, then ask your agent for a new Gradle project.", page.textContent("#agent-title + .section-lead")!!.trim())
+        assertTrue(page.locator("#snippet-skill").boundingBox()!!.y > page.locator("#snippet-url").boundingBox()!!.y)
+        assertEquals("Agent skill", page.textContent("#snippet-skill .code-title")!!.trim())
+        assertSkillTab(page, "npx", npx)
+        assertEquals("npx skills add ${server.url} -g", page.textContent("#skill-command"), "the npx command fits on one line")
+        page.click("#copy-skill")
+        page.waitForSelector("#copy-skill.is-copied")
+
+        page.click("#tab-curl")
+        assertSkillTab(page, "curl", curl)
+        assertEquals(3, page.textContent("#skill-command")!!.lines().size, "the curl command is wrapped")
+        page.click("#copy-skill")
+        page.waitForFunction("command => window.__copied.at(-1) === command", curl)
+        @Suppress("UNCHECKED_CAST")
+        assertEquals(listOf(npx, curl), page.evaluate("() => window.__copied") as List<String>)
+
+        page.focus("#tab-curl")
+        for ((key, tab) in listOf("ArrowLeft" to "npx", "ArrowLeft" to "curl", "ArrowRight" to "npx", "End" to "curl", "Home" to "npx")) {
+            page.keyboard().press(key)
+            assertSkillTab(page, tab, if (tab == "npx") npx else curl)
+            assertEquals("tab-$tab", page.evaluate("() => document.activeElement.id"), "focus follows $key")
+        }
+
+        assertEquals("/.well-known/agent-skills/gradle-new/SKILL.md", page.getAttribute("#read-skill", "href"))
+        assertEquals("/llms.txt", page.getAttribute("#read-llms", "href"))
+        assertEquals("Read the skill", page.textContent("#read-skill")!!.trim())
+        assertEquals("llms.txt", page.textContent("#read-llms")!!.trim())
+    }
+
+    @TestFactory
+    fun explainsTheSkillInstallCommands(): List<DynamicTest> = onPage { page, _ ->
+        assertTrue(!page.isVisible("#explain-skill"))
+        page.click("#explain-skill-toggle")
+        assertEquals("true", page.getAttribute("#explain-skill-toggle", "aria-expanded"))
+        for (tab in listOf("npx", "curl")) {
+            page.click("#tab-$tab")
+            val tokens = page.locator("#skill-command .token").count()
+            assertEquals(tokens, page.locator("#explain-skill .explanation-item").count(), tab)
+            page.waitForFunction("count => document.querySelectorAll('#explain-skill svg.connectors path').length === count", tokens)
+        }
+        assertTrue(page.textContent("#explain-skill .explanation-item[data-token-id=output] .explanation-description")!!.contains("Claude Code"))
+        page.hover("#skill-command .token[data-token-id=output]")
+        assertTrue(page.getAttribute("#explain-skill .explanation-item[data-token-id=output]", "class")!!.contains("is-active"))
+        assertEquals("-o", page.textContent("#skill-command .token[data-token-id=output] .token-option"))
+
+        page.click("#tab-npx")
+        assertTrue(page.textContent("#explain-skill .explanation-item[data-token-id=site] .explanation-description")!!.contains("/.well-known/agent-skills/index.json"))
+        page.click("#explain-skill-toggle")
+        assertTrue(!page.isVisible("#explain-skill"))
+        page.click("#skill-command .token[data-token-id=global]")
+        assertTrue(page.isVisible("#explain-skill"))
+        assertTrue(page.getAttribute("#explain-skill .explanation-item[data-token-id=global]", "class")!!.contains("is-active"))
+
+        page.setViewportSize(375, 800)
+        page.waitForFunction("() => document.querySelectorAll('#explain-skill svg.connectors path').length === 0")
+        page.click("#tab-curl")
+        assertTrue(page.isVisible("#explain-skill .explanation-item[data-token-id=skill-url] .explanation-token"))
+        val scrolls = page.evaluate("() => document.documentElement.scrollWidth > document.documentElement.clientWidth") as Boolean
+        assertTrue(!scrolls, "no horizontal scrolling at 375 pixels")
+    }
+
+    private fun assertSkillTab(page: Page, tab: String, command: String) {
+        val other = if (tab == "npx") "curl" else "npx"
+        assertEquals("true", page.getAttribute("#tab-$tab", "aria-selected"))
+        assertEquals("0", page.getAttribute("#tab-$tab", "tabindex"))
+        assertEquals("false", page.getAttribute("#tab-$other", "aria-selected"))
+        assertEquals("-1", page.getAttribute("#tab-$other", "tabindex"))
+        assertEquals("tab-$tab", page.getAttribute("#skill-panel", "aria-labelledby"))
+        assertEquals(command, page.textContent("#skill-command")!!.replace("\\\n", " ").replace(Regex("\\s+"), " ").trim())
+    }
+
+    @TestFactory
     fun showsTheRateLimitMessageNextToTheDownloadButton(): List<DynamicTest> = onPage { page, server ->
         page.fill("#project-name", "busy")
         page.click("#download")

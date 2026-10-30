@@ -181,6 +181,26 @@ input.switch:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .code-dots i:nth-child(2) { background: #ffbd2e; }
 .code-dots i:nth-child(3) { background: #27c93f; }
 .code-title { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; flex: 1; }
+#snippet-skill .code-title { flex: none; }
+.code-tabs { display: flex; align-self: stretch; flex: 1; gap: 2px; margin: -8px 0 -8px var(--space-3); }
+.code-tab {
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: rgba(255, 255, 255, 0.6);
+  font: var(--weight-medium) var(--text-xs) / 1 var(--font-mono);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.code-tab:hover { color: var(--text-inverse); }
+.code-tab[aria-selected="true"] { color: var(--text-inverse); border-bottom-color: var(--gradle-blue); }
+.code-tab:focus-visible { outline: none; box-shadow: inset var(--shadow-focus); }
+.snippet-body[role="tabpanel"]:focus-visible { outline: none; box-shadow: inset var(--shadow-focus); }
+.code-links { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); padding: 10px 14px; border-top: 1px solid var(--border-on-dark); background: var(--gradle-dark-2); font-size: var(--text-sm); }
+.code-link { color: var(--light-blue); font-weight: var(--weight-bold); text-underline-offset: 3px; border-radius: var(--radius-xs); }
+.code-link:hover { color: var(--text-inverse); }
+.code-link:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .copy {
   display: inline-flex;
   align-items: center;
@@ -282,6 +302,8 @@ input.switch:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   .wrap { padding: 0 var(--space-4); }
   .card { padding: var(--space-4); }
   .snippet-body { padding: var(--space-3); }
+  .code-dots { display: none; }
+  .code-title { margin-left: 0; }
   .code-lines { font-size: var(--text-xs); }
 }
 

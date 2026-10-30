@@ -126,7 +126,7 @@ export function installTokens(tool, origin) {
   if (tool === 'curl') {
     return [
       { id: 'curl', text: 'curl', kind: 'program', description: 'Downloads one file over HTTP. Nothing is run.' },
-      { id: 'curl-flags', text: '-fsSL', kind: 'flag', description: 'Fails on an HTTP error instead of saving the error page (-f), shows errors but no progress (-sS), and follows redirects (-L).' },
+      { id: 'curl-flags', text: '-fsSL', kind: 'flag', description: 'Fails on an HTTP error instead of saving the error page (f), shows errors but no progress (sS), and follows redirects (L).' },
       { id: 'create-dirs', text: '--create-dirs', kind: 'flag', description: "Creates the skill's folder if it does not exist yet." },
       { id: 'output', text: `-o ${CLAUDE_CODE_SKILL}`, kind: 'flag', flag: '-o', value: CLAUDE_CODE_SKILL, description: "Saves the skill as a personal skill of Claude Code, available in every project. Other agents read skills from their own folders, which the npx command covers." },
       { id: 'skill-url', text: `${origin}${SKILL_PATH}`, kind: 'address', description: 'The gradle-new skill on this website, a single Markdown file you can read first.' },

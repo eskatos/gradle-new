@@ -1,10 +1,13 @@
-import { apiUrl, commandLine, commandTokens, formState, urlTokens, validate, versionOf } from './model.js';
+import { apiUrl, commandLine, commandTokens, formState, installCommand, installTokens, urlTokens, validate, versionOf } from './model.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 const FIELD_OF_PARAMETER = { 'project-name': 'projectName', package: 'packageName', 'java-version': 'javaVersion' };
 const INPUT_OF_FIELD = { projectName: 'project-name', packageName: 'package', javaVersion: 'java-version' };
+const LINES_OF_SNIPPET = { command: '#command', url: '#api-url', skill: '#skill-command' };
+const COPY_OF_SNIPPET = { command: '#copy-command', url: '#copy-url', skill: '#copy-skill' };
+const WRAPPED_INSTALL_TOKENS = new Set(['output', 'skill-url']);
 
-const state = { versions: null, models: {}, choices: {}, touched: new Set(), serverErrors: {}, busy: false, active: { command: {}, url: {} } };
+const state = { versions: null, models: {}, choices: {}, touched: new Set(), serverErrors: {}, busy: false, tool: 'npx', active: { command: {}, url: {}, skill: {} } };
 
 const $ = (selector, root = document) => root.querySelector(selector);
 
@@ -14,6 +17,7 @@ start().catch((error) => {
 });
 
 async function start() {
+  bindSkill();
   state.versions = await json('/api/versions');
   await modelFor('stable');
   document.querySelectorAll('[data-stable-version]').forEach((element) => { element.textContent = state.versions.stable; });
@@ -173,8 +177,17 @@ function urlLines(tokens) {
   return [[endpoint], ...parameters.map((token) => ['  ', { kind: 'separator', text: token.separator }, token])];
 }
 
+function installLines(tokens) {
+  const lines = [];
+  for (const token of tokens) {
+    if (lines.length > 0 && !WRAPPED_INSTALL_TOKENS.has(token.id)) lines.at(-1).push(' ', token);
+    else lines.push(lines.length === 0 ? [token] : ['  ', token]);
+  }
+  return lines;
+}
+
 function renderSnippet(name, tokens, layout) {
-  const pre = $(name === 'command' ? '#command' : '#api-url');
+  const pre = $(LINES_OF_SNIPPET[name]);
   const lines = layout(tokens);
   const nodes = [];
   lines.forEach((parts, index) => {
@@ -184,7 +197,7 @@ function renderSnippet(name, tokens, layout) {
       else nodes.push(tokenElement(part, name));
     }
     if (index < lines.length - 1) {
-      if (name === 'command') nodes.push(span('continuation', ' \\'));
+      if (name !== 'url') nodes.push(span('continuation', ' \\'));
       nodes.push(document.createTextNode('\n'));
     }
   });
@@ -200,9 +213,12 @@ function tokenElement(token, snippet) {
     element.append(span('token-option', `--${token.option}`), document.createTextNode(' '), document.createTextNode(token.value));
   } else if (token.kind === 'option' && snippet === 'command') {
     element.append(span('token-option', token.text));
-  } else if (token.kind === 'gradle' || token.kind === 'init') {
+  } else if (token.kind === 'gradle' || token.kind === 'init' || token.kind === 'program') {
     element.classList.add('token-command');
     element.textContent = token.text;
+  } else if (token.kind === 'flag') {
+    element.append(span('token-option', token.flag ?? token.text));
+    if (token.value !== undefined) element.append(document.createTextNode(` ${token.value}`));
   } else {
     const [name, ...rest] = token.text.split('=');
     if (rest.length > 0) element.append(span('token-option', name), document.createTextNode(`=${rest.join('=')}`));
@@ -249,7 +265,7 @@ function bindSnippet(name, text) {
   const toggle = $(`#explain-${name}-toggle`);
   const panel = $(`#explain-${name}`);
   toggle.addEventListener('click', () => setExpanded(name, panel.hidden));
-  const copy = $(name === 'command' ? '#copy-command' : '#copy-url');
+  const copy = $(COPY_OF_SNIPPET[name]);
   copy.addEventListener('click', async () => {
     await copyText(text());
     const label = $('.copy-label', copy);
@@ -281,6 +297,35 @@ async function copyText(text) {
   area.remove();
 }
 
+function bindSkill() {
+  const tabs = [...document.querySelectorAll('#skill-tabs [role="tab"]')];
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => selectTool(tab.dataset.tool));
+    tab.addEventListener('keydown', (event) => {
+      const next = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: tabs.length - 1 }[event.key];
+      if (next === undefined) return;
+      event.preventDefault();
+      const target = tabs[(next + tabs.length) % tabs.length];
+      selectTool(target.dataset.tool);
+      target.focus();
+    });
+  });
+  bindSnippet('skill', () => installCommand(state.tool, location.origin));
+  selectTool(state.tool);
+}
+
+function selectTool(tool) {
+  state.tool = tool;
+  document.querySelectorAll('#skill-tabs [role="tab"]').forEach((tab) => {
+    const selected = tab.dataset.tool === tool;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  });
+  $('#skill-panel').setAttribute('aria-labelledby', `tab-${tool}`);
+  state.active.skill = {};
+  renderSnippet('skill', installTokens(tool, location.origin), installLines);
+}
+
 function setExpanded(name, expanded) {
   $(`#explain-${name}-toggle`).setAttribute('aria-expanded', String(expanded));
   $(`#explain-${name}`).hidden = !expanded;
@@ -304,7 +349,7 @@ function highlight(name, source, id) {
 
 function applyHighlight(name) {
   const active = new Set(Object.values(state.active[name]).filter(Boolean));
-  const pre = $(name === 'command' ? '#command' : '#api-url');
+  const pre = $(LINES_OF_SNIPPET[name]);
   const panel = $(`#explain-${name}`);
   for (const element of [...pre.querySelectorAll('.token'), ...panel.querySelectorAll('.explanation-item, path')]) {
     element.classList.toggle('is-active', active.has(element.dataset.tokenId));
@@ -312,8 +357,7 @@ function applyHighlight(name) {
 }
 
 function drawAllConnectors() {
-  drawConnectors('command');
-  drawConnectors('url');
+  Object.keys(LINES_OF_SNIPPET).forEach((name) => drawConnectors(name));
 }
 
 function drawConnectors(name) {
@@ -323,7 +367,7 @@ function drawConnectors(name) {
     svg.replaceChildren();
     return;
   }
-  const pre = $(name === 'command' ? '#command' : '#api-url');
+  const pre = $(LINES_OF_SNIPPET[name]);
   const origin = svg.getBoundingClientRect();
   const tokens = [...pre.querySelectorAll('.token')];
   const ends = tokens.map((token) => lineEnd(token) - origin.left);
