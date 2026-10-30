@@ -63,6 +63,7 @@ class PublisherScenarioTest {
             val unchanged = propose(feeds, "unchanged", pinText(stable982, null, previous8146))
             assertEquals(emptyList(), unchanged.proposals())
             assertEquals(pinText(stable982, null, previous8146), unchanged.pinText())
+            assertEquals(emptyMap(), unchanged.proposalDirectories())
 
             val activeRc = propose(feeds, "active-rc", pinText(stable982, null, previous8146))
             assertEquals(listOf("rc" to "Offer Gradle 9.9.0-rc-1"), activeRc.proposals())
@@ -78,6 +79,14 @@ class PublisherScenarioTest {
                 pinText(PinnedSlot("9.9.0", 25, recordedStable), PinnedSlot("9.10.0-rc-1", 25, recordedRc), previous8146),
                 both.pinText(),
                 "the written pin carries the checksums from the feed and the Java from the compatibility pages",
+            )
+            assertEquals(
+                mapOf(
+                    "stable" to Triple("offer-gradle/stable\n", "Offer Gradle 9.9.0\n", pinText(PinnedSlot("9.9.0", 25, recordedStable), null, previous8146)),
+                    "rc" to Triple("offer-gradle/rc\n", "Offer Gradle 9.10.0-rc-1\n", pinText(stable982, PinnedSlot("9.10.0-rc-1", 25, recordedRc), previous8146)),
+                ),
+                both.proposalDirectories(),
+                "each proposal gets a directory with its branch, title and the pin of that proposal alone",
             )
 
             assertEquals(emptyList(), propose(feeds, "broken-stable", pinText(stable982, null, previous8146)).proposals())
@@ -130,20 +139,25 @@ class PublisherScenarioTest {
         pinFile.writeText(pin)
         val feedsUrl = feeds?.url ?: "http://127.0.0.1:${unusedPort()}/versions/"
         val docsUrl = feeds?.docsUrl ?: "http://127.0.0.1:${unusedPort()}/docs/"
-        val arguments = listOf("propose", "--pin", pinFile.path, "--feeds-url", feedsUrl, "--docs-url", docsUrl, "--write")
+        val proposalsDir = pinFile.resolveSibling("proposals")
+        val arguments = listOf("propose", "--pin", pinFile.path, "--feeds-url", feedsUrl, "--docs-url", docsUrl, "--write", "--proposals-dir", proposalsDir.path)
         val process = ProcessBuilder(listOf(java(), "-Xmx256m", "-cp", classpath, "gradlenew.publisher.MainKt") + arguments).start()
         val stdout = process.inputStream.bufferedReader().readText()
         val stderr = process.errorStream.bufferedReader().readText()
         assertTrue(process.waitFor(2, TimeUnit.MINUTES), "propose did not finish")
-        val run = ProposeRun(process.exitValue(), stdout, "$stdout\n$stderr", pinFile)
+        val run = ProposeRun(process.exitValue(), stdout, "$stdout\n$stderr", pinFile, proposalsDir)
         if (expectSuccess) assertEquals(0, run.exitCode, "propose for '$case' failed:\n${run.output}")
         return run
     }
 
-    private class ProposeRun(val exitCode: Int, val stdout: String, val output: String, private val pinFile: File) {
+    private class ProposeRun(val exitCode: Int, val stdout: String, val output: String, private val pinFile: File, private val proposalsDir: File) {
         fun proposals(): List<Pair<String, String>> =
             Regex("\"slot\"\\s*:\\s*\"([a-z]+)\"[\\s\\S]*?\"title\"\\s*:\\s*\"([^\"]*)\"").findAll(stdout).map { it.groupValues[1] to it.groupValues[2] }.toList()
         fun pinText(): String = pinFile.readText()
+        fun proposalDirectories(): Map<String, Triple<String, String, String>> =
+            (proposalsDir.listFiles() ?: emptyArray()).associate { slot ->
+                slot.name to Triple(slot.resolve("branch").readText(), slot.resolve("title").readText(), slot.resolve("offered-gradle-versions.properties").readText())
+            }
     }
 
     private class RecordedFeeds : AutoCloseable {

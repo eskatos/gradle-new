@@ -87,6 +87,43 @@ class ProposeCommandTest {
     }
 
     @Test
+    fun writesOneDirectoryPerProposalWhenAsked() {
+        val proposalsDir = dir.resolve("proposals")
+        val run = propose(listOf("--pin", pinFile.path, "--proposals-dir", proposalsDir.path))
+
+        assertEquals(0, run.exitCode, run.stderr)
+        assertEquals(listOf("previous", "rc", "stable"), proposalsDir.list()!!.sorted())
+        val stable = proposalsDir.resolve("stable")
+        assertEquals(listOf("branch", "offered-gradle-versions.properties", "title"), stable.list()!!.sorted())
+        assertEquals("offer-gradle/stable\n", stable.resolve("branch").readText())
+        assertEquals("Offer Gradle 9.9.0\n", stable.resolve("title").readText())
+        assertEquals(Pin(PinnedVersion("9.9.0", 25, stable990), previous8146), PinFile.read(stable.resolve("offered-gradle-versions.properties")))
+        assertEquals("offer-gradle/previous\n", proposalsDir.resolve("previous/branch").readText())
+        assertEquals(Pin(stable982, PinnedVersion("8.14.7", 21, previous8147)), PinFile.read(proposalsDir.resolve("previous/offered-gradle-versions.properties")))
+        assertEquals(pinText, pinFile.readText())
+    }
+
+    @Test
+    fun leavesTheProposalsDirectoryEmptyWhenNothingChanges() {
+        val proposalsDir = dir.resolve("proposals")
+        val run = propose(listOf("--pin", pinFile.path, "--proposals-dir", proposalsDir.path), feed = unchangedFeed)
+
+        assertEquals(0, run.exitCode, run.stderr)
+        assertEquals(emptyList(), proposalsDir.list()!!.toList())
+    }
+
+    @Test
+    fun refusesAProposalsDirectoryThatIsNotEmpty() {
+        val proposalsDir = dir.resolve("proposals").apply { resolve("stable").mkdirs() }
+        val run = propose(listOf("--pin", pinFile.path, "--proposals-dir", proposalsDir.path))
+
+        assertEquals(1, run.exitCode)
+        assertTrue(run.stderr.contains("must be empty"), run.stderr)
+        assertEquals(listOf("stable"), proposalsDir.list()!!.toList())
+        assertEquals(emptyList(), proposalsDir.resolve("stable").list()!!.toList())
+    }
+
+    @Test
     fun readsTheCompatibilityPageOnlyForVersionsEnteringThePin() {
         propose(listOf("--pin", pinFile.path))
         assertEquals(setOf("9.9.0", "9.10.0-rc-1", "8.14.7"), pagesAsked.map { it.second }.toSet())
