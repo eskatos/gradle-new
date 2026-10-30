@@ -31,6 +31,15 @@ class AgentFilesTest {
     }
 
     @Test
+    fun bothFilesOfferThePreviousMajor() {
+        val llms = rendered("llms.txt")
+        assertTrue(llms.contains("`version` (`stable` by default, `rc` or `previous`)"), llms)
+        assertTrue(llms.contains("($origin/api/generate?type=java-application&project-name=demo-app&version=previous)"), llms)
+        val skill = rendered("SKILL.md")
+        assertTrue(skill.contains("`?version=previous` only when asked for the previous Gradle major"), skill)
+    }
+
+    @Test
     fun theSkillIsOneTheSkillsCliAccepts() {
         val skill = rendered("SKILL.md")
         assertEquals("gradle-new", DiscoveryIndex.of(skill, "gradle-new/SKILL.md", "sha256:" + "0".repeat(64)).skills.single().name)

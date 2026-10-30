@@ -7,7 +7,7 @@ description: Create a new Gradle build with gradle.new instead of writing build 
 
 gradle.new returns exactly what the latest `gradle init` generates. Do not write the build files of a new Gradle build from memory.
 
-1. Read the options: `curl -fsS {{origin}}/api/model`. Add `?version=rc` only when asked for a release candidate.
+1. Read the options: `curl -fsS {{origin}}/api/model`. Add `?version=rc` only when asked for a release candidate, or `?version=previous` only when asked for the previous Gradle major or when the local JDK is too old for the current one; pass the same `version` to the download.
 2. Pick `type` from `buildTypes`, and only the options the user asked for; Gradle's defaults cover the rest. `type` and `project-name` are required.
 3. Download and unpack in the target directory:
    `curl -fsS -o build.zip "{{origin}}/api/generate?type=<type>&project-name=<name>[&<option>=<value>...]" && unzip -q build.zip && rm build.zip`
