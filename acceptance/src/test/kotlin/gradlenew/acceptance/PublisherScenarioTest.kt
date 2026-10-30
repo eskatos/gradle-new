@@ -1,7 +1,6 @@
 package gradlenew.acceptance
 
 import gradlenew.adapterjson.InitModelJson
-import gradlenew.adapterjson.ProposalsJson
 import gradlenew.adapterjson.TemplateIndexJson
 import gradlenew.adapterjson.VerificationReportJson
 import gradlenew.domain.generation.TemplateCatalog
@@ -11,9 +10,7 @@ import gradlenew.verification.ChecksumSource
 import gradlenew.verification.Outcome
 import gradlenew.verification.VersionReport
 import gradlenew.versions.Checksums
-import gradlenew.versions.Pin
-import gradlenew.versions.Proposal
-import gradlenew.versions.Slot
+import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import java.io.File
 import java.net.InetSocketAddress
@@ -60,68 +57,92 @@ class PublisherScenarioTest {
 
     private fun proposesOfferedVersionChanges() {
         RecordedFeeds().use { feeds ->
-            val unchanged = propose(feeds, "unchanged", Pin("9.8.2", null), write = true)
+            val stable982 = PinnedSlot("9.8.2", 25)
+            val previous8146 = PinnedSlot("8.14.6", 21)
+
+            val unchanged = propose(feeds, "unchanged", pinText(stable982, null, previous8146))
             assertEquals(emptyList(), unchanged.proposals())
-            assertEquals("stable=9.8.2\nrc=\n", unchanged.pinText())
+            assertEquals(pinText(stable982, null, previous8146), unchanged.pinText())
 
-            assertEquals(
-                listOf(Proposal(Slot.RC, "Offer Gradle 9.9.0-rc-1", Pin("9.8.2", "9.9.0-rc-1", null, recordedRc))),
-                propose(feeds, "active-rc", Pin("9.8.2", null)).proposals(),
-            )
-            assertEquals(
-                listOf(Proposal(Slot.STABLE, "Offer Gradle 9.9.0", Pin("9.9.0", null, recordedStable))),
-                propose(feeds, "final-retires-rc", Pin("9.8.2", "9.9.0-rc-2")).proposals(),
-            )
+            val activeRc = propose(feeds, "active-rc", pinText(stable982, null, previous8146))
+            assertEquals(listOf("rc" to "Offer Gradle 9.9.0-rc-1"), activeRc.proposals())
+            assertEquals(pinText(stable982, PinnedSlot("9.9.0-rc-1", 25, recordedRc), previous8146), activeRc.pinText())
 
-            val both = propose(feeds, "new-stable-and-rc", Pin("9.8.2", null), write = true)
+            val retired = propose(feeds, "final-retires-rc", pinText(stable982, PinnedSlot("9.9.0-rc-2", 25), previous8146))
+            assertEquals(listOf("stable" to "Offer Gradle 9.9.0"), retired.proposals())
+            assertEquals(pinText(PinnedSlot("9.9.0", 25, recordedStable), null, previous8146), retired.pinText())
+
+            val both = propose(feeds, "new-stable-and-rc", pinText(stable982, null, previous8146))
+            assertEquals(listOf("stable" to "Offer Gradle 9.9.0", "rc" to "Offer Gradle 9.10.0-rc-1"), both.proposals())
             assertEquals(
-                listOf(
-                    Proposal(Slot.STABLE, "Offer Gradle 9.9.0", Pin("9.9.0", null, recordedStable)),
-                    Proposal(Slot.RC, "Offer Gradle 9.10.0-rc-1", Pin("9.8.2", "9.10.0-rc-1", null, recordedRc)),
-                ),
-                both.proposals(),
-            )
-            assertEquals(
-                "stable=9.9.0\nstable.distribution-sha256=${recordedStable.distribution}\nstable.wrapper-sha256=${recordedStable.wrapper}\n" +
-                    "rc=9.10.0-rc-1\nrc.distribution-sha256=${recordedRc.distribution}\nrc.wrapper-sha256=${recordedRc.wrapper}\n",
+                pinText(PinnedSlot("9.9.0", 25, recordedStable), PinnedSlot("9.10.0-rc-1", 25, recordedRc), previous8146),
                 both.pinText(),
-                "the written pin carries the checksums from the feeds",
+                "the written pin carries the checksums from the feed and the Java from the compatibility pages",
             )
 
-            assertEquals(emptyList(), propose(feeds, "broken-stable", Pin("9.8.2", null)).proposals())
+            assertEquals(emptyList(), propose(feeds, "broken-stable", pinText(stable982, null, previous8146)).proposals())
+            val inactive = propose(feeds, "inactive-rc", pinText(stable982, PinnedSlot("9.9.0-rc-1", 25), previous8146))
+            assertEquals(listOf("rc" to "Stop offering Gradle 9.9.0-rc-1"), inactive.proposals())
+            assertEquals(pinText(stable982, null, previous8146), inactive.pinText())
+            assertEquals(emptyList(), propose(feeds, "inactive-rc", pinText(stable982, null, previous8146)).proposals())
+            assertEquals(emptyList(), propose(feeds, "milestone-and-nightly", pinText(stable982, null, previous8146)).proposals())
+            assertEquals(emptyList(), propose(feeds, "older-stable", pinText(stable982, null, previous8146)).proposals())
+
+            val patch = propose(feeds, "previous-patch", pinText(stable982, null, previous8146))
+            assertEquals(listOf("previous" to "Offer Gradle 8.14.7 as previous major"), patch.proposals(), "old-major RCs, milestones, nightlies and broken releases are ignored")
+            assertEquals(pinText(stable982, null, PinnedSlot("8.14.7", 21, Checksums("5".repeat(64), "6".repeat(64)))), patch.pinText())
+
+            val major = propose(feeds, "major-bump", pinText(stable982, null, previous8146))
+            assertEquals(listOf("stable" to "Offer Gradle 10.0.0 with 9.9.1 as previous major"), major.proposals())
             assertEquals(
-                listOf(Proposal(Slot.RC, "Stop offering Gradle 9.9.0-rc-1", Pin("9.8.2", null))),
-                propose(feeds, "inactive-rc", Pin("9.8.2", "9.9.0-rc-1")).proposals(),
+                pinText(PinnedSlot("10.0.0", 25, Checksums("7".repeat(64), "8".repeat(64))), null, PinnedSlot("9.9.1", 25, Checksums("9".repeat(64), "a".repeat(64)))),
+                major.pinText(),
+                "a new major moves the previous major in the same proposal",
             )
-            assertEquals(emptyList(), propose(feeds, "inactive-rc", Pin("9.8.2", null)).proposals())
-            assertEquals(emptyList(), propose(feeds, "milestone-and-nightly", Pin("9.8.2", null)).proposals())
-            assertEquals(emptyList(), propose(feeds, "older-stable", Pin("9.8.2", null)).proposals())
+
+            val unreadable = propose(feeds, "unreadable-docs", pinText(stable982, null, previous8146), expectSuccess = false)
+            assertEquals(1, unreadable.exitCode, unreadable.output)
+            assertTrue(unreadable.output.contains("compatibility"), unreadable.output)
+            assertEquals(emptyList(), unreadable.proposals())
+            assertEquals(pinText(stable982, null, previous8146), unreadable.pinText())
         }
 
-        val unreachable = propose(null, "unreachable", Pin("9.8.2", "9.9.0-rc-1"), write = true)
+        val unreachable = propose(null, "unreachable", pinText(PinnedSlot("9.8.2", 25), PinnedSlot("9.9.0-rc-1", 25), PinnedSlot("8.14.6", 21)), expectSuccess = false)
         assertEquals(1, unreachable.exitCode, unreachable.output)
         assertTrue(unreachable.output.contains("feed"), unreachable.output)
-        assertEquals("stable=9.8.2\nrc=9.9.0-rc-1\n", unreachable.pinText())
+        assertEquals(pinText(PinnedSlot("9.8.2", 25), PinnedSlot("9.9.0-rc-1", 25), PinnedSlot("8.14.6", 21)), unreachable.pinText())
     }
 
-    private fun propose(feeds: RecordedFeeds?, case: String, pin: Pin, write: Boolean = false): ProposeRun {
+    private data class PinnedSlot(val version: String, val java: Int, val checksums: Checksums? = null)
+
+    private fun pinText(stable: PinnedSlot, rc: PinnedSlot?, previous: PinnedSlot): String =
+        listOf("stable" to stable, "rc" to rc, "previous" to previous).joinToString("") { (slot, pinned) ->
+            "$slot=${pinned?.version ?: ""}\n" +
+                "$slot.distribution-sha256=${pinned?.checksums?.distribution ?: ""}\n" +
+                "$slot.wrapper-sha256=${pinned?.checksums?.wrapper ?: ""}\n" +
+                "$slot.daemon-java=${pinned?.java ?: ""}\n"
+        }
+
+    private fun propose(feeds: RecordedFeeds?, case: String, pin: String, expectSuccess: Boolean = true): ProposeRun {
         feeds?.serve(case)
         val pinFile = workRoot.resolve("propose/$case-${System.nanoTime()}/offered-gradle-versions.properties")
         pinFile.parentFile.mkdirs()
-        pinFile.writeText("stable=${pin.stable}\nrc=${pin.rc ?: ""}\n")
+        pinFile.writeText(pin)
         val feedsUrl = feeds?.url ?: "http://127.0.0.1:${unusedPort()}/versions/"
-        val arguments = listOf("propose", "--pin", pinFile.path, "--feeds-url", feedsUrl) + if (write) listOf("--write") else emptyList()
+        val docsUrl = feeds?.docsUrl ?: "http://127.0.0.1:${unusedPort()}/docs/"
+        val arguments = listOf("propose", "--pin", pinFile.path, "--feeds-url", feedsUrl, "--docs-url", docsUrl, "--write")
         val process = ProcessBuilder(listOf(java(), "-Xmx256m", "-cp", classpath, "gradlenew.publisher.MainKt") + arguments).start()
         val stdout = process.inputStream.bufferedReader().readText()
         val stderr = process.errorStream.bufferedReader().readText()
         assertTrue(process.waitFor(2, TimeUnit.MINUTES), "propose did not finish")
         val run = ProposeRun(process.exitValue(), stdout, "$stdout\n$stderr", pinFile)
-        if (feeds != null) assertEquals(0, run.exitCode, "propose for '$case' failed:\n${run.output}")
+        if (expectSuccess) assertEquals(0, run.exitCode, "propose for '$case' failed:\n${run.output}")
         return run
     }
 
     private class ProposeRun(val exitCode: Int, val stdout: String, val output: String, private val pinFile: File) {
-        fun proposals(): List<Proposal> = ProposalsJson.decode(stdout)
+        fun proposals(): List<Pair<String, String>> =
+            Regex("\"slot\"\\s*:\\s*\"([a-z]+)\"[\\s\\S]*?\"title\"\\s*:\\s*\"([^\"]*)\"").findAll(stdout).map { it.groupValues[1] to it.groupValues[2] }.toList()
         fun pinText(): String = pinFile.readText()
     }
 
@@ -129,17 +150,32 @@ class PublisherScenarioTest {
         private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         private var case: String = "unchanged"
         val url: String get() = "http://127.0.0.1:${server.address.port}/versions/"
+        val docsUrl: String get() = "http://127.0.0.1:${server.address.port}/docs/"
 
         init {
-            for (feed in listOf("current", "release-candidate")) {
-                server.createContext("/versions/$feed") { exchange ->
-                    val body = requireNotNull(javaClass.getResource("/feeds/$case/$feed.json")) { "missing feed fixture $case/$feed" }.readBytes()
-                    exchange.responseHeaders.add("Content-Type", "application/json")
-                    exchange.sendResponseHeaders(200, body.size.toLong())
-                    exchange.responseBody.use { it.write(body) }
+            server.createContext("/versions/all") { exchange ->
+                val body = requireNotNull(javaClass.getResource("/feeds/$case/all.json")) { "missing feed fixture $case/all.json" }.readBytes()
+                respond(exchange, "application/json", body)
+            }
+            server.createContext("/docs/") { exchange ->
+                val version = exchange.requestURI.path.removePrefix("/docs/").substringBefore('/')
+                val page = when {
+                    case == "unreadable-docs" -> "<html><body><p>This page has moved.</p></body></html>".toByteArray()
+                    version.startsWith("8.") -> recordedPage("8.14.6")
+                    else -> recordedPage("9.8.2")
                 }
+                respond(exchange, "text/html", page)
             }
             server.start()
+        }
+
+        private fun recordedPage(version: String): ByteArray =
+            requireNotNull(javaClass.getResource("/docs/compatibility-$version.html")) { "missing compatibility page $version" }.readBytes()
+
+        private fun respond(exchange: HttpExchange, contentType: String, body: ByteArray) {
+            exchange.responseHeaders.add("Content-Type", contentType)
+            exchange.sendResponseHeaders(200, body.size.toLong())
+            exchange.responseBody.use { it.write(body) }
         }
 
         fun serve(case: String) {
