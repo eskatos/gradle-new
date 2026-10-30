@@ -1,9 +1,9 @@
-# gradle.new
+# gradle-new
 
 Create a new Gradle build from your browser, with a single HTTP request, or by
 asking your coding agent.
 
-gradle.new runs the real `gradle init` of the latest Gradle release, so what you
+gradle-new runs the real `gradle init` of the latest Gradle release, so what you
 download is exactly what `gradle init` would produce on your machine, for every
 option it supports.
 
@@ -20,7 +20,7 @@ option it supports.
   `gradle init` command and API URL for your choices.
 - HTTP API for scripts and tools.
 - An agent skill, `gradle-new`, so that coding agents create new builds with
-  gradle.new instead of writing build files from memory.
+  gradle-new instead of writing build files from memory.
 
 ## HTTP API
 
@@ -58,7 +58,7 @@ Early development, not yet deployed.
 
 The existing [Gradle Initializr](https://gradle-initializr.cleverapps.io/)
 ([source](https://github.com/bmuschko/gradle-initializr)) is unmaintained and no
-longer matches what `gradle init` offers. gradle.new generates builds with
+longer matches what `gradle init` offers. gradle-new generates builds with
 Gradle itself instead of maintaining its own templates, so it cannot drift.
 
 ## Documentation
