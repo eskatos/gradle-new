@@ -18,8 +18,10 @@ object Proposals {
 
     fun of(pin: Pin, offered: Pin): List<Proposal> {
         val stable = if (offered.stable.version != pin.stable.version) {
+            val newMajor = GradleVersion.parse(offered.stable.version).major != GradleVersion.parse(pin.stable.version).major
             val keptRc = pin.rc?.takeIf { GradleVersion.parse(it.version).base > GradleVersion.parse(offered.stable.version) }
-            Proposal(Slot.STABLE, "Offer Gradle ${offered.stable.version}", Pin(offered.stable, pin.previous, keptRc))
+            val title = "Offer Gradle ${offered.stable.version}" + if (newMajor) " with ${offered.previous.version} as previous major" else ""
+            Proposal(Slot.STABLE, title, Pin(offered.stable, if (newMajor) offered.previous else pin.previous, keptRc))
         } else {
             null
         }
@@ -30,6 +32,12 @@ object Proposals {
         } else {
             null
         }
-        return listOfNotNull(stable, rc)
+        val previousAfterStable = stable?.pin?.previous ?: pin.previous
+        val previous = if (offered.previous.version != previousAfterStable.version) {
+            Proposal(Slot.PREVIOUS, "Offer Gradle ${offered.previous.version} as previous major", pin.with(Slot.PREVIOUS, offered.previous))
+        } else {
+            null
+        }
+        return listOfNotNull(stable, rc, previous)
     }
 }

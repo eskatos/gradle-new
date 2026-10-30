@@ -2,6 +2,7 @@ package gradlenew.versions
 
 data class FeedEntry(
     val version: String,
+    val current: Boolean = false,
     val activeRc: Boolean = false,
     val rcFor: String = "",
     val milestoneFor: String = "",
@@ -16,4 +17,4 @@ data class FeedEntry(
         if (checksum.isBlank() || wrapperChecksum.isBlank()) null else Checksums(checksum.trim().lowercase(), wrapperChecksum.trim().lowercase())
 }
 
-data class Feeds(val current: FeedEntry?, val releaseCandidate: FeedEntry?)
+data class Feeds(val entries: List<FeedEntry>)
