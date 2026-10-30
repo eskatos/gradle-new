@@ -1,4 +1,4 @@
-const CHANNEL_LABELS = { stable: 'stable', rc: 'release candidate' };
+const CHANNEL_LABELS = { stable: 'stable', rc: 'release candidate', previous: 'previous major' };
 const DEFAULT_PROJECT_NAME = 'demo';
 const WITH_LIBRARY_PROJECTS = 'with-library-projects';
 const SKILL_PATH = '/.well-known/agent-skills/gradle-new/SKILL.md';
@@ -26,7 +26,7 @@ export function initialChoices(model) {
 
 export function normalize(model, versions, partial = {}) {
   const choices = { ...initialChoices(model), ...partial };
-  if (choices.channel === 'rc' && !versions?.rc) choices.channel = 'stable';
+  if (versionOf(versions, choices.channel) !== versions?.[choices.channel]) choices.channel = 'stable';
   if (!componentTypes(model).some((c) => c.id === choices.componentType)) choices.componentType = firstComponentType(model);
   const languages = languagesFor(model, choices.componentType);
   if (!languages.includes(choices.language)) choices.language = languages[0] ?? null;
@@ -149,17 +149,19 @@ export function channelChoices(versions) {
   return [
     { id: 'stable', version: versions?.stable ?? null, available: Boolean(versions?.stable) },
     { id: 'rc', version: versions?.rc ?? null, available: Boolean(versions?.rc) },
+    { id: 'previous', version: versions?.previous ?? null, available: Boolean(versions?.previous) },
   ];
 }
 
 export function channels(versions) {
   const result = [{ id: 'stable', version: versions?.stable }];
   if (versions?.rc) result.push({ id: 'rc', version: versions.rc });
+  if (versions?.previous) result.push({ id: 'previous', version: versions.previous });
   return result;
 }
 
 export function versionOf(versions, channel) {
-  return channel === 'rc' && versions?.rc ? versions.rc : versions?.stable;
+  return (Object.hasOwn(CHANNEL_LABELS, channel) && versions?.[channel]) || versions?.stable;
 }
 
 function parameters(model, choices, type) {

@@ -10,6 +10,7 @@ class ModelScriptTest {
     private val model = Fixtures.model
     private val versions = Fixtures.versions
     private val versionsWithRc = Fixtures.versionsWithRc
+    private val previousModel = Fixtures.previousModel
 
     @TestFactory
     fun formState(): List<DynamicTest> = inEveryEngine { script ->
@@ -27,11 +28,13 @@ class ModelScriptTest {
         assertEquals(true, initial["comments"])
 
         val form = script.map("formState", model, versions, json())
-        assertEquals(listOf("stable", "rc"), (form["channels"] as List<*>).map { (it as Map<*, *>)["id"] }, "the RC channel is always offered as a choice")
+        assertEquals(listOf("stable", "rc", "previous"), (form["channels"] as List<*>).map { (it as Map<*, *>)["id"] }, "the RC channel is always offered as a choice")
         assertEquals("9.8.2", ((form["channels"] as List<*>)[0] as Map<*, *>)["version"])
         assertEquals(true, ((form["channels"] as List<*>)[0] as Map<*, *>)["available"])
         assertEquals(null, ((form["channels"] as List<*>)[1] as Map<*, *>)["version"])
         assertEquals(false, ((form["channels"] as List<*>)[1] as Map<*, *>)["available"])
+        assertEquals("8.14.6", ((form["channels"] as List<*>)[2] as Map<*, *>)["version"])
+        assertEquals(true, ((form["channels"] as List<*>)[2] as Map<*, *>)["available"])
         assertEquals(listOf("application", "library", "gradle-plugin", "basic"), (form["componentTypes"] as List<*>).map { (it as Map<*, *>)["id"] })
         assertEquals("Gradle plugin", ((form["componentTypes"] as List<*>)[2] as Map<*, *>)["label"])
         assertEquals(listOf("java", "kotlin", "groovy", "scala", "cpp", "swift"), (form["languages"] as List<*>).map { (it as Map<*, *>)["id"] })
@@ -44,7 +47,7 @@ class ModelScriptTest {
         assertEquals("java-application", form["buildType"])
 
         val withRc = script.map("formState", model, versionsWithRc, json())
-        assertEquals(listOf("stable", "rc"), (withRc["channels"] as List<*>).map { (it as Map<*, *>)["id"] })
+        assertEquals(listOf("stable", "rc", "previous"), (withRc["channels"] as List<*>).map { (it as Map<*, *>)["id"] })
         assertEquals("9.9.0-rc-1", ((withRc["channels"] as List<*>)[1] as Map<*, *>)["version"])
         assertEquals(true, ((withRc["channels"] as List<*>)[1] as Map<*, *>)["available"])
     }
@@ -134,6 +137,19 @@ class ModelScriptTest {
 
         val rc = script.list("commandTokens", model, versionsWithRc, json("channel" to "rc"))
         assertTrue((rc[0]["description"] as String).contains("9.9.0-rc-1"))
+
+        val previous = script.list("commandTokens", previousModel, versions, json("channel" to "previous"))
+        assertEquals("Runs Gradle 8.14.6, the version the previous major channel currently points to.", previous[0]["description"])
+    }
+
+    @TestFactory
+    fun previousMajorChannel(): List<DynamicTest> = inEveryEngine { script ->
+        assertEquals("8.14.6", script.call("versionOf", versions, "\"previous\""))
+        assertEquals("previous", script.map("normalize", previousModel, versions, json("channel" to "previous")).let { (it["choices"] as Map<*, *>)["channel"] })
+        assertEquals("stable", script.map("normalize", model, "{\"stable\": \"9.8.2\", \"rc\": null}", json("channel" to "previous")).let { (it["choices"] as Map<*, *>)["channel"] },
+            "without a previous major the stable channel is chosen")
+        val form = script.map("formState", previousModel, versions, json("channel" to "previous"))
+        assertEquals<Map<*, *>>(mapOf("minimum" to 7, "maximum" to 28), (form["javaVersion"] as Map<*, *>).filterKeys { it != "supported" }, "the form follows the previous major's model")
     }
 
     @TestFactory
@@ -165,6 +181,10 @@ class ModelScriptTest {
         assertEquals("version", rc[1]["kind"])
         assertEquals("?", rc[1]["separator"])
         assertTrue((rc[1]["description"] as String).contains("9.9.0-rc-1"))
+
+        val previous = script.list("urlTokens", previousModel, versions, json("channel" to "previous", "componentType" to "basic"), "\"https://gradle.example\"")
+        assertEquals(listOf("https://gradle.example/api/generate", "version=previous", "type=basic", "project-name=demo"), previous.map { it["text"] })
+        assertEquals("The Gradle version channel: stable is currently Gradle 9.8.2, previous is currently Gradle 8.14.6.", previous[1]["description"])
     }
 
     @TestFactory

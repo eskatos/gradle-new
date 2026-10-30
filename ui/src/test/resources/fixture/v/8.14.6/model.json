@@ -1,0 +1,726 @@
+{
+    "gradleVersion": "8.14.6",
+    "componentTypes": [
+        {
+            "id": "application",
+            "displayName": "Application",
+            "defaultProjectNames": [
+                "app",
+                "list",
+                "utilities"
+            ]
+        },
+        {
+            "id": "library",
+            "displayName": "Library",
+            "defaultProjectNames": [
+                "lib"
+            ]
+        },
+        {
+            "id": "gradle-plugin",
+            "displayName": "Gradle plugin",
+            "defaultProjectNames": [
+                "plugin"
+            ]
+        },
+        {
+            "id": "basic",
+            "displayName": "Basic (build structure only)",
+            "defaultProjectNames": []
+        }
+    ],
+    "languages": [
+        {
+            "id": "java",
+            "displayName": "Java"
+        },
+        {
+            "id": "kotlin",
+            "displayName": "Kotlin"
+        },
+        {
+            "id": "groovy",
+            "displayName": "Groovy"
+        },
+        {
+            "id": "scala",
+            "displayName": "Scala"
+        },
+        {
+            "id": "cpp",
+            "displayName": "C++"
+        },
+        {
+            "id": "swift",
+            "displayName": "Swift"
+        }
+    ],
+    "dsls": [
+        {
+            "id": "kotlin",
+            "displayName": "Kotlin",
+            "fileExtension": ".gradle.kts"
+        },
+        {
+            "id": "groovy",
+            "displayName": "Groovy",
+            "fileExtension": ".gradle"
+        }
+    ],
+    "modularizationOptions": [
+        {
+            "id": "single-project",
+            "displayName": "Single application project"
+        },
+        {
+            "id": "with-library-projects",
+            "displayName": "Application and library project"
+        }
+    ],
+    "testFrameworks": [
+        {
+            "id": "junit",
+            "displayName": "JUnit 4"
+        },
+        {
+            "id": "testng",
+            "displayName": "TestNG"
+        },
+        {
+            "id": "spock",
+            "displayName": "Spock"
+        },
+        {
+            "id": "kotlintest",
+            "displayName": "kotlin.test"
+        },
+        {
+            "id": "scalatest",
+            "displayName": "ScalaTest"
+        },
+        {
+            "id": "junit-jupiter",
+            "displayName": "JUnit Jupiter"
+        },
+        {
+            "id": "xctest",
+            "displayName": "XCTest"
+        },
+        {
+            "id": "cpptest",
+            "displayName": "C++ executable"
+        }
+    ],
+    "buildTypes": [
+        {
+            "id": "basic",
+            "componentType": "basic",
+            "language": null,
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [],
+                    "default": null
+                }
+            ],
+            "supportsPackage": false,
+            "supportsJavaVersion": false,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "cpp-application",
+            "componentType": "application",
+            "language": "cpp",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "cpptest"
+                    ],
+                    "default": "cpptest"
+                }
+            ],
+            "supportsPackage": false,
+            "supportsJavaVersion": false,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "cpp-library",
+            "componentType": "library",
+            "language": "cpp",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "cpptest"
+                    ],
+                    "default": "cpptest"
+                }
+            ],
+            "supportsPackage": false,
+            "supportsJavaVersion": false,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "groovy-application",
+            "componentType": "application",
+            "language": "groovy",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "groovy"
+            },
+            "modularization": {
+                "values": [
+                    "single-project",
+                    "with-library-projects"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "spock"
+                    ],
+                    "default": "spock"
+                },
+                {
+                    "modularization": "with-library-projects",
+                    "values": [
+                        "junit-jupiter"
+                    ],
+                    "default": "junit-jupiter"
+                }
+            ],
+            "supportsPackage": true,
+            "supportsJavaVersion": true,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "groovy-gradle-plugin",
+            "componentType": "gradle-plugin",
+            "language": "groovy",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "groovy"
+            },
+            "modularization": {
+                "values": [
+                    "single-project"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "spock"
+                    ],
+                    "default": "spock"
+                }
+            ],
+            "supportsPackage": true,
+            "supportsJavaVersion": false,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "groovy-library",
+            "componentType": "library",
+            "language": "groovy",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "groovy"
+            },
+            "modularization": {
+                "values": [
+                    "single-project"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "spock"
+                    ],
+                    "default": "spock"
+                }
+            ],
+            "supportsPackage": true,
+            "supportsJavaVersion": true,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "java-application",
+            "componentType": "application",
+            "language": "java",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project",
+                    "with-library-projects"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "junit",
+                        "testng",
+                        "spock",
+                        "junit-jupiter"
+                    ],
+                    "default": "junit-jupiter"
+                },
+                {
+                    "modularization": "with-library-projects",
+                    "values": [
+                        "junit-jupiter"
+                    ],
+                    "default": "junit-jupiter"
+                }
+            ],
+            "supportsPackage": true,
+            "supportsJavaVersion": true,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "java-gradle-plugin",
+            "componentType": "gradle-plugin",
+            "language": "java",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "junit-jupiter"
+                    ],
+                    "default": "junit-jupiter"
+                }
+            ],
+            "supportsPackage": true,
+            "supportsJavaVersion": false,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "java-library",
+            "componentType": "library",
+            "language": "java",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "junit",
+                        "testng",
+                        "spock",
+                        "junit-jupiter"
+                    ],
+                    "default": "junit-jupiter"
+                }
+            ],
+            "supportsPackage": true,
+            "supportsJavaVersion": true,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "kotlin-application",
+            "componentType": "application",
+            "language": "kotlin",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project",
+                    "with-library-projects"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "kotlintest",
+                        "junit-jupiter"
+                    ],
+                    "default": "kotlintest"
+                },
+                {
+                    "modularization": "with-library-projects",
+                    "values": [
+                        "junit-jupiter"
+                    ],
+                    "default": "junit-jupiter"
+                }
+            ],
+            "supportsPackage": true,
+            "supportsJavaVersion": true,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "kotlin-gradle-plugin",
+            "componentType": "gradle-plugin",
+            "language": "kotlin",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "kotlintest"
+                    ],
+                    "default": "kotlintest"
+                }
+            ],
+            "supportsPackage": true,
+            "supportsJavaVersion": false,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "kotlin-library",
+            "componentType": "library",
+            "language": "kotlin",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "kotlintest",
+                        "junit-jupiter"
+                    ],
+                    "default": "kotlintest"
+                }
+            ],
+            "supportsPackage": true,
+            "supportsJavaVersion": true,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "scala-application",
+            "componentType": "application",
+            "language": "scala",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project",
+                    "with-library-projects"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "scalatest"
+                    ],
+                    "default": "scalatest"
+                },
+                {
+                    "modularization": "with-library-projects",
+                    "values": [
+                        "junit-jupiter"
+                    ],
+                    "default": "junit-jupiter"
+                }
+            ],
+            "supportsPackage": true,
+            "supportsJavaVersion": true,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "scala-library",
+            "componentType": "library",
+            "language": "scala",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "scalatest"
+                    ],
+                    "default": "scalatest"
+                }
+            ],
+            "supportsPackage": true,
+            "supportsJavaVersion": true,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "swift-application",
+            "componentType": "application",
+            "language": "swift",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "xctest"
+                    ],
+                    "default": "xctest"
+                }
+            ],
+            "supportsPackage": false,
+            "supportsJavaVersion": false,
+            "supportsProjectName": true,
+            "furtherReading": null
+        },
+        {
+            "id": "swift-library",
+            "componentType": "library",
+            "language": "swift",
+            "dsls": {
+                "values": [
+                    "kotlin",
+                    "groovy"
+                ],
+                "default": "kotlin"
+            },
+            "modularization": {
+                "values": [
+                    "single-project"
+                ],
+                "default": "single-project"
+            },
+            "testFrameworks": [
+                {
+                    "modularization": "single-project",
+                    "values": [
+                        "xctest"
+                    ],
+                    "default": "xctest"
+                }
+            ],
+            "supportsPackage": false,
+            "supportsJavaVersion": false,
+            "supportsProjectName": true,
+            "furtherReading": null
+        }
+    ],
+    "javaVersion": {
+        "minimum": 7,
+        "default": 21,
+        "maximum": 28
+    },
+    "packageName": {
+        "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*(\\.[A-Za-z_$][A-Za-z0-9_$]*)*$",
+        "default": "org.example"
+    },
+    "projectName": {
+        "pattern": null,
+        "default": null
+    },
+    "options": [
+        {
+            "name": "comments",
+            "description": "Include clarifying comments in files.",
+            "negatedDescription": "Disables option --comments."
+        },
+        {
+            "name": "dsl",
+            "description": "Set the build script DSL to be used in generated scripts.",
+            "negatedDescription": null
+        },
+        {
+            "name": "incubating",
+            "description": "Allow the generated build to use new features and APIs.",
+            "negatedDescription": "Disables option --incubating."
+        },
+        {
+            "name": "insecure-protocol",
+            "description": "How to handle insecure URLs used for Maven Repositories.",
+            "negatedDescription": null
+        },
+        {
+            "name": "java-version",
+            "description": "Provides java version to use in the project.",
+            "negatedDescription": null
+        },
+        {
+            "name": "overwrite",
+            "description": "Allow existing files in the build directory to be overwritten?",
+            "negatedDescription": "Disables option --overwrite."
+        },
+        {
+            "name": "package",
+            "description": "Set the package for source files.",
+            "negatedDescription": null
+        },
+        {
+            "name": "project-name",
+            "description": "Set the project name.",
+            "negatedDescription": null
+        },
+        {
+            "name": "split-project",
+            "description": "Split functionality across multiple subprojects?",
+            "negatedDescription": "Disables option --split-project."
+        },
+        {
+            "name": "test-framework",
+            "description": "Set the test framework to be used.",
+            "negatedDescription": null
+        },
+        {
+            "name": "type",
+            "description": "Set the type of project to generate.",
+            "negatedDescription": null
+        },
+        {
+            "name": "use-defaults",
+            "description": "Use default values for options not configured explicitly",
+            "negatedDescription": "Disables option --use-defaults."
+        }
+    ]
+}

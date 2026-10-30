@@ -1,4 +1,5 @@
 {
     "stable": "9.8.2",
-    "rc": null
+    "rc": null,
+    "previous": "8.14.6"
 }
