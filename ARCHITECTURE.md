@@ -336,7 +336,8 @@ recorded here.
 - GitHub Actions, each pinned by full commit SHA: `actions/checkout`,
   `gradle/actions/setup-gradle`, `gradle/actions/wrapper-validation`,
   `actions/upload-artifact`, `actions/attest-build-provenance`,
-  `actions/cache`.
+  `actions/cache`; setup-gradle's enhanced cache provider, a proprietary
+  component free for public repositories.
 - Tools: Docker or Podman, the Scaleway CLI, the GitHub CLI.
 - Vendored in `ui`, each with its source and version in `ui/VENDORED.md`:
   the Gradle Build Tool design system's tokens and the Gradle logos,
