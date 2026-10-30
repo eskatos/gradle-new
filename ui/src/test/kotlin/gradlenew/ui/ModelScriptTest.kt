@@ -167,6 +167,37 @@ class ModelScriptTest {
         assertTrue((rc[1]["description"] as String).contains("9.9.0-rc-1"))
     }
 
+    @TestFactory
+    fun installCommands(): List<DynamicTest> = inEveryEngine { script ->
+        val origin = "\"https://gradle.example\""
+        assertEquals("npx skills add https://gradle.example -g", script.call("installCommand", "\"npx\"", origin))
+        assertEquals(
+            "curl -fsSL --create-dirs -o ~/.claude/skills/gradle-new/SKILL.md https://gradle.example/.well-known/agent-skills/gradle-new/SKILL.md",
+            script.call("installCommand", "\"curl\"", origin),
+        )
+
+        val npx = script.list("installTokens", "\"npx\"", origin)
+        assertEquals(listOf("npx", "skills add", "https://gradle.example", "-g"), npx.map { it["text"] })
+        assertEquals(listOf("program", "program", "address", "flag"), npx.map { it["kind"] })
+        assertTrue((npx[2]["description"] as String).contains("/.well-known/agent-skills/index.json"), npx[2].toString())
+        assertTrue((npx[3]["description"] as String).contains("every project"), npx[3].toString())
+
+        val curl = script.list("installTokens", "\"curl\"", origin)
+        assertEquals(
+            listOf("curl", "-fsSL", "--create-dirs", "-o ~/.claude/skills/gradle-new/SKILL.md", "https://gradle.example/.well-known/agent-skills/gradle-new/SKILL.md"),
+            curl.map { it["text"] },
+        )
+        assertEquals(listOf("program", "flag", "flag", "flag", "address"), curl.map { it["kind"] })
+        assertEquals("-o", curl[3]["flag"])
+        assertEquals("~/.claude/skills/gradle-new/SKILL.md", curl[3]["value"])
+        assertTrue((curl[3]["description"] as String).contains("Claude Code"), curl[3].toString())
+
+        for (tokens in listOf(npx, curl)) {
+            assertEquals(tokens.size, tokens.map { it["id"] }.toSet().size, "token ids are unique")
+            for (token in tokens) assertTrue((token["description"] as String).isNotBlank(), token.toString())
+        }
+    }
+
     private fun inEveryEngine(test: (Script) -> Unit): List<DynamicTest> =
         Browsers.engines.map { engine -> DynamicTest.dynamicTest(engine) { Script.open(engine).use(test) } }
 

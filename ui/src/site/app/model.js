@@ -1,6 +1,8 @@
 const CHANNEL_LABELS = { stable: 'stable', rc: 'release candidate' };
 const DEFAULT_PROJECT_NAME = 'demo';
 const WITH_LIBRARY_PROJECTS = 'with-library-projects';
+const SKILL_PATH = '/.well-known/agent-skills/gradle-new/SKILL.md';
+const CLAUDE_CODE_SKILL = '~/.claude/skills/gradle-new/SKILL.md';
 
 export function initialChoices(model) {
   const componentType = firstComponentType(model);
@@ -118,6 +120,28 @@ export function urlTokens(model, versions, partial = {}, origin = '') {
 export function apiUrl(model, versions, partial = {}, origin = '') {
   const [endpoint, ...params] = urlTokens(model, versions, partial, origin);
   return endpoint.text + params.map((p) => p.separator + p.text).join('');
+}
+
+export function installTokens(tool, origin) {
+  if (tool === 'curl') {
+    return [
+      { id: 'curl', text: 'curl', kind: 'program', description: 'Downloads one file over HTTP. Nothing is run.' },
+      { id: 'curl-flags', text: '-fsSL', kind: 'flag', description: 'Fails on an HTTP error instead of saving the error page (-f), shows errors but no progress (-sS), and follows redirects (-L).' },
+      { id: 'create-dirs', text: '--create-dirs', kind: 'flag', description: "Creates the skill's folder if it does not exist yet." },
+      { id: 'output', text: `-o ${CLAUDE_CODE_SKILL}`, kind: 'flag', flag: '-o', value: CLAUDE_CODE_SKILL, description: "Saves the skill as a personal skill of Claude Code, available in every project. Other agents read skills from their own folders, which the npx command covers." },
+      { id: 'skill-url', text: `${origin}${SKILL_PATH}`, kind: 'address', description: 'The gradle-new skill on this website, a single Markdown file you can read first.' },
+    ];
+  }
+  return [
+    { id: 'npx', text: 'npx', kind: 'program', description: 'Runs the latest skills command-line tool from the npm registry with Node.js, downloading it first if needed.' },
+    { id: 'skills-add', text: 'skills add', kind: 'program', description: 'Installs agent skills from a website or repository, checking each one against the digest its source publishes. The open-source skills CLI sends anonymous usage data to skills.sh unless DISABLE_TELEMETRY=1 is set.' },
+    { id: 'site', text: origin, kind: 'address', description: 'This website. The CLI reads its skill index at /.well-known/agent-skills/index.json and downloads the gradle-new skill it lists.' },
+    { id: 'global', text: '-g', kind: 'flag', description: 'Installs the skill for your user, available in every project, instead of into the current project. The CLI asks which of your coding agents to install it for.' },
+  ];
+}
+
+export function installCommand(tool, origin) {
+  return installTokens(tool, origin).map((t) => t.text).join(' ');
 }
 
 export function channelChoices(versions) {
