@@ -16,7 +16,7 @@ class AccessibilityTest {
         for (group in listOf("Gradle version", "Project type", "Language", "Build script DSL", "Test framework")) {
             assertTrue(tree.contains("group \"$group\""), "group $group\n$tree")
         }
-        for (entry in listOf("radio \"Stable 9.8.2\" [checked]", "radio \"Application\" [checked]", "textbox \"Project name\"", "textbox \"Package\"", "textbox \"Java version\"",
+        for (entry in listOf("radio \"Stable 9.8.2\" [checked]", "radio \"Previous major 8.14.6\"", "radio \"Application\" [checked]", "textbox \"Project name\"", "textbox \"Package\"", "textbox \"Java version\"",
             "switch \"Split into subprojects\"", "switch \"Use incubating features\"", "switch \"Add clarifying comments\" [checked]",
             "button \"Download the build\"", "button \"Copy the command\"", "button \"Copy the API URL\"", "button \"Explain this command\"", "button \"Explain this URL\"",
             "tablist \"Install with\"", "tab \"npx\" [selected]", "tab \"curl\"", "tabpanel \"npx\"", "button \"Copy the install command\"", "link \"Read the skill\"", "link \"llms.txt\"")) {
@@ -27,6 +27,16 @@ class AccessibilityTest {
             assertTrue(page.textContent("#$described")!!.isNotBlank(), "#$id is described by #$described")
         }
         assertEquals("Gradle", page.getAttribute(".site-logo", "alt"))
+    }
+
+    @TestFactory
+    fun arrowKeysMoveAcrossTheVersionChannelsSkippingAnUnavailableOne(): List<DynamicTest> = onPage { page, _ ->
+        page.focus("input[name=version][value=stable]")
+        page.keyboard().press("ArrowDown")
+        assertTrue(page.isChecked("input[name=version][value=previous]"), "the unavailable RC is skipped")
+        page.waitForFunction("() => document.querySelector('#api-url').textContent.includes('version=previous')")
+        page.keyboard().press("ArrowUp")
+        assertTrue(page.isChecked("input[name=version][value=stable]"))
     }
 
     @TestFactory

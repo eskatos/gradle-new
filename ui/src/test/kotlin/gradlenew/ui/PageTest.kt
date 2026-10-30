@@ -55,6 +55,7 @@ class PageTest {
         assertEquals("not-allowed", page.evaluate("() => getComputedStyle(document.querySelector('[data-channel=rc]')).cursor"))
         page.click("[data-channel=rc]", com.microsoft.playwright.Page.ClickOptions().setForce(true))
         assertTrue(page.isChecked("input[name=version][value=stable]"), "a disabled RC switch cannot be selected")
+        assertEquals(listOf("stable", "rc", "previous"), values(page, "input[name=version]"))
         assertEquals(listOf("application", "library", "gradle-plugin", "basic"), values(page, "input[name=component-type]"))
         assertEquals(listOf("java", "kotlin", "groovy", "scala", "cpp", "swift"), values(page, "input[name=language]"))
         assertEquals(listOf("kotlin", "groovy"), values(page, "input[name=dsl]"))
@@ -336,6 +337,20 @@ class PageTest {
         assertTrue(server.requests.contains("/v/9.9.0-rc-1/model.json"))
         page.click("#explain-command-toggle")
         assertTrue(page.textContent("#explain-command [data-kind=gradle] .explanation-description")!!.contains("9.9.0-rc-1"))
+    }
+
+    @TestFactory
+    fun offersThePreviousMajorChannel(): List<DynamicTest> = onPage { page, server ->
+        assertEquals("Previous major", page.textContent("[data-channel=previous] .choice-label")!!.trim())
+        assertEquals("8.14.6", page.textContent("[data-channel=previous] .channel-version")!!.trim())
+        assertTrue(page.isEnabled("input[name=version][value=previous]"), "the previous major is always offered")
+        page.check("input[name=version][value=previous]")
+        page.waitForFunction("() => document.querySelector('#api-url').textContent.includes('version=previous')")
+        assertTrue(server.requests.contains("/v/8.14.6/model.json"))
+        page.click("#explain-command-toggle")
+        assertTrue(page.textContent("#explain-command [data-kind=gradle] .explanation-description")!!.contains("8.14.6"))
+        page.check("input[name=version][value=stable]")
+        page.waitForFunction("() => !document.querySelector('#api-url').textContent.includes('version=')")
     }
 
     @TestFactory

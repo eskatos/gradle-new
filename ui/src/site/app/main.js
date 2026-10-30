@@ -3,6 +3,7 @@ import { apiUrl, commandLine, commandTokens, formState, installCommand, installT
 const SVG = 'http://www.w3.org/2000/svg';
 const FIELD_OF_PARAMETER = { 'project-name': 'projectName', package: 'packageName', 'java-version': 'javaVersion' };
 const INPUT_OF_FIELD = { projectName: 'project-name', packageName: 'package', javaVersion: 'java-version' };
+const CHANNEL_CHOICES = { stable: 'Stable', rc: 'Release candidate', previous: 'Previous major' };
 const LINES_OF_SNIPPET = { command: '#command', url: '#api-url', skill: '#skill-command' };
 const COPY_OF_SNIPPET = { command: '#copy-command', url: '#copy-url', skill: '#copy-skill' };
 const WRAPPED_INSTALL_TOKENS = new Set(['output', 'skill-url']);
@@ -79,7 +80,7 @@ function render() {
   const form = formState(current, state.versions, state.choices);
   state.choices = form.choices;
 
-  renderChoices('version', form.channels.map((c) => ({ id: c.id, label: c.id === 'rc' ? 'Release candidate' : 'Stable', note: c.version ?? 'None available', version: Boolean(c.version), disabled: !c.available, channel: c.id })), form.choices.channel);
+  renderChoices('version', form.channels.map((c) => ({ id: c.id, label: CHANNEL_CHOICES[c.id], note: c.version ?? 'None available', version: Boolean(c.version), disabled: !c.available, channel: c.id })), form.choices.channel);
   renderChoices('component-type', form.componentTypes, form.choices.componentType);
   renderChoices('language', form.languages, form.choices.language);
   renderChoices('dsl', form.dsls, form.choices.dsl);
