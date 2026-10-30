@@ -43,5 +43,7 @@ else
   gh pr edit "$open_pull_request" --title "$title"
 fi
 if [ "$auto_merge" = true ] && [ "$(gh pr view "$branch" --json autoMergeRequest --jq '.autoMergeRequest != null')" != true ]; then
-  gh pr merge "$branch" --auto --squash
+  gh api graphql \
+    -f query='mutation($id: ID!) { enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: SQUASH}) { clientMutationId } }' \
+    -f id="$(gh pr view "$branch" --json id --jq .id)"
 fi
