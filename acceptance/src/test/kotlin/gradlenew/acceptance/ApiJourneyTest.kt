@@ -5,6 +5,7 @@ import gradlenew.adapterjson.VersionsJson
 import gradlenew.domain.generation.TemplateCatalog
 import gradlenew.domain.model.InitModel
 import gradlenew.domain.model.OfferedVersions
+import java.io.File
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpResponse
@@ -18,18 +19,23 @@ class ApiJourneyTest {
 
     private val pinnedStable = System.getProperty("gradlenew.offered.stable") ?: error("gradlenew.offered.stable is not set")
     private val pinnedRc: String? = System.getProperty("gradlenew.offered.rc")
+    private val pinnedPrevious: String? = System.getProperty("gradlenew.offered.previous")
 
     @Test
     fun apiJourney() {
         Target.open().use { target ->
             val offered = readOfferedVersions(target)
+            val previous = readPreviousMajor(target, offered)
             val model = readModel(target, offered.stable)
             modelByChannel(target, offered)
-            val oracle = GradleOracle(offered.stable)
+            previousMajorModel(target, previous)
+            val oracle = GradleOracle(offered.stable, javaHome("stable"))
             compareWithGradle(model, oracle)
             generateBuilds(target, model, oracle)
             rejectInvalidRequest(target, model, oracle)
-            offered.rc?.let { rc -> generateApplication(target, readModel(target, rc), GradleOracle(rc), "rc") }
+            offered.rc?.let { rc -> generateApplication(target, readModel(target, rc), GradleOracle(rc, javaHome("rc")), "rc") }
+            generateApplication(target, readModel(target, previous), GradleOracle(previous, javaHome("previous")), "previous")
+            aliasAndConcreteVersionGiveTheSameZip(target, "previous", previous)
             templatesAreNotServed(target, model)
             agentSkill(target)
             llmsTxt(target)
@@ -49,6 +55,33 @@ class ApiJourneyTest {
             assertEquals(target.get("/v/${offered.rc}/model.json").body(), rc.body(), "/api/model?version=rc serves the release candidate's model")
         }
     }
+
+    private fun readPreviousMajor(target: Target, offered: OfferedVersions): String {
+        val previous = field(target.get("/api/versions").body(), "previous")
+        assertEquals(pinnedPrevious, previous)
+        val stableParts = offered.stable.split('.')
+        val previousParts = previous.split('.')
+        assertTrue(previousParts.all { part -> part.all(Char::isDigit) }, "the previous major is a final release: $previous")
+        assertEquals(stableParts.first().toInt() - 1, previousParts.first().toInt(), "the previous major is one below the stable's: $previous")
+        return previous
+    }
+
+    private fun previousMajorModel(target: Target, previous: String) {
+        val response = target.get("/api/model?version=previous")
+        assertEquals(200, response.statusCode(), response.body())
+        assertEquals("public, max-age=60", response.headers().firstValue("cache-control").orElse(""))
+        assertEquals(target.get("/v/$previous/model.json").body(), response.body(), "/api/model?version=previous serves the previous major's model")
+    }
+
+    private fun aliasAndConcreteVersionGiveTheSameZip(target: Target, alias: String, version: String) {
+        val options = "type=java-library&project-name=demo-lib"
+        val byAlias = target.getBytes("/api/generate?version=$alias&$options")
+        val byVersion = target.getBytes("/api/generate?version=$version&$options")
+        assertEquals(200, byAlias.statusCode(), String(byAlias.body()))
+        assertTrue(byAlias.body().contentEquals(byVersion.body()), "version=$alias and version=$version give different zips")
+    }
+
+    private fun javaHome(slot: String): File? = System.getProperty("gradlenew.offered.$slot.java-home")?.let(::File)
 
     private fun readOfferedVersions(target: Target): OfferedVersions {
         val response = target.get("/api/versions")
