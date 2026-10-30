@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wrapper-validation:
+    name: wrapper-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: gradle/actions/wrapper-validation@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      GRADLENEW_CONTAINER_TOOL: docker
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Detect a change to status.json alone
+        id: scope
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "$(git diff --name-only HEAD^1 HEAD)" = status.json ]; then
+            echo "Only status.json changed: the heartbeat needs no build."
+            echo "full=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "full=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.scope.outputs.full == 'true'
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gradle/libs.versions.toml') }}
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        if: steps.scope.outputs.full == 'true'
+        with:
+          cache-provider: basic
+          cache-read-only: true
+      - name: Build, with both acceptance journeys against the image
+        if: steps.scope.outputs.full == 'true'
+        run: ./gradlew build :build-logic:check -Pplaywright.withDeps=true --continue
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure() && steps.scope.outputs.full == 'true'
+        with:
+          name: reports
+          path: |
+            **/build/reports/
+            **/build/test-results/
+            acceptance/build/screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
