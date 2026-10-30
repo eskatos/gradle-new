@@ -31,6 +31,7 @@ class UiJourneyTest {
         val model = InitModelJson.decode(target.get("/v/${offered.stable}/model.json").body())
         val context = Browsers.browser(engine).newContext(Browser.NewContextOptions().setAcceptDownloads(true).setViewportSize(1280, 900))
         try {
+            context.addInitScript("window.__copied = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: (text) => { window.__copied.push(text); return Promise.resolve(); } } });")
             val page = context.newPage()
             page.setDefaultTimeout(10_000.0)
             val requests = ConcurrentHashMap.newKeySet<String>()
@@ -43,6 +44,7 @@ class UiJourneyTest {
             downloadMatchesApiAndGradleInit(page, target, model, offered)
             rejectionsAppearNextToTheField(page, target)
             explanations(page, model, offered)
+            agentSkill(page, target)
             narrowScreens(page, engine)
             offered.rc?.let { rc -> releaseCandidate(page, target, rc) }
             everyRequestStayedOnTheOrigin(requests, target)
@@ -177,6 +179,65 @@ class UiJourneyTest {
         }
         for (name in expected) assertTrue(label.contains(name), "explanation of $option=$value says '$label', missing '$name'")
     }
+
+    private fun agentSkill(page: Page, target: Target) {
+        assertEquals("Or let your coding agent do it", page.textContent("#agent-title")!!.trim())
+        assertTrue(page.locator("#snippet-skill").boundingBox()!!.y > page.locator("#snippet-url").boundingBox()!!.y, "the agent skill window is below the API URL window")
+        assertEquals("Agent skill", page.textContent("#snippet-skill .code-title")!!.trim())
+        val npx = "npx skills add ${target.baseUrl} -g"
+        val curl = "curl -fsSL --create-dirs -o ~/.claude/skills/gradle-new/SKILL.md ${target.baseUrl}/.well-known/agent-skills/gradle-new/SKILL.md"
+        assertSkillTab(page, "npx", npx)
+        page.click("#copy-skill")
+        page.waitForSelector("#copy-skill.is-copied")
+        assertEquals(npx, copied(page).last())
+
+        page.click("#tab-curl")
+        assertSkillTab(page, "curl", curl)
+        page.focus("#tab-curl")
+        page.keyboard().press("ArrowLeft")
+        assertSkillTab(page, "npx", npx)
+        assertEquals("tab-npx", page.evaluate("() => document.activeElement.id"))
+        page.keyboard().press("ArrowRight")
+        assertSkillTab(page, "curl", curl)
+        page.click("#copy-skill")
+        page.waitForFunction("command => window.__copied.at(-1) === command", curl)
+
+        page.click("#explain-skill-toggle")
+        for (tab in listOf("curl", "npx")) {
+            page.click("#tab-$tab")
+            val tokens = page.locator("#skill-command .token").count()
+            val items = page.locator("#explain-skill .explanation-item")
+            assertEquals(tokens, items.count(), "$tab explanations")
+            for (i in 0 until items.count()) {
+                assertTrue((items.nth(i).locator(".explanation-description").textContent() ?: "").isNotBlank(), "$tab explanation $i")
+            }
+            page.waitForFunction("count => document.querySelectorAll('#explain-skill svg.connectors path').length === count", tokens)
+        }
+        page.click("#explain-skill-toggle")
+
+        assertEquals("Read the skill", page.textContent("#read-skill")!!.trim())
+        assertEquals("llms.txt", page.textContent("#read-llms")!!.trim())
+        for (link in listOf("#read-skill", "#read-llms")) {
+            val href = page.locator(link).evaluate("a => a.href") as String
+            assertTrue(href.startsWith(target.baseUrl + "/"), href)
+            val response = target.get(href.removePrefix(target.baseUrl))
+            assertEquals(200, response.statusCode(), href)
+            assertEquals("text/plain", response.headers().firstValue("content-type").orElse("").substringBefore(';'), href)
+        }
+    }
+
+    private fun assertSkillTab(page: Page, tab: String, command: String) {
+        val other = if (tab == "npx") "curl" else "npx"
+        assertEquals("true", page.getAttribute("#tab-$tab", "aria-selected"))
+        assertEquals("0", page.getAttribute("#tab-$tab", "tabindex"))
+        assertEquals("false", page.getAttribute("#tab-$other", "aria-selected"))
+        assertEquals("-1", page.getAttribute("#tab-$other", "tabindex"))
+        assertEquals("tab-$tab", page.getAttribute("#skill-panel", "aria-labelledby"))
+        assertEquals(command, page.textContent("#skill-command")!!.replace("\\\n", " ").replace(Regex("\\s+"), " ").trim())
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun copied(page: Page): List<String> = page.evaluate("() => window.__copied") as List<String>
 
     private fun narrowScreens(page: Page, engine: String) {
         val dir = File(System.getProperty("acceptance.screenshotsDir") ?: error("acceptance.screenshotsDir is not set")).apply { mkdirs() }
