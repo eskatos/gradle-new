@@ -1,6 +1,6 @@
 # Architecture
 
-gradle.new is a web page and an HTTP API that generate new Gradle builds. This
+gradle-new is a web page and an HTTP API that generate new Gradle builds. This
 document is for contributors: how the system fits together, where each part
 lives, and the rules that keep it that way. How to use the service is in
 [README.md](README.md).

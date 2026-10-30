@@ -40,7 +40,7 @@ class ServerTest {
 
     private val agent: File = Files.createTempDirectory("agent").toFile().apply {
         resolve("SKILL.md").writeText("---\nname: gradle-new\ndescription: Create a new Gradle build.\n---\n\nRead {{origin}}/api/model, then {{origin}}/llms.txt.\n")
-        resolve("llms.txt").writeText("# gradle.new\n\n- [Options model]({{origin}}/api/model)\n")
+        resolve("llms.txt").writeText("# gradle-new\n\n- [Options model]({{origin}}/api/model)\n")
     }
 
     private val agentPaths = listOf("/.well-known/agent-skills/index.json", "/.well-known/agent-skills/gradle-new/SKILL.md", "/llms.txt")
@@ -101,7 +101,7 @@ class ServerTest {
         assertEquals(HttpStatusCode.OK, llms.status)
         assertEquals(ContentType.Text.Plain, llms.contentType()?.withoutParameters())
         assertEquals("public, max-age=60", llms.headers[HttpHeaders.CacheControl])
-        assertEquals("# gradle.new\n\n- [Options model](http://localhost:8080/api/model)\n", llms.bodyAsText())
+        assertEquals("# gradle-new\n\n- [Options model](http://localhost:8080/api/model)\n", llms.bodyAsText())
     }
 
     @Test

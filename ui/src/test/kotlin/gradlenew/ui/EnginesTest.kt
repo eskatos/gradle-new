@@ -15,7 +15,7 @@ class EnginesTest {
                     Browsers.browser(engine).newPage().use { page ->
                         val response = page.navigate(server.url + "/")
                         assertEquals(200, response!!.status())
-                        assertTrue(page.title().contains("gradle.new"), page.title())
+                        assertTrue(page.title().contains("gradle-new"), page.title())
                     }
                 }
             }

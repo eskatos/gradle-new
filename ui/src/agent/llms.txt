@@ -1,4 +1,4 @@
-# gradle.new
+# gradle-new
 
 > Create a new Gradle build with one HTTP request. Every build is produced by the real `gradle init` of the latest stable Gradle release, of the current release candidate, or of the latest release of the previous major version, so it is exactly what `gradle init` would generate locally.
 

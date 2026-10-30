@@ -101,7 +101,7 @@ export function urlTokens(model, versions, partial = {}, origin = '') {
   const { choices, type } = normalize(model, versions, partial);
   const offered = channels(versions).map((c) => `${c.id} is currently Gradle ${c.version}`).join(', ');
   const tokens = [
-    { id: 'endpoint', text: `${origin}/api/generate`, kind: 'endpoint', description: `The gradle.new API. It generates the same build and returns it as a zip archive. Options left out take Gradle's defaults, and without a version it uses the stable channel, currently Gradle ${versionOf(versions, 'stable')}.` },
+    { id: 'endpoint', text: `${origin}/api/generate`, kind: 'endpoint', description: `The gradle-new API. It generates the same build and returns it as a zip archive. Options left out take Gradle's defaults, and without a version it uses the stable channel, currently Gradle ${versionOf(versions, 'stable')}.` },
   ];
   if (choices.channel !== 'stable') {
     tokens.push({ id: 'param-version', text: `version=${choices.channel}`, kind: 'version', description: `The Gradle version channel: ${offered}.` });
