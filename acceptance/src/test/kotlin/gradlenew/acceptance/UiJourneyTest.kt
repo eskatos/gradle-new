@@ -27,7 +27,9 @@ class UiJourneyTest {
     private fun journey(engine: String) {
         val started = TimeSource.Monotonic.markNow()
         val target = target()
-        val offered = VersionsJson.decode(target.get("/api/versions").body())
+        val versionsJson = target.get("/api/versions").body()
+        val offered = VersionsJson.decode(versionsJson)
+        val previous = Regex("\"previous\"\\s*:\\s*\"([^\"]+)\"").find(versionsJson)?.groupValues?.get(1)
         val model = InitModelJson.decode(target.get("/v/${offered.stable}/model.json").body())
         val context = Browsers.browser(engine).newContext(Browser.NewContextOptions().setAcceptDownloads(true).setViewportSize(1280, 900))
         try {
@@ -40,6 +42,7 @@ class UiJourneyTest {
             page.waitForSelector("#command .token")
 
             channels(page, offered)
+            previousMajorChoice(page, previous)
             everyBuildTypeDrivesTheForm(page, model)
             downloadMatchesApiAndGradleInit(page, target, model, offered)
             rejectionsAppearNextToTheField(page, target)
@@ -47,6 +50,7 @@ class UiJourneyTest {
             agentSkill(page, target)
             narrowScreens(page, engine)
             offered.rc?.let { rc -> releaseCandidate(page, target, rc) }
+            previousMajor(page, target, previous!!)
             everyRequestStayedOnTheOrigin(requests, target)
         } finally {
             context.close()
@@ -61,6 +65,14 @@ class UiJourneyTest {
         assertEquals(offered.rc == null, page.isDisabled("input[name=version][value=rc]"), "the RC switch is disabled exactly when no RC is offered")
         offered.rc?.let { assertEquals(it, page.textContent("[data-channel=rc] .channel-version")!!.trim()) }
         assertTrue(!hasVersionParameter(apiUrl(page)), "the stable channel is the API's default: ${apiUrl(page)}")
+    }
+
+    private fun previousMajorChoice(page: Page, previous: String?) {
+        assertTrue(previous != null, "/api/versions offers a previous major")
+        assertEquals(3, page.locator("input[name=version]").count(), "stable, release candidate and previous major")
+        assertTrue(page.isEnabled("input[name=version][value=previous]"), "the previous major is always offered")
+        assertTrue(page.textContent("[data-channel=previous]")!!.contains("Previous major"))
+        assertEquals(previous, page.textContent("[data-channel=previous] .channel-version")!!.trim())
     }
 
     private fun everyBuildTypeDrivesTheForm(page: Page, model: InitModel) {
@@ -263,6 +275,21 @@ class UiJourneyTest {
         val download = page.waitForDownload { page.click("#download") }
         val fromApi = target.getBytes(url.removePrefix(target.baseUrl))
         assertTrue(Files.readAllBytes(download.path()).contentEquals(fromApi.body()), "RC download differs from the API's zip")
+        page.check("input[name=version][value=stable]")
+        page.waitForFunction("() => !/[?&]version=/.test(document.querySelector('#api-url').textContent.replace(/\\s+/g, ''))")
+    }
+
+    private fun previousMajor(page: Page, target: Target, previous: String) {
+        page.check("input[name=version][value=previous]")
+        page.waitForFunction("() => document.querySelector('#api-url').textContent.includes('version=previous')")
+        assertTrue(page.textContent("#explain-command [data-kind=gradle]")!!.contains(previous))
+        page.check("input[name=component-type][value=application]")
+        val url = apiUrl(page)
+        assertTrue(url.contains("version=previous"), url)
+        val download = page.waitForDownload { page.click("#download") }
+        val fromApi = target.getBytes(url.removePrefix(target.baseUrl))
+        assertEquals(200, fromApi.statusCode())
+        assertTrue(Files.readAllBytes(download.path()).contentEquals(fromApi.body()), "previous major download differs from the API's zip")
         page.check("input[name=version][value=stable]")
         page.waitForFunction("() => !/[?&]version=/.test(document.querySelector('#api-url').textContent.replace(/\\s+/g, ''))")
     }
