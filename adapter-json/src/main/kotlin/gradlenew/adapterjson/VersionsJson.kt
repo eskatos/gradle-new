@@ -13,11 +13,12 @@ object VersionsJson {
         buildJsonObject {
             put("stable", versions.stable)
             put("rc", versions.rc)
+            put("previous", versions.previous)
         },
     )
 
     fun decode(text: String): OfferedVersions {
         val json = Documents.parse(text)
-        return OfferedVersions(json.string("stable"), if (json["rc"] == null || json["rc"] is JsonNull) null else json.string("rc"))
+        return OfferedVersions(json.string("stable"), if (json["rc"] == null || json["rc"] is JsonNull) null else json.string("rc"), json.string("previous"))
     }
 }
