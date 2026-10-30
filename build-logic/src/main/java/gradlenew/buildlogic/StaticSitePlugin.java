@@ -27,11 +27,21 @@ public abstract class StaticSitePlugin implements Plugin<Project> {
             task.from(project.getLayout().getProjectDirectory().dir("src/site"));
             task.into(siteDir);
         });
-        project.getTasks().named("assemble", task -> task.dependsOn(assembleSite));
+        TaskProvider<Sync> assembleAgent = project.getTasks().register("assembleAgent", Sync.class, task -> {
+            task.setGroup("build");
+            task.setDescription("Assembles the agent files the server renders, kept out of the site tree.");
+            task.from(project.getLayout().getProjectDirectory().dir("src/agent"));
+            task.into(project.getLayout().getBuildDirectory().dir("agent"));
+        });
+        project.getTasks().named("assemble", task -> task.dependsOn(assembleSite, assembleAgent));
 
         project.getConfigurations().consumable("siteElements", configuration -> {
             ContainerImageAttributes.site(configuration.getAttributes());
             configuration.getOutgoing().artifact(assembleSite.map(Sync::getDestinationDir));
+        });
+        project.getConfigurations().consumable("agentElements", configuration -> {
+            ContainerImageAttributes.agent(configuration.getAttributes());
+            configuration.getOutgoing().artifact(assembleAgent.map(Sync::getDestinationDir));
         });
 
         project.getTasks().named("test", Test.class, test -> {

@@ -29,6 +29,11 @@ public abstract class NativeImageServerPlugin implements Plugin<Project> {
             configuration.setCanBeResolved(true);
             ContainerImageAttributes.templates(configuration.getAttributes());
         });
+        Configuration agent = project.getConfigurations().create("agent", configuration -> {
+            configuration.setCanBeConsumed(false);
+            configuration.setCanBeResolved(true);
+            ContainerImageAttributes.agent(configuration.getAttributes());
+        });
         TaskProvider<Sync> assembleSite = project.getTasks()
             .register("assembleSite", Sync.class, task -> {
                 task.setDescription("Merges every site contributor into one public site tree.");
@@ -41,22 +46,31 @@ public abstract class NativeImageServerPlugin implements Plugin<Project> {
                 task.from(templates);
                 task.into(project.getLayout().getBuildDirectory().dir("templates"));
             });
+        TaskProvider<Sync> assembleAgent = project.getTasks()
+            .register("assembleAgent", Sync.class, task -> {
+                task.setDescription("Merges every agent files contributor into one private agent tree.");
+                task.from(agent);
+                task.into(project.getLayout().getBuildDirectory().dir("agent"));
+            });
         Provider<String> siteDir = assembleSite.map(task -> task.getDestinationDir().getAbsolutePath());
         Provider<String> templatesDir = assembleTemplates.map(task -> task.getDestinationDir().getAbsolutePath());
+        Provider<String> agentDir = assembleAgent.map(task -> task.getDestinationDir().getAbsolutePath());
         project.getTasks().named("run", JavaExec.class, run -> {
-            run.getInputs().files(assembleSite, assembleTemplates);
+            run.getInputs().files(assembleSite, assembleTemplates, assembleAgent);
             run.doFirst(task -> ((JavaExec) task).environment("SITE_DIR", siteDir.get()));
             run.doFirst(task -> ((JavaExec) task).environment("TEMPLATES_DIR", templatesDir.get()));
+            run.doFirst(task -> ((JavaExec) task).environment("AGENT_DIR", agentDir.get()));
         });
 
         TaskProvider<Sync> assembleImageContext = project.getTasks()
             .register("assembleImageContext", Sync.class, task -> {
-                task.setDescription("Assembles the container build context: application jars, Dockerfile, templates and site tree.");
+                task.setDescription("Assembles the container build context: application jars, Dockerfile, templates, agent files and site tree.");
                 task.into(project.getLayout().getBuildDirectory().dir("image/context"));
                 task.from(project.getTasks().named("installDist", Sync.class).map(Sync::getDestinationDir),
                     copy -> copy.include("lib/**"));
                 task.from(project.getLayout().getProjectDirectory().file("Dockerfile"));
                 task.from(assembleTemplates, copy -> copy.into("templates"));
+                task.from(assembleAgent, copy -> copy.into("agent"));
                 task.from(assembleSite, copy -> copy.into("site"));
             });
 

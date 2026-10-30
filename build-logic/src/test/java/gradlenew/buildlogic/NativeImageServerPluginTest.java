@@ -30,7 +30,7 @@ class NativeImageServerPluginTest {
     }
 
     @Test
-    void assemblesTheImageContextFromJarsDockerfileSiteAndTemplates(@TempDir Path dir) throws IOException {
+    void assemblesTheImageContextFromJarsDockerfileSiteTemplatesAndAgentFiles(@TempDir Path dir) throws IOException {
         TestProject project = serverWithSite(dir)
             .file("server/Dockerfile", "FROM scratch\nARG MAIN_CLASS\nCOPY lib lib\nCOPY site /site\n");
 
@@ -44,18 +44,21 @@ class NativeImageServerPluginTest {
         }
         assertTrue(Files.exists(context.resolve("site/versions.json")));
         assertTrue(Files.exists(context.resolve("templates/9.8.2/key.zip")));
+        assertTrue(Files.exists(context.resolve("agent/SKILL.md")));
         assertFalse(Files.exists(context.resolve("site/9.8.2")));
+        assertFalse(Files.exists(context.resolve("site/SKILL.md")));
         assertFalse(Files.exists(context.resolve("bin")));
     }
 
     @Test
-    void runsOnTheJvmWithTheMergedSiteTreeAndTheTemplates(@TempDir Path dir) throws IOException {
+    void runsOnTheJvmWithTheMergedSiteTreeTheTemplatesAndTheAgentFiles(@TempDir Path dir) throws IOException {
         TestProject project = serverWithSite(dir);
 
         BuildResult result = project.run(":server:run", "-q");
 
         assertTrue(result.getOutput().contains("site has {\"stable\":\"9.8.2\"} and extra"), result.getOutput());
         assertTrue(result.getOutput().contains("templates have template"), result.getOutput());
+        assertTrue(result.getOutput().contains("agent has skill"), result.getOutput());
     }
 
     @Test
@@ -126,6 +129,7 @@ class NativeImageServerPluginTest {
             .file("settings.gradle.kts", TestProject.settings() + "include(\"ui\", \"extra\", \"tpl\", \"server\")\n")
             .file("ui/build.gradle.kts", "plugins { id(\"gradlenew.static-site\") }")
             .file("ui/src/site/versions.json", "{\"stable\":\"9.8.2\"}")
+            .file("ui/src/agent/SKILL.md", "skill")
             .file("extra/build.gradle.kts", "plugins { id(\"gradlenew.static-site\") }")
             .file("extra/src/site/extra.txt", "extra")
             .file("tpl/build.gradle.kts", """
@@ -142,6 +146,7 @@ class NativeImageServerPluginTest {
                     site(project(":ui"))
                     site(project(":extra"))
                     templates(project(":tpl"))
+                    agent(project(":ui"))
                 }
                 """)
             .file("server/src/main/kotlin/gradlenew/server/Main.kt", """
@@ -153,6 +158,7 @@ class NativeImageServerPluginTest {
                     val site = File(System.getenv("SITE_DIR"))
                     println("site has " + site.resolve("versions.json").readText() + " and " + site.resolve("extra.txt").readText())
                     println("templates have " + File(System.getenv("TEMPLATES_DIR")).resolve("9.8.2/key.zip").readText())
+                    println("agent has " + File(System.getenv("AGENT_DIR")).resolve("SKILL.md").readText())
                 }
                 """);
     }

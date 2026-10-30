@@ -9,6 +9,7 @@ final class ContainerImageAttributes {
     static final String CONTAINER_IMAGE_REFERENCE = "container-image-reference";
     static final String SITE = "site";
     static final String TEMPLATES = "templates";
+    static final String AGENT = "agent";
 
     private ContainerImageAttributes() {
     }
@@ -23,5 +24,9 @@ final class ContainerImageAttributes {
 
     static void templates(AttributeContainer attributes) {
         attributes.attribute(ARTIFACT_TYPE, TEMPLATES);
+    }
+
+    static void agent(AttributeContainer attributes) {
+        attributes.attribute(ARTIFACT_TYPE, AGENT);
     }
 }

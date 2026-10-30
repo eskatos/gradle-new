@@ -1,6 +1,7 @@
 package gradlenew.buildlogic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -14,17 +15,21 @@ import org.junit.jupiter.api.io.TempDir;
 class StaticSitePluginTest {
 
     @Test
-    void assemblesSiteTreeFromSources(@TempDir Path dir) throws IOException {
+    void assemblesSiteTreeAndAgentFilesFromSources(@TempDir Path dir) throws IOException {
         TestProject project = TestProject.in(dir)
             .buildScript("plugins { id(\"gradlenew.static-site\") }")
             .file("src/site/index.html", "<!doctype html><title>site</title>")
-            .file("src/site/versions.json", "{\"stable\":\"9.8.2\"}");
+            .file("src/site/versions.json", "{\"stable\":\"9.8.2\"}")
+            .file("src/agent/SKILL.md", "---\nname: test\n---\n");
 
         BuildResult result = project.run("assemble");
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":assembleSite").getOutcome());
+        assertEquals(TaskOutcome.SUCCESS, result.task(":assembleAgent").getOutcome());
         assertTrue(Files.exists(project.path("build/site/index.html")));
         assertTrue(Files.exists(project.path("build/site/versions.json")));
+        assertTrue(Files.exists(project.path("build/agent/SKILL.md")));
+        assertFalse(Files.exists(project.path("build/site/SKILL.md")));
     }
 
     @Test

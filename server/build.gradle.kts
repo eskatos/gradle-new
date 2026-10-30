@@ -6,6 +6,7 @@ dependencies {
     site(projects.ui)
     site(projects.publisher)
     templates(projects.publisher)
+    agent(projects.ui)
     implementation(projects.domain)
     implementation(projects.adapterJson)
     implementation(projects.adapterZip)
