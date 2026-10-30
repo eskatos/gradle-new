@@ -25,9 +25,11 @@ class ServerTest {
 
     private val site: File = Files.createTempDirectory("site").toFile().apply {
         resolve("index.html").writeText("<!doctype html><title>test site</title>")
-        resolve("versions.json").writeText("""{"stable":"9.8.2","rc":null}""")
+        resolve("versions.json").writeText("""{"stable":"9.8.2","rc":null,"previous":"8.14.6"}""")
         resolve("v/9.8.2").mkdirs()
         resolve("v/9.8.2/model.json").writeText("""{"gradleVersion":"9.8.2"}""")
+        resolve("v/8.14.6").mkdirs()
+        resolve("v/8.14.6/model.json").writeText("""{"gradleVersion":"8.14.6"}""")
         resolve("app").mkdirs()
         resolve("app/main.js").writeText("export {}")
         resolve("assets/fonts").mkdirs()
@@ -69,6 +71,12 @@ class ServerTest {
 
         val concrete = client.get("/api/model?version=9.8.2")
         assertEquals("public, max-age=31536000, immutable", concrete.headers[HttpHeaders.CacheControl])
+
+        val previous = client.get("/api/model?version=previous")
+        assertEquals(HttpStatusCode.OK, previous.status)
+        assertEquals("public, max-age=60", previous.headers[HttpHeaders.CacheControl])
+        assertEquals("""{"gradleVersion":"8.14.6"}""", previous.bodyAsText())
+        assertEquals("public, max-age=31536000, immutable", client.get("/api/model?version=8.14.6").headers[HttpHeaders.CacheControl])
 
         val rc = client.get("/api/model?version=rc")
         assertEquals(HttpStatusCode.BadRequest, rc.status)
@@ -138,7 +146,7 @@ class ServerTest {
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(ContentType.Application.Json, response.contentType()?.withoutParameters())
         assertEquals("public, max-age=60", response.headers[HttpHeaders.CacheControl])
-        assertEquals("""{"stable":"9.8.2","rc":null}""", response.bodyAsText())
+        assertEquals("""{"stable":"9.8.2","rc":null,"previous":"8.14.6"}""", response.bodyAsText())
     }
 
     @Test

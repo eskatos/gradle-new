@@ -25,7 +25,7 @@ class ApiJourneyTest {
     fun apiJourney() {
         Target.open().use { target ->
             val offered = readOfferedVersions(target)
-            val previous = readPreviousMajor(target, offered)
+            val previous = previousMajor(offered)
             val model = readModel(target, offered.stable)
             modelByChannel(target, offered)
             previousMajorModel(target, previous)
@@ -56,8 +56,8 @@ class ApiJourneyTest {
         }
     }
 
-    private fun readPreviousMajor(target: Target, offered: OfferedVersions): String {
-        val previous = field(target.get("/api/versions").body(), "previous")
+    private fun previousMajor(offered: OfferedVersions): String {
+        val previous = offered.previous
         assertEquals(pinnedPrevious, previous)
         val stableParts = offered.stable.split('.')
         val previousParts = previous.split('.')

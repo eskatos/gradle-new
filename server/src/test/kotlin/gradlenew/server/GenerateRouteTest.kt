@@ -67,7 +67,7 @@ class GenerateRouteTest {
     private val templateKey = "java-application.kotlin.junit-jupiter.single-project.no-incubating.comments"
 
     private val site: File = Files.createTempDirectory("site").toFile().apply {
-        resolve("versions.json").writeText("""{"stable":"9.8.2","rc":null}""")
+        resolve("versions.json").writeText("""{"stable":"9.8.2","rc":null,"previous":"8.14.6"}""")
         resolve("v/9.8.2").mkdirs()
         resolve("v/9.8.2/model.json").writeText(InitModelJson.encode(model))
     }

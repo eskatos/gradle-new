@@ -27,9 +27,7 @@ class UiJourneyTest {
     private fun journey(engine: String) {
         val started = TimeSource.Monotonic.markNow()
         val target = target()
-        val versionsJson = target.get("/api/versions").body()
-        val offered = VersionsJson.decode(versionsJson)
-        val previous = Regex("\"previous\"\\s*:\\s*\"([^\"]+)\"").find(versionsJson)?.groupValues?.get(1)
+        val offered = VersionsJson.decode(target.get("/api/versions").body())
         val model = InitModelJson.decode(target.get("/v/${offered.stable}/model.json").body())
         val context = Browsers.browser(engine).newContext(Browser.NewContextOptions().setAcceptDownloads(true).setViewportSize(1280, 900))
         try {
@@ -42,7 +40,7 @@ class UiJourneyTest {
             page.waitForSelector("#command .token")
 
             channels(page, offered)
-            previousMajorChoice(page, previous)
+            previousMajorChoice(page, offered.previous)
             everyBuildTypeDrivesTheForm(page, model)
             downloadMatchesApiAndGradleInit(page, target, model, offered)
             rejectionsAppearNextToTheField(page, target)
@@ -50,7 +48,7 @@ class UiJourneyTest {
             agentSkill(page, target)
             narrowScreens(page, engine)
             offered.rc?.let { rc -> releaseCandidate(page, target, rc) }
-            previousMajor(page, target, previous!!)
+            previousMajor(page, target, offered.previous)
             everyRequestStayedOnTheOrigin(requests, target)
         } finally {
             context.close()
@@ -67,8 +65,7 @@ class UiJourneyTest {
         assertTrue(!hasVersionParameter(apiUrl(page)), "the stable channel is the API's default: ${apiUrl(page)}")
     }
 
-    private fun previousMajorChoice(page: Page, previous: String?) {
-        assertTrue(previous != null, "/api/versions offers a previous major")
+    private fun previousMajorChoice(page: Page, previous: String) {
         assertEquals(3, page.locator("input[name=version]").count(), "stable, release candidate and previous major")
         assertTrue(page.isEnabled("input[name=version][value=previous]"), "the previous major is always offered")
         assertTrue(page.textContent("[data-channel=previous]")!!.contains("Previous major"))
