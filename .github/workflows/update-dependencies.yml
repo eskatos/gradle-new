@@ -1,0 +1,43 @@
+name: Update dependencies
+
+on:
+  schedule:
+    - cron: '41 5 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: update-dependencies
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: update
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-provider: basic
+          cache-read-only: true
+      - name: Update the version catalog and the Gradle wrapper to their latest releases
+        run: |
+          ./gradlew versionCatalogUpdate
+          ./gradlew wrapper --gradle-version latest
+          ./gradlew wrapper
+      - name: Open, update or close the pull request
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh auth setup-git
+          .github/scripts/open-pull-request.sh update-dependencies "Update dependencies and the Gradle wrapper" false \
+            "Latest releases of the catalog's dependencies and plugins, and of Gradle for the wrapper. Read the changes before merging: this pull request never merges by itself." \
+            gradle/libs.versions.toml gradle/wrapper gradlew gradlew.bat
