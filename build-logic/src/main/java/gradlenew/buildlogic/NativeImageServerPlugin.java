@@ -86,8 +86,9 @@ public abstract class NativeImageServerPlugin implements Plugin<Project> {
                 task.getRepository().set("gradlenew/" + project.getName());
                 task.getTool().set(ContainerTool.detect(project.getProviders()));
                 task.getImageReferenceFile().set(project.getLayout().getBuildDirectory().file("image/image-ref.txt"));
-                task.getOfferedVersionsTag().set(offered.stable().orElse("unpinned").zip(offered.rc().orElse(""),
-                    (stable, rc) -> rc.isEmpty() ? stable : stable + "_" + rc));
+                task.getOfferedVersionsTag().set(offered.stable().orElse("unpinned")
+                    .zip(offered.previous().orElse("unpinned"), (stable, previous) -> stable + "--" + previous)
+                    .zip(offered.rc().orElse(""), (versions, rc) -> rc.isEmpty() ? versions : versions + "--" + rc));
                 task.getCommit().set(gitState.map(state -> state.replace(GitStateValueSource.DIRTY, "")).filter(commit -> !commit.isEmpty()));
                 task.getDirty().set(gitState.map(state -> state.isEmpty() || state.endsWith(GitStateValueSource.DIRTY)));
             });

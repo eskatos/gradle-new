@@ -58,11 +58,12 @@ public abstract class BuildContainerImageTask extends DefaultTask {
     public void build() throws IOException {
         Path context = getContextDirectory().get().getAsFile().toPath();
         StringBuilder tag = new StringBuilder(getOfferedVersionsTag().get());
+        tag.append("--");
         if (getCommit().isPresent()) {
-            tag.append('-').append(getCommit().get());
+            tag.append(getCommit().get());
         }
         if (getDirty().get() || !getCommit().isPresent()) {
-            tag.append("-dirty-").append(contentHash(context, getMainClass().get()));
+            tag.append(getCommit().isPresent() ? "-dirty-" : "dirty-").append(contentHash(context, getMainClass().get()));
         }
         String reference = getRepository().get() + ":" + tag;
         getExecOperations().exec(exec -> exec.commandLine(

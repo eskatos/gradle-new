@@ -4,27 +4,46 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import org.gradle.api.Project;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.ProviderFactory;
 
-record OfferedVersions(Provider<String> stable, Provider<String> rc, Provider<Properties> pinned) {
+record OfferedVersions(Provider<String> stable, Provider<String> rc, Provider<String> previous, Provider<Properties> pinned, ProviderFactory providers) {
 
     static final String FILE = "offered-gradle-versions.properties";
-    static final String STABLE_PROPERTY = "gradlenew.offered.stable";
-    static final String RC_PROPERTY = "gradlenew.offered.rc";
+    static final String PROPERTY_PREFIX = "gradlenew.offered.";
+    static final String STABLE_PROPERTY = PROPERTY_PREFIX + "stable";
+    static final String RC_PROPERTY = PROPERTY_PREFIX + "rc";
+    static final String PREVIOUS_PROPERTY = PROPERTY_PREFIX + "previous";
+    static final List<String> SLOTS = List.of("stable", "rc", "previous");
 
     static OfferedVersions of(Project project) {
         ProviderFactory providers = project.getProviders();
         RegularFile file = pinFile(project);
         Provider<Properties> pinned = providers.fileContents(file).getAsText().map(OfferedVersions::parse);
-        return new OfferedVersions(
-            providers.gradleProperty(STABLE_PROPERTY).orElse(pinned.map(properties -> properties.getProperty("stable", ""))).filter(value -> !value.isBlank()),
-            providers.gradleProperty(RC_PROPERTY).orElse(pinned.map(properties -> properties.getProperty("rc", ""))).filter(value -> !value.isBlank()),
-            pinned);
+        return new OfferedVersions(slot(providers, pinned, "stable"), slot(providers, pinned, "rc"), slot(providers, pinned, "previous"), pinned, providers);
+    }
+
+    private static Provider<String> slot(ProviderFactory providers, Provider<Properties> pinned, String key) {
+        return providers.gradleProperty(PROPERTY_PREFIX + key).orElse(pinned.map(properties -> properties.getProperty(key, ""))).filter(value -> !value.isBlank());
+    }
+
+    Provider<String> version(String slot) {
+        return switch (slot) {
+            case "stable" -> stable;
+            case "rc" -> rc;
+            case "previous" -> previous;
+            default -> throw new IllegalArgumentException("Unknown slot " + slot);
+        };
+    }
+
+    Provider<Integer> daemonJava(String slot) {
+        return slot(providers, pinned, slot + ".daemon-java").map(Integer::valueOf);
     }
 
     Provider<String> distributionSha256(String version) {
@@ -37,7 +56,7 @@ record OfferedVersions(Provider<String> stable, Provider<String> rc, Provider<Pr
 
     private Provider<String> pinnedChecksum(String version, String kind) {
         return pinned.map(properties -> {
-            for (String slot : List.of("stable", "rc")) {
+            for (String slot : SLOTS) {
                 if (version.equals(properties.getProperty(slot, ""))) {
                     String checksum = properties.getProperty(slot + "." + kind + "-sha256", "");
                     return checksum.isEmpty() ? null : checksum;
@@ -51,15 +70,19 @@ record OfferedVersions(Provider<String> stable, Provider<String> rc, Provider<Pr
         return project.getLayout().getSettingsDirectory().file(FILE);
     }
 
+    Map<String, String> slots() {
+        Map<String, String> slots = new LinkedHashMap<>();
+        for (String slot : SLOTS) {
+            Provider<String> version = version(slot);
+            if (version.isPresent()) {
+                slots.put(slot, version.get());
+            }
+        }
+        return slots;
+    }
+
     List<String> versions() {
-        List<String> versions = new ArrayList<>();
-        if (stable.isPresent()) {
-            versions.add(stable.get());
-        }
-        if (rc.isPresent()) {
-            versions.add(rc.get());
-        }
-        return versions;
+        return new ArrayList<>(slots().values());
     }
 
     private static Properties parse(String text) {

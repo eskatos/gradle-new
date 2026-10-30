@@ -16,12 +16,13 @@ class PublishSiteTest {
 
     @Test
     void publishesEachOfferedVersionWithItsOwnTaskAndWritesTheIndex(@TempDir Path dir) throws IOException {
-        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=9.9.0-rc-1\n");
+        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=9.9.0-rc-1\nprevious=8.14.6\n");
 
         BuildResult result = project.run(":my-tool:publishSite");
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":my-tool:publishGradle-9.8.2").getOutcome());
         assertEquals(TaskOutcome.SUCCESS, result.task(":my-tool:publishGradle-9.9.0-rc-1").getOutcome());
+        assertEquals(TaskOutcome.SUCCESS, result.task(":my-tool:publishGradle-8.14.6").getOutcome());
         assertEquals(TaskOutcome.SUCCESS, result.task(":my-tool:publishVersionsIndex").getOutcome());
         String stable = Files.readString(project.path("my-tool/build/published/9.8.2/site/v/9.8.2/args.txt"));
         Path root = dir.toRealPath();
@@ -32,9 +33,9 @@ class PublishSiteTest {
         assertTrue(stable.contains("--templates-output " + root.resolve("my-tool/build/published/9.8.2/templates") + " "), stable);
         assertTrue(stable.contains("--work-dir " + root.resolve("my-tool/build/publisher-work/9.8.2") + " "), stable);
         assertTrue(stable.contains("--report-output " + root.resolve("my-tool/build/published/9.8.2/report") + " "), stable);
-        assertTrue(stable.endsWith("--template-budget-mb 64"), stable);
+        assertTrue(stable.contains(" --template-budget-mb 64"), stable);
         assertTrue(Files.readString(project.path("my-tool/build/published/9.9.0-rc-1/site/v/9.9.0-rc-1/args.txt")).startsWith("publish --version 9.9.0-rc-1 "));
-        assertEquals("index --stable 9.8.2 --rc 9.9.0-rc-1 --output " + root.resolve("my-tool/build/published/index"),
+        assertEquals("index --stable 9.8.2 --rc 9.9.0-rc-1 --previous 8.14.6 --output " + root.resolve("my-tool/build/published/index"),
             Files.readString(project.path("my-tool/build/published/index/versions.json")));
     }
 
@@ -44,7 +45,7 @@ class PublishSiteTest {
     @Test
     void passesThePinnedChecksumsOfAVersionAndADistributionCache(@TempDir Path dir) throws IOException {
         TestProject project = publisherProject(dir).file("offered-gradle-versions.properties",
-            "stable=9.8.2\nstable.distribution-sha256=" + DISTRIBUTION + "\nstable.wrapper-sha256=" + WRAPPER + "\nrc=9.9.0-rc-1\nrc.distribution-sha256=\nrc.wrapper-sha256=\n");
+            "stable=9.8.2\nstable.distribution-sha256=" + DISTRIBUTION + "\nstable.wrapper-sha256=" + WRAPPER + "\nrc=9.9.0-rc-1\nrc.distribution-sha256=\nrc.wrapper-sha256=\nprevious=8.14.6\n");
 
         project.run(":my-tool:publishSite");
 
@@ -59,7 +60,7 @@ class PublishSiteTest {
     @Test
     void anOverriddenVersionHasNoPinnedChecksums(@TempDir Path dir) throws IOException {
         TestProject project = publisherProject(dir).file("offered-gradle-versions.properties",
-            "stable=9.8.2\nstable.distribution-sha256=" + DISTRIBUTION + "\nstable.wrapper-sha256=" + WRAPPER + "\nrc=\n");
+            "stable=9.8.2\nstable.distribution-sha256=" + DISTRIBUTION + "\nstable.wrapper-sha256=" + WRAPPER + "\nrc=\nprevious=8.14.6\n");
 
         project.run(":my-tool:publishSite", "-Pgradlenew.offered.stable=9.8.1");
 
@@ -68,7 +69,7 @@ class PublishSiteTest {
 
     @Test
     void aChangedPinnedChecksumInvalidatesThePublishedVersion(@TempDir Path dir) throws IOException {
-        String pin = "stable=9.8.2\nstable.distribution-sha256=%s\nstable.wrapper-sha256=" + WRAPPER + "\nrc=\n";
+        String pin = "stable=9.8.2\nstable.distribution-sha256=%s\nstable.wrapper-sha256=" + WRAPPER + "\nrc=\nprevious=8.14.6\n";
         TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", pin.formatted(DISTRIBUTION));
         project.run(":my-tool:publishSite");
         assertEquals(TaskOutcome.UP_TO_DATE, project.run(":my-tool:publishSite").task(":my-tool:publishGradle-9.8.2").getOutcome());
@@ -80,16 +81,81 @@ class PublishSiteTest {
 
     @Test
     void takesTheTemplateBudgetFromAGradleProperty(@TempDir Path dir) throws IOException {
-        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=\n");
+        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=\nprevious=8.14.6\n");
 
         project.run(":my-tool:publishSite", "-Pgradlenew.templates.budget-mb=5");
 
-        assertTrue(Files.readString(project.path("my-tool/build/published/9.8.2/site/v/9.8.2/args.txt")).endsWith("--template-budget-mb 5"));
+        assertTrue(Files.readString(project.path("my-tool/build/published/9.8.2/site/v/9.8.2/args.txt")).contains(" --template-budget-mb 5"));
+    }
+
+    @Test
+    void runsEachVersionOnTheJavaItsSlotPins(@TempDir Path dir) throws IOException {
+        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties",
+            "stable=9.8.2\nstable.daemon-java=25\nrc=9.9.0-rc-1\nprevious=8.14.6\nprevious.daemon-java=21\n");
+
+        project.run(":my-tool:publishSite");
+
+        assertEquals(25, javaOf(project, "9.8.2"));
+        assertEquals(25, javaOf(project, "9.9.0-rc-1"), "a version without a pinned Java runs on the project toolchain");
+        assertEquals(21, javaOf(project, "8.14.6"));
+    }
+
+    @Test
+    void aChangedJavaInvalidatesThePublishedVersion(@TempDir Path dir) throws IOException {
+        String pin = "stable=9.8.2\nstable.daemon-java=25\nrc=\nprevious=8.14.6\nprevious.daemon-java=%d\n";
+        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", pin.formatted(21));
+        project.run(":my-tool:publishSite");
+        assertEquals(TaskOutcome.UP_TO_DATE, project.run(":my-tool:publishSite").task(":my-tool:publishGradle-8.14.6").getOutcome());
+
+        project.file("offered-gradle-versions.properties", pin.formatted(25));
+
+        BuildResult changed = project.run(":my-tool:publishSite");
+        assertEquals(TaskOutcome.SUCCESS, changed.task(":my-tool:publishGradle-8.14.6").getOutcome());
+        assertEquals(TaskOutcome.UP_TO_DATE, changed.task(":my-tool:publishGradle-9.8.2").getOutcome());
+    }
+
+    @Test
+    void anotherCheckoutReusesThePublishedVersionsFromTheBuildCache(@TempDir Path dir) throws IOException {
+        Path first = dir.resolve("first");
+        TestProject project = publisherProject(first).file("offered-gradle-versions.properties",
+            "stable=9.8.2\nstable.daemon-java=25\nrc=\nprevious=8.14.6\nprevious.daemon-java=21\n");
+        project.run(":my-tool:publishSite", "--build-cache");
+
+        Path second = dir.resolve("second");
+        try (var paths = Files.walk(first)) {
+            for (Path source : (Iterable<Path>) paths::iterator) {
+                Path relative = first.relativize(source);
+                if (relative.startsWith("my-tool/build") || relative.startsWith(".gradle") || relative.startsWith("my-tool/.kotlin")) continue;
+                Path target = second.resolve(relative);
+                if (Files.isDirectory(source)) Files.createDirectories(target); else Files.copy(source, target);
+            }
+        }
+        BuildResult elsewhere = new TestProject(second).run(":my-tool:publishSite", "--build-cache");
+
+        assertEquals(TaskOutcome.FROM_CACHE, elsewhere.task(":my-tool:publishGradle-9.8.2").getOutcome());
+        assertEquals(TaskOutcome.FROM_CACHE, elsewhere.task(":my-tool:publishGradle-8.14.6").getOutcome());
+    }
+
+    @Test
+    void failsClearlyWhenNoPreviousMajorIsOffered(@TempDir Path dir) throws IOException {
+        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=\n");
+
+        BuildResult result = project.runAndFail(":my-tool:publishSite");
+
+        assertTrue(result.getOutput().contains("No previous major Gradle version is offered"), result.getOutput());
+    }
+
+    private static int javaOf(TestProject project, String version) throws IOException {
+        String arguments = Files.readString(project.path("my-tool/build/published/" + version + "/site/v/" + version + "/args.txt"));
+        assertTrue(arguments.contains(" --java-home "), arguments);
+        Path home = Path.of(arguments.substring(arguments.indexOf(" --java-home ") + " --java-home ".length()).split(" ")[0]);
+        String release = Files.readAllLines(home.resolve("release")).stream().filter(line -> line.startsWith("JAVA_VERSION=")).findFirst().orElseThrow();
+        return Integer.parseInt(release.substring(release.indexOf('"') + 1).split("[.\"]")[0]);
     }
 
     @Test
     void failsOnANonZeroExitAndNamesTheReport(@TempDir Path dir) throws IOException {
-        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.9.9\nrc=\n");
+        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.9.9\nrc=\nprevious=8.14.6\n");
 
         BuildResult result = project.runAndFail(":my-tool:publishSite");
 
@@ -100,10 +166,10 @@ class PublishSiteTest {
 
     @Test
     void addingAnRcReusesThePublishedStableVersion(@TempDir Path dir) throws IOException {
-        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=\n");
+        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=\nprevious=8.14.6\n");
         project.run(":my-tool:publishSite", "--build-cache");
 
-        project.file("offered-gradle-versions.properties", "stable=9.8.2\nrc=9.9.0-rc-1\n");
+        project.file("offered-gradle-versions.properties", "stable=9.8.2\nrc=9.9.0-rc-1\nprevious=8.14.6\n");
         BuildResult withRc = project.run(":my-tool:publishSite", "--build-cache");
         assertEquals(TaskOutcome.UP_TO_DATE, withRc.task(":my-tool:publishGradle-9.8.2").getOutcome());
         assertEquals(TaskOutcome.SUCCESS, withRc.task(":my-tool:publishGradle-9.9.0-rc-1").getOutcome());
@@ -118,7 +184,7 @@ class PublishSiteTest {
 
     @Test
     void isUpToDateDespiteBuildOutputsOfTheBuilderAndRerunsWhenItsSourcesChange(@TempDir Path dir) throws IOException {
-        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=\n");
+        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=\nprevious=8.14.6\n");
         String[] arguments = {":my-tool:publishSite", "--build-cache"};
 
         project.run(arguments);
@@ -134,7 +200,7 @@ class PublishSiteTest {
     @Test
     void exposesTheIndexAndEveryVersionAsTheSiteVariantAndTheTemplatesSeparately(@TempDir Path dir) throws IOException {
         TestProject project = publisherProject(dir)
-            .file("offered-gradle-versions.properties", "stable=9.8.2\nrc=9.9.0-rc-1\n")
+            .file("offered-gradle-versions.properties", "stable=9.8.2\nrc=9.9.0-rc-1\nprevious=8.14.6\n")
             .file("settings.gradle.kts", TestProject.settings() + "include(\"my-tool\", \"consumer\")\n")
             .file("consumer/build.gradle.kts", """
                 plugins { base }
@@ -181,7 +247,7 @@ class PublishSiteTest {
 
     @Test
     void proposeVersionsRunsTheProposeCommandOnThePinFileEveryTime(@TempDir Path dir) throws IOException {
-        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=\n");
+        TestProject project = publisherProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=\nprevious=8.14.6\n");
 
         BuildResult first = project.run(":my-tool:proposeVersions", "-Pgradlenew.feeds-url=http://127.0.0.1:9/versions/");
         BuildResult second = project.run(":my-tool:proposeVersions");

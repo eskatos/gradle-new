@@ -74,28 +74,28 @@ class NativeImageServerPluginTest {
 
     @Test
     void tagsTheImageWithTheOfferedVersionsAndTheCommit(@TempDir Path dir) throws IOException, InterruptedException {
-        TestProject project = imageProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=9.9.0-rc-1\n");
+        TestProject project = imageProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=9.9.0-rc-1\nprevious=8.14.6\n");
         git(dir, "init", "--quiet");
         git(dir, "add", ".");
         git(dir, "-c", "user.name=test", "-c", "user.email=test@example.org", "commit", "--quiet", "-m", "initial");
         String commit = git(dir, "rev-parse", "--short=12", "HEAD");
 
         project.runWithEnvironment(fakeTool(dir), ":server:buildImage");
-        assertEquals("gradlenew/server:9.8.2_9.9.0-rc-1-" + commit, imageReference(dir));
-        assertTrue(Files.readString(dir.resolve("build/tool-args.txt")).contains("--tag gradlenew/server:9.8.2_9.9.0-rc-1-" + commit + " "));
+        assertEquals("gradlenew/server:9.8.2--8.14.6--9.9.0-rc-1--" + commit, imageReference(dir));
+        assertTrue(Files.readString(dir.resolve("build/tool-args.txt")).contains("--tag gradlenew/server:9.8.2--8.14.6--9.9.0-rc-1--" + commit + " "));
 
         project.file("ui/src/site/versions.json", "{\"stable\":\"9.8.2\",\"changed\":true}");
         project.runWithEnvironment(fakeTool(dir), ":server:buildImage");
-        assertTrue(imageReference(dir).matches("gradlenew/server:9\\.8\\.2_9\\.9\\.0-rc-1-" + commit + "-dirty-[0-9a-f]{16}"), imageReference(dir));
+        assertTrue(imageReference(dir).matches("gradlenew/server:9\\.8\\.2--8\\.14\\.6--9\\.9\\.0-rc-1--" + commit + "-dirty-[0-9a-f]{16}"), imageReference(dir));
     }
 
     @Test
     void withoutACommitTheTagCarriesTheContentHash(@TempDir Path dir) throws IOException {
-        TestProject project = imageProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=\n");
+        TestProject project = imageProject(dir).file("offered-gradle-versions.properties", "stable=9.8.2\nrc=\nprevious=8.14.6\n");
 
         project.runWithEnvironment(fakeTool(dir), ":server:buildImage");
 
-        assertTrue(imageReference(dir).matches("gradlenew/server:9\\.8\\.2-dirty-[0-9a-f]{16}"), imageReference(dir));
+        assertTrue(imageReference(dir).matches("gradlenew/server:9\\.8\\.2--8\\.14\\.6--dirty-[0-9a-f]{16}"), imageReference(dir));
     }
 
     private static TestProject imageProject(Path dir) throws IOException {

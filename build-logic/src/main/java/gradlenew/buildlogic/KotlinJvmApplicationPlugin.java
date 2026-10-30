@@ -3,6 +3,7 @@ package gradlenew.buildlogic;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.file.Directory;
@@ -24,7 +25,8 @@ public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project project) {
-        JvmConventions.applyKotlinJvm(project, Catalog.of(project));
+        Catalog catalog = Catalog.of(project);
+        JvmConventions.applyKotlinJvm(project, catalog);
         project.getPluginManager().apply("application");
         JavaApplication application = project.getExtensions().getByType(JavaApplication.class);
         application.getMainClass().set(mainClassFor(project.getName()));
@@ -42,7 +44,9 @@ public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
 
         File distributionCache = new File(project.getGradle().getGradleUserHomeDir(), "caches/gradlenew/distributions");
         List<TaskProvider<PublishVersionTask>> publishVersions = new ArrayList<>();
-        for (String version : offered.versions()) {
+        for (Map.Entry<String, String> slot : offered.slots().entrySet()) {
+            String version = slot.getValue();
+            Provider<Integer> daemonJava = DaemonJava.version(offered, slot.getKey(), catalog);
             publishVersions.add(project.getTasks().register("publishGradle-" + version, PublishVersionTask.class, task -> {
                 task.setGroup(PUBLISHING_GROUP);
                 task.setDescription("Verifies Gradle " + version + " and publishes its model and templates.");
@@ -61,6 +65,8 @@ public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
                 task.getDistributionSha256().set(offered.distributionSha256(version));
                 task.getWrapperSha256().set(offered.wrapperSha256(version));
                 task.getDistributionCache().set(distributionCache);
+                task.getDaemonJava().set(daemonJava);
+                task.getDaemonJavaHome().set(DaemonJava.home(project, daemonJava));
             }));
         }
         TaskProvider<PublishVersionsIndexTask> publishIndex = project.getTasks().register("publishVersionsIndex", PublishVersionsIndexTask.class, task -> {
@@ -70,6 +76,7 @@ public abstract class KotlinJvmApplicationPlugin implements Plugin<Project> {
             task.setClasspath(runtimeClasspath);
             task.getStable().set(offered.stable());
             task.getRc().set(offered.rc());
+            task.getPrevious().set(offered.previous());
             task.getIndexDirectory().set(buildDir.dir("published/index"));
         });
         project.getTasks().register("publishSite", task -> {

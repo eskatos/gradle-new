@@ -51,6 +51,12 @@ public abstract class PublishVersionTask extends JavaExec {
     @Internal
     public abstract DirectoryProperty getDistributionCache();
 
+    @Input
+    public abstract Property<Integer> getDaemonJava();
+
+    @Internal
+    public abstract DirectoryProperty getDaemonJavaHome();
+
     @OutputDirectory
     public abstract DirectoryProperty getSiteDirectory();
 
@@ -74,7 +80,8 @@ public abstract class PublishVersionTask extends JavaExec {
             "--templates-output", getTemplatesDirectory().get().getAsFile().getAbsolutePath(),
             "--work-dir", getWorkDirectory().get().getAsFile().getAbsolutePath(),
             "--report-output", getReportDirectory().get().getAsFile().getAbsolutePath(),
-            "--distribution-cache", getDistributionCache().get().getAsFile().getAbsolutePath()));
+            "--distribution-cache", getDistributionCache().get().getAsFile().getAbsolutePath(),
+            "--java-home", getDaemonJavaHome().get().getAsFile().getAbsolutePath()));
         if (getDistributionSha256().isPresent() && getWrapperSha256().isPresent()) {
             arguments.addAll(List.of("--distribution-sha256", getDistributionSha256().get(), "--wrapper-sha256", getWrapperSha256().get()));
         }

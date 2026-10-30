@@ -21,6 +21,10 @@ public abstract class PublishVersionsIndexTask extends JavaExec {
     @Optional
     public abstract Property<String> getRc();
 
+    @Input
+    @Optional
+    public abstract Property<String> getPrevious();
+
     @OutputDirectory
     public abstract DirectoryProperty getIndexDirectory();
 
@@ -30,10 +34,15 @@ public abstract class PublishVersionsIndexTask extends JavaExec {
             throw new GradleException("No stable Gradle version is offered: create " + OfferedVersions.FILE
                 + " at the repository root with stable=<version>, or pass -P" + OfferedVersions.STABLE_PROPERTY + "=<version>");
         }
+        if (!getPrevious().isPresent()) {
+            throw new GradleException("No previous major Gradle version is offered: add previous=<version> to " + OfferedVersions.FILE
+                + " at the repository root, or pass -P" + OfferedVersions.PREVIOUS_PROPERTY + "=<version>");
+        }
         setArgs(List.of(
             "index",
             "--stable", getStable().get(),
             "--rc", getRc().getOrElse(""),
+            "--previous", getPrevious().get(),
             "--output", getIndexDirectory().get().getAsFile().getAbsolutePath()));
         super.exec();
     }

@@ -42,13 +42,13 @@ class KotlinJvmPluginsTest {
                 plugins { id("gradlenew.kotlin-jvm-library") }
                 jvmLibrary { testsUseOfferedGradleVersions = true }
                 """)
-            .file("offered-gradle-versions.properties", "stable=9.8.2\nrc=9.9.0-rc-1\n")
+            .file("offered-gradle-versions.properties", "stable=9.8.2\nrc=9.9.0-rc-1\nprevious=8.14.6\nprevious.daemon-java=21\n")
             .file("src/test/kotlin/probe/PinnedTest.kt", PINNED_PROBE);
 
         BuildResult result = project.run("test");
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":test").getOutcome());
-        assertEquals("9.8.2|9.9.0-rc-1", Files.readString(project.path("probe.txt")));
+        assertEquals("9.8.2|9.9.0-rc-1|8.14.6|true", Files.readString(project.path("probe.txt")));
     }
 
     @Test
@@ -59,9 +59,9 @@ class KotlinJvmPluginsTest {
             .file("src/test/kotlin/probe/PinnedTest.kt", PINNED_PROBE);
 
         project.run("test");
-        assertEquals("null|null", Files.readString(project.path("probe.txt")));
+        assertEquals("null|null|null|false", Files.readString(project.path("probe.txt")));
 
-        project.file("offered-gradle-versions.properties", "stable=9.9.0\nrc=9.10.0-rc-1\n");
+        project.file("offered-gradle-versions.properties", "stable=9.9.0\nrc=9.10.0-rc-1\nprevious=8.14.6\nprevious.daemon-java=21\n");
         assertEquals(TaskOutcome.UP_TO_DATE, project.run("test").task(":test").getOutcome());
     }
 
@@ -74,7 +74,10 @@ class KotlinJvmPluginsTest {
         class PinnedTest {
             @Test
             fun recordsOfferedVersions() {
-                File("probe.txt").writeText(System.getProperty("gradlenew.offered.stable") + "|" + System.getProperty("gradlenew.offered.rc"))
+                File("probe.txt").writeText(
+                    listOf("stable", "rc", "previous").joinToString("|") { "${System.getProperty("gradlenew.offered." + it)}" } +
+                        "|" + (System.getProperty("gradlenew.offered.previous.java-home") != null)
+                )
             }
         }
         """;

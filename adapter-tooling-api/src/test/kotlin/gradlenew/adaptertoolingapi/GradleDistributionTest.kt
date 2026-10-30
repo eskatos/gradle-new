@@ -30,6 +30,15 @@ class GradleDistributionTest {
     }
 
     @Test
+    fun everyOfferedVersionRunsOnTheJavaItsSlotPins() {
+        for (version in Pinned.versions) {
+            val javaHome = requireNotNull(Pinned.javaHome(version)) { "the build gives no Java home for Gradle $version" }
+            val environment = Pinned.distribution(version).requestModel(emptyBuild(), BuildEnvironment::class.java, listOf("--offline"))
+            assertEquals(javaHome.canonicalFile, environment.java.javaHome.canonicalFile, version)
+        }
+    }
+
+    @Test
     fun refusesAJavaHomeThatIsNotAJava() {
         val notAJava = Files.createTempDirectory("not-a-java").toFile()
         assertFails { GradleDistribution(Pinned.stable, javaHome = notAJava).runTasks(emptyBuild(), listOf("help", "--quiet", "--offline")) }
