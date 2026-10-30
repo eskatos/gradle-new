@@ -39,6 +39,8 @@ data class GradleVersion(val parts: List<Int>, val stage: Stage) : Comparable<Gr
 
     val base: GradleVersion get() = GradleVersion(parts, Stage.Final)
 
+    val major: Int get() = parts[0]
+
     val isFinal: Boolean get() = stage == Stage.Final
 
     val isReleaseCandidate: Boolean get() = stage is Stage.ReleaseCandidate

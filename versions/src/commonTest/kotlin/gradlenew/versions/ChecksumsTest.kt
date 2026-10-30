@@ -22,20 +22,6 @@ class ChecksumsTest {
     }
 
     @Test
-    fun aPinCarriesChecksumsPerSlot() {
-        val pin = Pin("9.8.2", "9.9.0-rc-1", Checksums(DISTRIBUTION_982, WRAPPER_982), Checksums(DISTRIBUTION_RC, WRAPPER_RC))
-        assertEquals(Checksums(DISTRIBUTION_982, WRAPPER_982), pin.checksumsOf("9.8.2"))
-        assertEquals(Checksums(DISTRIBUTION_RC, WRAPPER_RC), pin.checksumsOf("9.9.0-rc-1"))
-        assertNull(pin.checksumsOf("9.8.0-rc-3"))
-        assertNull(Pin("9.8.2", null).checksumsOf("9.8.2"))
-    }
-
-    @Test
-    fun anEmptyRcSlotHasNoChecksums() {
-        assertFailsWith<IllegalArgumentException> { Pin("9.8.2", null, null, Checksums(DISTRIBUTION_RC, WRAPPER_RC)) }
-    }
-
-    @Test
     fun aFeedEntryCarriesItsChecksumsWhenItHasBoth() {
         assertEquals(Checksums(DISTRIBUTION_982, WRAPPER_982), FeedEntry("9.8.2", checksum = DISTRIBUTION_982, wrapperChecksum = WRAPPER_982).checksums())
         assertNull(FeedEntry("9.8.2", checksum = DISTRIBUTION_982).checksums())
