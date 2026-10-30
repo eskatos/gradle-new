@@ -2,12 +2,14 @@ package gradlenew.server
 
 import gradlenew.adapterjson.ErrorJson
 import gradlenew.adapterzip.Zip
+import gradlenew.domain.agent.RequestOrigin
 import gradlenew.domain.generation.GenerationResult
 import gradlenew.domain.generation.ModelLookup
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
+import io.ktor.http.withCharset
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.createApplicationPlugin
@@ -37,6 +39,7 @@ private const val CONTENT_SECURITY_POLICY = "default-src 'self'; base-uri 'self'
 private const val STRICT_TRANSPORT_SECURITY = "max-age=31536000"
 private const val GENERATE_PATH = "/api/generate"
 private val GENERATE = RateLimitName("generate")
+private val PLAIN_TEXT = ContentType.Text.Plain.withCharset(Charsets.UTF_8)
 
 data class RateLimits(val generatePerMinute: Int, val overallPerMinute: Int) {
     companion object {
@@ -69,8 +72,9 @@ internal fun clientOf(call: ApplicationCall): String =
         .lastOrNull { it.isNotEmpty() }
         ?: call.request.local.remoteAddress
 
-fun Application.gradleNew(siteDir: File, templatesDir: File, limits: RateLimits = RateLimits.DEFAULT) {
+fun Application.gradleNew(siteDir: File, templatesDir: File, agentDir: File, limits: RateLimits = RateLimits.DEFAULT) {
     val site = Site(siteDir, templatesDir)
+    val agent = AgentFiles(agentDir)
     install(SecurityHeaders)
     install(TooManyBuildsBody)
     install(RateLimit) {
@@ -97,6 +101,9 @@ fun Application.gradleNew(siteDir: File, templatesDir: File, limits: RateLimits 
                 }
             }
         }
+        get(AgentFiles.INDEX_PATH) { respondForOrigin(call, ContentType.Application.Json, agent::index) }
+        get(AgentFiles.SKILL_PATH) { respondForOrigin(call, PLAIN_TEXT, agent::skill) }
+        get(AgentFiles.LLMS_PATH) { respondForOrigin(call, PLAIN_TEXT, agent::llms) }
         rateLimit(GENERATE) {
             get(GENERATE_PATH) {
                 when (val result = site.generation.generate(call.request.queryParameters.flattenEntries())) {
@@ -130,6 +137,16 @@ fun Application.gradleNew(siteDir: File, templatesDir: File, limits: RateLimits 
     }
 }
 
+private suspend fun respondForOrigin(call: ApplicationCall, contentType: ContentType, body: (String) -> ByteArray) {
+    val origin = RequestOrigin.of(call.request.headers[HttpHeaders.Host])
+    if (origin == null) {
+        call.respondText(ErrorJson.encode("The Host header is not a host name with an optional port."), ContentType.Application.Json, HttpStatusCode.BadRequest)
+    } else {
+        call.response.header(HttpHeaders.CacheControl, SHORT_LIVED)
+        call.respondBytes(body(origin), contentType)
+    }
+}
+
 private fun contentTypeOf(file: File): ContentType? = when (file.extension) {
     "json" -> ContentType.Application.Json
     "woff2" -> ContentType("font", "woff2")
@@ -137,5 +154,6 @@ private fun contentTypeOf(file: File): ContentType? = when (file.extension) {
     else -> null
 }
 
-private fun entityTag(bytes: ByteArray): String =
-    "\"" + MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) } + "\""
+private fun entityTag(bytes: ByteArray): String = "\"" + sha256(bytes) + "\""
+
+internal fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }

@@ -72,6 +72,8 @@ class GenerateRouteTest {
         resolve("v/9.8.2/model.json").writeText(InitModelJson.encode(model))
     }
 
+    private val agent: File = Files.createTempDirectory("agent").toFile()
+
     private val templates: File = Files.createTempDirectory("templates").toFile().apply {
         resolve("9.8.2").mkdirs()
         resolve("9.8.2/$templateKey.zip").writeBytes(Zip.write(template))
@@ -79,7 +81,7 @@ class GenerateRouteTest {
 
     @Test
     fun returnsTheGeneratedBuildAsAZip() = testApplication {
-        application { gradleNew(site, templates) }
+        application { gradleNew(site, templates, agent) }
 
         val response = client.get("/api/generate?type=java-application&project-name=demo-app&package=com.acme.demo&java-version=17")
 
@@ -101,7 +103,7 @@ class GenerateRouteTest {
 
     @Test
     fun marksAConcreteVersionAsImmutableAndAnswersIdenticalRequestsIdentically() = testApplication {
-        application { gradleNew(site, templates) }
+        application { gradleNew(site, templates, agent) }
 
         val first = client.get("/api/generate?version=9.8.2&type=java-application&project-name=demo")
         val second = client.get("/api/generate?version=9.8.2&type=java-application&project-name=demo")
@@ -113,7 +115,7 @@ class GenerateRouteTest {
 
     @Test
     fun answersNotModifiedForAMatchingEntityTag() = testApplication {
-        application { gradleNew(site, templates) }
+        application { gradleNew(site, templates, agent) }
         val etag = client.get("/api/generate?type=java-application&project-name=demo").headers[HttpHeaders.ETag]!!
 
         val response = client.get("/api/generate?type=java-application&project-name=demo") { header(HttpHeaders.IfNoneMatch, etag) }
@@ -125,7 +127,7 @@ class GenerateRouteTest {
 
     @Test
     fun rejectsInvalidRequestsWithTheRuleAsJson() = testApplication {
-        application { gradleNew(site, templates) }
+        application { gradleNew(site, templates, agent) }
 
         val response = client.get("/api/generate?type=java-application&project-name=demo&java-version=6")
 
@@ -140,7 +142,7 @@ class GenerateRouteTest {
 
     @Test
     fun templatesAreNotServed() = testApplication {
-        application { gradleNew(site, templates) }
+        application { gradleNew(site, templates, agent) }
 
         assertEquals(HttpStatusCode.NotFound, client.get("/v/9.8.2/templates/$templateKey.zip").status)
         assertEquals(HttpStatusCode.NotFound, client.get("/templates/9.8.2/$templateKey.zip").status)
@@ -161,7 +163,7 @@ class GenerateRouteTest {
                 ),
             )
         }
-        application { gradleNew(site, enumerated) }
+        application { gradleNew(site, enumerated, agent) }
 
         val response = client.get("/api/generate?type=java-application&project-name=demo&java-version=17")
         val outOfRange = client.get("/api/generate?type=java-application&project-name=demo&java-version=32")
@@ -184,7 +186,7 @@ class GenerateRouteTest {
 
     @Test
     fun rejectsRepeatedParameters() = testApplication {
-        application { gradleNew(site, templates) }
+        application { gradleNew(site, templates, agent) }
 
         val response = client.get("/api/generate?type=java-application&project-name=a&project-name=b")
 
@@ -199,7 +201,7 @@ class GenerateRouteTest {
 
     @Test
     fun limitsGeneratedBuildsPerClientWithRetryAfterAndAJsonMessage() = testApplication {
-        application { gradleNew(site, templates, RateLimits(generatePerMinute = 3, overallPerMinute = 100)) }
+        application { gradleNew(site, templates, agent, RateLimits(generatePerMinute = 3, overallPerMinute = 100)) }
         val url = "/api/generate?type=java-application&project-name=demo"
 
         repeat(3) { assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Forwarded-For", "203.0.113.7") }.status) }
@@ -215,7 +217,7 @@ class GenerateRouteTest {
 
     @Test
     fun theClientIsTheRightmostForwardedForEntrySoSpoofedEntriesDoNotHelp() = testApplication {
-        application { gradleNew(site, templates, RateLimits(generatePerMinute = 2, overallPerMinute = 100)) }
+        application { gradleNew(site, templates, agent, RateLimits(generatePerMinute = 2, overallPerMinute = 100)) }
         val url = "/api/generate?type=java-application&project-name=demo"
 
         assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Forwarded-For", "10.0.0.1, 203.0.113.7") }.status)
@@ -226,7 +228,7 @@ class GenerateRouteTest {
 
     @Test
     fun limitsEveryRequestOverallPerClient() = testApplication {
-        application { gradleNew(site, templates, RateLimits(generatePerMinute = 100, overallPerMinute = 4)) }
+        application { gradleNew(site, templates, agent, RateLimits(generatePerMinute = 100, overallPerMinute = 4)) }
 
         repeat(4) { assertEquals(HttpStatusCode.OK, client.get("/api/versions").status) }
         val limited = client.get("/api/versions")
