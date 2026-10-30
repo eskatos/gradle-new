@@ -1,6 +1,7 @@
 package gradlenew.buildlogic;
 
 import org.gradle.api.Project;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.JavaExec;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.testing.Test;
@@ -12,6 +13,7 @@ final class PlaywrightBrowsers {
     static final String ENGINES_PROPERTY = "playwright.engines";
     static final String ENGINES = "webkit,firefox,chromium";
     static final String WITH_DEPS_PROPERTY = "playwright.withDeps";
+    static final String SERVICE = "browserTests";
 
     private PlaywrightBrowsers() {
     }
@@ -32,7 +34,10 @@ final class PlaywrightBrowsers {
             task.doNotTrackState("Playwright keeps its browsers in a cache outside the build");
         });
         String engines = project.getProviders().gradleProperty(ENGINES_PROPERTY).getOrElse(ENGINES);
+        Provider<BrowserTestsService> oneAtATime = project.getGradle().getSharedServices()
+            .registerIfAbsent(SERVICE, BrowserTestsService.class, spec -> spec.getMaxParallelUsages().set(1));
         project.getTasks().withType(Test.class).configureEach(test -> {
+            test.usesService(oneAtATime);
             test.dependsOn(install);
             test.environment(SKIP_DOWNLOAD, "1");
             test.systemProperty(ENGINES_PROPERTY, engines);
