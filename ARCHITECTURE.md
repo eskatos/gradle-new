@@ -194,17 +194,40 @@ system:
    Feed data is treated as untrusted.
 2. **Verify.** CI runs the full build on the pull request, including the
    publish and verification of every offered version and the acceptance
-   journeys. A green proposal merges automatically.
-3. **Publish.** A push to main builds the image, pushes it to the GitHub
-   Container Registry under a tag naming its versions and commit
-   (`9.8.2--8.14.6--<commit>`), deploys it, smoke-tests the live site with
-   the acceptance journeys and rolls back on failure.
-4. **Heartbeat.** The workflow keeps the repository active so that GitHub
-   does not disable the schedule.
+   journeys. Proposals have auto-merge enabled, and main requires CI's checks
+   on a branch that is up to date, so a proposal merges only once it has been
+   tested on top of the current main.
+3. **Publish.** A push to main runs the full build again, then pushes the
+   tested image to the GitHub Container Registry under a tag naming its
+   versions and commit (`9.8.2--8.14.6--<commit>`), with a provenance
+   attestation and a GitHub Release, deploys it, smoke-tests the live site
+   with the acceptance journeys and rolls back on failure.
+4. **Heartbeat.** When `status.json` is more than a week old, the same
+   workflow proposes an update of it through the same flow, so the
+   repository never looks inactive and GitHub keeps the schedule running.
 
 A failing version leaves its pull request red: that is the alarm, and main
 and the live site keep serving the last good versions. Slots never block one
 another.
+
+## Continuous integration
+
+| Workflow | Runs | Does |
+|---|---|---|
+| CI | on every pull request | wrapper validation, the full build with both acceptance journeys against the image |
+| Publish | on every push to main | the full build, then the image pushed, attested and released |
+| Propose | hourly | the version proposals and the heartbeat |
+| Update dependencies | weekly | the catalog and the wrapper at their latest releases, in one pull request merged by hand after review |
+| Dependabot | weekly | the actions' pinned SHAs and the base images' digests, each held a week after its release |
+
+- Each job gets only the permissions it needs. The token that opens pull
+  requests, a fine-grained token scoped to this repository, is given only to
+  the steps that open them, so pull requests it opens trigger CI. Actions are
+  pinned by commit SHA, and no feed data reaches a shell command.
+- The build cache is saved by runs on main and read by pull requests.
+- Main is protected by a ruleset: CI's checks are required and branches must
+  be up to date; force pushes and deletions are blocked. The maintainer
+  pushes to main directly.
 
 ## Code map
 
