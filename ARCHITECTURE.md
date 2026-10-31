@@ -214,7 +214,7 @@ another.
 
 | Workflow | Runs | Does |
 |---|---|---|
-| CI | on every pull request | wrapper validation, the full build with both acceptance journeys against the image |
+| CI | on every pull request | the full build with both acceptance journeys against the image |
 | Publish | on every push to main | the full build, then the image pushed, attested and released |
 | Propose | hourly | the version proposals and the heartbeat |
 | Update dependencies | weekly | the catalog and the wrapper at their latest releases, in one pull request merged by hand after review |
@@ -224,7 +224,9 @@ another.
   requests, a fine-grained token scoped to this repository, is given only to
   the steps that open them, so pull requests it opens trigger CI. Actions are
   pinned by commit SHA, and no feed data reaches a shell command.
-- The build cache is saved by runs on main and read by pull requests.
+- Every workflow that runs Gradle sets it up with `gradle/actions/setup-gradle`,
+  which first validates the checksum of the wrapper jar. The build cache is
+  saved by runs on main and read by pull requests.
 - Main is protected by a ruleset: CI's checks are required and branches must
   be up to date; force pushes and deletions are blocked. The maintainer
   pushes to main directly.
@@ -357,10 +359,10 @@ recorded here.
   services.gradle.org and each new version's compatibility page on
   docs.gradle.org.
 - GitHub Actions, each pinned by full commit SHA: `actions/checkout`,
-  `gradle/actions/setup-gradle`, `gradle/actions/wrapper-validation`,
-  `actions/upload-artifact`, `actions/attest-build-provenance`,
-  `actions/cache`; setup-gradle's enhanced cache provider, a proprietary
-  component free for public repositories.
+  `gradle/actions/setup-gradle`, `actions/upload-artifact`,
+  `actions/attest-build-provenance`, `actions/cache`; setup-gradle's
+  enhanced cache provider, a proprietary component free for public
+  repositories.
 - Tools: Docker or Podman, the Scaleway CLI, the GitHub CLI.
 - Vendored in `ui`, each with its source and version in `ui/VENDORED.md`:
   the Gradle Build Tool design system's tokens and the Gradle logos,
