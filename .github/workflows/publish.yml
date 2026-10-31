@@ -86,4 +86,4 @@ jobs:
             echo
             grep -E '^(stable|rc|previous)=' offered-gradle-versions.properties | sed -e 's/^\(.*\)=$/- \1: none/' -e 's/^\(.*\)=\(.*\)$/- \1: \2/'
           } > "$RUNNER_TEMP/notes.md"
-          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --latest
