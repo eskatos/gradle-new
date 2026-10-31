@@ -215,9 +215,10 @@ another.
 | Workflow | Runs | Does |
 |---|---|---|
 | CI | on every pull request | the full build with both acceptance journeys against the image |
-| Publish | on every push to main | the full build, then the image pushed, attested and released |
+| Publish | on every push to main, except one changing only `status.json`, `README.md` or `ARCHITECTURE.md` | the full build, then the image pushed, attested and released |
 | Propose | hourly | the version proposals and the heartbeat |
 | Update dependencies | weekly | the catalog and the wrapper at their latest releases, in one pull request merged by hand after review |
+| Cleanup | weekly | deletes the images older than the 10 most recent, with their attestations and releases |
 | Dependabot | weekly | the actions' pinned SHAs and the base images' digests, each held a week after its release |
 
 - Each job gets only the permissions it needs. The token that opens pull
