@@ -24,7 +24,9 @@ import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondFile
 import io.ktor.server.response.respondText
+import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.util.flattenEntries
 import java.io.File
@@ -40,6 +42,8 @@ private const val STRICT_TRANSPORT_SECURITY = "max-age=31536000"
 private const val GENERATE_PATH = "/api/generate"
 private val GENERATE = RateLimitName("generate")
 private val PLAIN_TEXT = ContentType.Text.Plain.withCharset(Charsets.UTF_8)
+const val MAINTENANCE_MESSAGE = "gradle-new is not available at the moment. Please come back later."
+private const val MAINTENANCE_RETRY_AFTER_SECONDS = 3600
 
 data class RateLimits(val generatePerMinute: Int, val overallPerMinute: Int) {
     companion object {
@@ -72,7 +76,7 @@ internal fun clientOf(call: ApplicationCall): String =
         .lastOrNull { it.isNotEmpty() }
         ?: call.request.local.remoteAddress
 
-fun Application.gradleNew(siteDir: File, templatesDir: File, agentDir: File, limits: RateLimits = RateLimits.DEFAULT) {
+fun Application.gradleNew(siteDir: File, templatesDir: File, agentDir: File, limits: RateLimits = RateLimits.DEFAULT, maintenance: Boolean = false) {
     val site = Site(siteDir, templatesDir)
     val agent = AgentFiles(agentDir)
     install(SecurityHeaders)
@@ -86,6 +90,10 @@ fun Application.gradleNew(siteDir: File, templatesDir: File, agentDir: File, lim
             rateLimiter(limit = limits.generatePerMinute, refillPeriod = 1.minutes)
             requestKey { call -> clientOf(call) }
         }
+    }
+    if (maintenance) {
+        routing { maintenance(siteDir) }
+        return
     }
     routing {
         get("/api/versions") {
@@ -132,6 +140,32 @@ fun Application.gradleNew(siteDir: File, templatesDir: File, agentDir: File, lim
             modify { file, call ->
                 val vendored = file.relativeTo(siteDir).invariantSeparatorsPath.startsWith("assets/")
                 call.response.header(HttpHeaders.CacheControl, if (vendored) VENDORED else REVALIDATE)
+            }
+        }
+    }
+}
+
+private fun Route.maintenance(siteDir: File) {
+    staticFiles("/assets", File(siteDir, "assets")) {
+        contentType { file -> contentTypeOf(file) }
+        modify { _, call -> call.response.header(HttpHeaders.CacheControl, VENDORED) }
+    }
+    get("/app/styles.css") {
+        call.response.header(HttpHeaders.CacheControl, REVALIDATE)
+        call.respondFile(File(siteDir, "app/styles.css"))
+    }
+    route("{...}") {
+        handle {
+            call.response.header(HttpHeaders.RetryAfter, MAINTENANCE_RETRY_AFTER_SECONDS.toString())
+            call.response.header(HttpHeaders.CacheControl, "no-store")
+            val path = call.request.path()
+            when {
+                path.startsWith("/api/") || path.endsWith(".json") ->
+                    call.respondText(ErrorJson.encode(MAINTENANCE_MESSAGE), ContentType.Application.Json, HttpStatusCode.ServiceUnavailable)
+                path.endsWith(".txt") || path.endsWith(".md") ->
+                    call.respondText(MAINTENANCE_MESSAGE + "\n", PLAIN_TEXT, HttpStatusCode.ServiceUnavailable)
+                else ->
+                    call.respondBytes(File(siteDir, "maintenance.html").readBytes(), ContentType.Text.Html.withCharset(Charsets.UTF_8), HttpStatusCode.ServiceUnavailable)
             }
         }
     }

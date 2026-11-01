@@ -7,7 +7,7 @@ import java.io.File
 fun main() {
     val environment = System.getenv()
     embeddedServer(CIO, port = portFrom(environment), host = "0.0.0.0") {
-        gradleNew(siteDirFrom(environment), templatesDirFrom(environment), agentDirFrom(environment))
+        gradleNew(siteDirFrom(environment), templatesDirFrom(environment), agentDirFrom(environment), maintenance = maintenanceFrom(environment))
     }.start(wait = true)
 }
 
@@ -18,3 +18,5 @@ fun siteDirFrom(environment: Map<String, String>): File = File(environment["SITE
 fun templatesDirFrom(environment: Map<String, String>): File = File(environment["TEMPLATES_DIR"] ?: "/templates")
 
 fun agentDirFrom(environment: Map<String, String>): File = File(environment["AGENT_DIR"] ?: "/agent")
+
+fun maintenanceFrom(environment: Map<String, String>): Boolean = environment["MAINTENANCE"] == "on"
