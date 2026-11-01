@@ -83,6 +83,7 @@ class NativeImageServerPluginTest {
         project.runWithEnvironment(fakeTool(dir), ":server:buildImage");
         assertEquals("gradlenew/server:9.8.2--8.14.6--9.9.0-rc-1--" + commit, imageReference(dir));
         assertTrue(Files.readString(dir.resolve("build/tool-args.txt")).contains("--tag gradlenew/server:9.8.2--8.14.6--9.9.0-rc-1--" + commit + " "));
+        assertTrue(Files.readString(dir.resolve("build/tool-args.txt")).contains("--build-arg IMAGE_TAG=9.8.2--8.14.6--9.9.0-rc-1--" + commit + " "));
 
         project.file("ui/src/site/versions.json", "{\"stable\":\"9.8.2\",\"changed\":true}");
         project.runWithEnvironment(fakeTool(dir), ":server:buildImage");

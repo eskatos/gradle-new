@@ -5,6 +5,8 @@ COPY lib lib
 RUN native-image --no-fallback -march=compatibility --static-nolibc -J-Xmx3g \
     -cp "$(printf '%s:' lib/*.jar)" -o server "$MAIN_CLASS"
 RUN ldd server | tee ldd.txt && ! grep -vE 'linux-vdso|libc\.so|ld-linux' ldd.txt
+ARG IMAGE_TAG
+RUN printf '{"image": "%s"}\n' "$IMAGE_TAG" > build.json
 
 FROM gcr.io/distroless/base-nossl-debian13:nonroot@sha256:6a2a3346335b94d3be0732472245f42ca3ce3cc1135a9521a2bda4b677f2ef0d
 ENV PORT=8080 SITE_DIR=/site TEMPLATES_DIR=/templates AGENT_DIR=/agent
@@ -14,5 +16,6 @@ COPY --from=build /build/server /server
 COPY templates /templates
 COPY agent /agent
 COPY site /site
+COPY --from=build /build/build.json /site/build.json
 LABEL org.opencontainers.image.source="https://github.com/eskatos/gradle-new" \
       org.opencontainers.image.licenses="Apache-2.0"

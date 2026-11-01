@@ -69,6 +69,7 @@ public abstract class BuildContainerImageTask extends DefaultTask {
         getExecOperations().exec(exec -> exec.commandLine(
             getTool().get(), "build", "--quiet",
             "--build-arg", "MAIN_CLASS=" + getMainClass().get(),
+            "--build-arg", "IMAGE_TAG=" + tag,
             "--tag", reference,
             "--file", context.resolve("Dockerfile").toString(),
             context.toString()));
