@@ -29,6 +29,8 @@ class Target private constructor(val baseUrl: String, private val container: Gen
         }
     }
 
+    fun inMaintenance(): Target? = container?.let { open(it.dockerImageName, mapOf("MAINTENANCE" to "on")) }
+
     override fun close() {
         container?.stop()
     }
@@ -38,9 +40,14 @@ class Target private constructor(val baseUrl: String, private val container: Gen
             val target = System.getProperty("acceptance.target") ?: error("acceptance.target is not set")
             if (target != "image") return Target(target.trimEnd('/'), null)
             val imageRef = System.getProperty("acceptance.imageRef") ?: error("acceptance.imageRef is not set: no image was provided")
+            return open(imageRef, emptyMap())
+        }
+
+        private fun open(imageRef: String, environment: Map<String, String>): Target {
             val container = GenericContainer(imageRef)
                 .withExposedPorts(8080)
-                .waitingFor(Wait.forHttp("/api/versions").forPort(8080))
+                .withEnv(environment)
+                .waitingFor(Wait.forHttp("/api/versions").forPort(8080).forStatusCodeMatching { it == 200 || it == 503 })
                 .withStartupAttempts(3)
             container.start()
             return Target("http://${container.host}:${container.getMappedPort(8080)}", container)

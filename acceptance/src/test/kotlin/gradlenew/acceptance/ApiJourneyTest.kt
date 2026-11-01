@@ -41,7 +41,27 @@ class ApiJourneyTest {
             llmsTxt(target)
             target.statusWithHost("/llms.txt", "not a host/name")?.let { assertEquals(400, it, "an invalid Host header is rejected") }
             target.hasShell()?.let { assertEquals(false, it, "the image has no shell") }
+            target.inMaintenance()?.use { maintenance -> maintenanceMode(maintenance) }
         }
+    }
+
+    private fun maintenanceMode(target: Target) {
+        val page = target.get("/")
+        assertMaintenance(page, "text/html")
+        assertTrue(page.body().contains("not available at the moment"), page.body())
+        val build = target.get("/api/generate?type=java-application&project-name=demo")
+        assertMaintenance(build, "application/json")
+        assertTrue(field(build.body(), "error").contains("not available at the moment"), build.body())
+        val llms = target.get("/llms.txt")
+        assertMaintenance(llms, "text/plain")
+        assertTrue(llms.body().contains("not available at the moment"), llms.body())
+    }
+
+    private fun assertMaintenance(response: HttpResponse<String>, contentType: String) {
+        assertEquals(503, response.statusCode(), response.uri().toString())
+        assertEquals("3600", response.headers().firstValue("retry-after").orElse(""), response.uri().toString())
+        assertEquals("no-store", response.headers().firstValue("cache-control").orElse(""), response.uri().toString())
+        assertEquals(contentType, response.headers().firstValue("content-type").orElse("").substringBefore(';'), response.uri().toString())
     }
 
     private fun modelByChannel(target: Target, offered: OfferedVersions) {
