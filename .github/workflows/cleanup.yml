@@ -21,6 +21,7 @@ jobs:
     name: cleanup
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: production
     permissions:
       contents: write
       packages: write
@@ -28,9 +29,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Delete the images older than the 10 most recent, with their attestations and releases
+      - name: Read the image the container runs
+        id: deployed
+        env:
+          SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+          SCW_REGION: ${{ vars.SCW_REGION }}
+          SCW_CONTAINER_ID: ${{ vars.SCW_CONTAINER_ID }}
+        run: |
+          image="$(curl -fsS --retry 3 -H "X-Auth-Token: $SCW_SECRET_KEY" \
+            "https://api.scaleway.com/containers/v1/regions/$SCW_REGION/containers/$SCW_CONTAINER_ID" \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["image"])')"
+          echo "tag=${image##*:}" >> "$GITHUB_OUTPUT"
+      - name: Delete the images older than the 10 most recent, except the deployed one and the one before it
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          DEPLOYED_TAG: ${{ steps.deployed.outputs.tag }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
         run: .github/scripts/cleanup-images.sh 10

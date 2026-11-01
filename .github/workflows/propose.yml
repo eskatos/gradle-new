@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
+    inputs:
+      pretend-consumption:
+        description: For a drill, the watchdog takes this month's consumption to be this many euros
+        type: string
+        default: ''
 
 permissions: {}
 
@@ -66,3 +71,25 @@ jobs:
           .github/scripts/open-pull-request.sh heartbeat "Heartbeat" true \
             "Keeps the repository active so that GitHub does not disable the scheduled propose workflow." \
             status.json
+
+  watchdog:
+    name: watchdog
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Guard the container's configuration, watch the spending, check the live site
+        env:
+          SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+          SCW_REGION: ${{ vars.SCW_REGION }}
+          SCW_ORGANIZATION_ID: ${{ vars.SCW_ORGANIZATION_ID }}
+          SCW_PROJECT_ID: ${{ vars.SCW_PROJECT_ID }}
+          SCW_CONTAINER_ID: ${{ vars.SCW_CONTAINER_ID }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          PRETEND_CONSUMPTION: ${{ github.event_name == 'workflow_dispatch' && inputs.pretend-consumption || '' }}
+        run: deploy/watchdog.sh
