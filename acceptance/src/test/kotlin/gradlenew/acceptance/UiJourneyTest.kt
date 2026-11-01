@@ -40,6 +40,7 @@ class UiJourneyTest {
             page.waitForSelector("#command .token")
 
             channels(page, offered)
+            imageTagInTheFooter(page, target)
             previousMajorChoice(page, offered.previous)
             everyBuildTypeDrivesTheForm(page, model)
             downloadMatchesApiAndGradleInit(page, target, model, offered)
@@ -63,6 +64,13 @@ class UiJourneyTest {
         assertEquals(offered.rc == null, page.isDisabled("input[name=version][value=rc]"), "the RC switch is disabled exactly when no RC is offered")
         offered.rc?.let { assertEquals(it, page.textContent("[data-channel=rc] .channel-version")!!.trim()) }
         assertTrue(!hasVersionParameter(apiUrl(page)), "the stable channel is the API's default: ${apiUrl(page)}")
+    }
+
+    private fun imageTagInTheFooter(page: Page, target: Target) {
+        page.waitForSelector("#image-tag:not([hidden])")
+        val text = page.textContent("#image-tag")!!.trim()
+        target.imageTag?.let { assertEquals("Image $it", text) }
+            ?: assertTrue(Regex("Image ${Target.IMAGE_TAG.pattern}").matches(text), text)
     }
 
     private fun previousMajorChoice(page: Page, previous: String) {

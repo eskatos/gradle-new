@@ -25,6 +25,7 @@ class ApiJourneyTest {
     fun apiJourney() {
         Target.open().use { target ->
             val offered = readOfferedVersions(target)
+            imageTag(target)
             val previous = previousMajor(offered)
             val model = readModel(target, offered.stable)
             modelByChannel(target, offered)
@@ -43,6 +44,15 @@ class ApiJourneyTest {
             target.hasShell()?.let { assertEquals(false, it, "the image has no shell") }
             target.inMaintenance()?.use { maintenance -> maintenanceMode(maintenance) }
         }
+    }
+
+    private fun imageTag(target: Target) {
+        val build = target.get("/build.json")
+        assertEquals(200, build.statusCode(), build.body())
+        assertEquals("no-cache", build.headers().firstValue("cache-control").orElse(""))
+        val tag = field(build.body(), "image")
+        target.imageTag?.let { assertEquals(it, tag, "/build.json names the image under test") }
+            ?: assertTrue(Target.IMAGE_TAG.matches(tag), "/build.json names an image tag: $tag")
     }
 
     private fun maintenanceMode(target: Target) {

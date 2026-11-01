@@ -31,11 +31,15 @@ class Target private constructor(val baseUrl: String, private val container: Gen
 
     fun inMaintenance(): Target? = container?.let { open(it.dockerImageName, mapOf("MAINTENANCE" to "on")) }
 
+    val imageTag: String? get() = container?.dockerImageName?.substringAfterLast(':')
+
     override fun close() {
         container?.stop()
     }
 
     companion object {
+        val IMAGE_TAG = Regex("[0-9][0-9A-Za-z.-]*(--[0-9A-Za-z.-]+)+")
+
         fun open(): Target {
             val target = System.getProperty("acceptance.target") ?: error("acceptance.target is not set")
             if (target != "image") return Target(target.trimEnd('/'), null)
