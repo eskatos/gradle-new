@@ -46,6 +46,22 @@ class ServerTest {
     private val agentPaths = listOf("/.well-known/agent-skills/index.json", "/.well-known/agent-skills/gradle-new/SKILL.md", "/llms.txt")
 
     @Test
+    fun servesTheImageTagFreshAndNothingWithoutOne() = testApplication {
+        application { gradleNew(site, templates, agent) }
+
+        val missing = client.get("/build.json")
+        assertEquals(HttpStatusCode.NoContent, missing.status)
+        assertEquals("no-cache", missing.headers[HttpHeaders.CacheControl])
+
+        site.resolve("build.json").writeText("""{"image": "9.8.2--8.14.6--abcdef123456"}""")
+        val build = client.get("/build.json")
+        assertEquals(HttpStatusCode.OK, build.status)
+        assertEquals(ContentType.Application.Json, build.contentType()?.withoutParameters())
+        assertEquals("no-cache", build.headers[HttpHeaders.CacheControl])
+        assertEquals("""{"image": "9.8.2--8.14.6--abcdef123456"}""", build.bodyAsText())
+    }
+
+    @Test
     fun servesPerVersionFilesAsImmutableJson() = testApplication {
         application { gradleNew(site, templates, agent) }
 

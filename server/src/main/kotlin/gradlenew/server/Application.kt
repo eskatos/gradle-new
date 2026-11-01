@@ -112,6 +112,11 @@ fun Application.gradleNew(siteDir: File, templatesDir: File, agentDir: File, lim
         get(AgentFiles.INDEX_PATH) { respondForOrigin(call, ContentType.Application.Json, agent::index) }
         get(AgentFiles.SKILL_PATH) { respondForOrigin(call, PLAIN_TEXT, agent::skill) }
         get(AgentFiles.LLMS_PATH) { respondForOrigin(call, PLAIN_TEXT, agent::llms) }
+        get("/build.json") {
+            call.response.header(HttpHeaders.CacheControl, REVALIDATE)
+            val build = File(siteDir, "build.json")
+            if (build.isFile) call.respondFile(build) else call.respond(HttpStatusCode.NoContent)
+        }
         rateLimit(GENERATE) {
             get(GENERATE_PATH) {
                 when (val result = site.generation.generate(call.request.queryParameters.flattenEntries())) {
