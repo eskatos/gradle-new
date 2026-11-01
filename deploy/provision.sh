@@ -10,7 +10,7 @@ ci_name=gradle-new-ci
 hostname=gradle-new.nosphere.org
 region=fr-par
 repository=eskatos/gradle-new
-memory=128MB
+memory=0.128GB
 mvcpu=70
 
 project="$(scw config get default-project-id)"
