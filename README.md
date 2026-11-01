@@ -25,7 +25,7 @@ option it supports.
 ## HTTP API
 
 ```
-curl -fsS -o demo.zip "https://<site>/api/generate?type=java-application&project-name=demo"
+curl -fsS -o demo.zip "https://gradle-new.nosphere.org/api/generate?type=java-application&project-name=demo"
 ```
 
 - `GET /api/versions`: the offered Gradle versions, `stable`, `rc` (or `null`)
@@ -47,12 +47,12 @@ The same description, written for language models, is served at `/llms.txt`.
 
 The page shows a command that installs the `gradle-new` skill once for your
 coding agents, either with the open-source `skills` CLI
-(`npx skills add https://<site> -g`, which needs Node.js 22.20 or later) or with
+(`npx skills add https://gradle-new.nosphere.org -g`, which needs Node.js 22.20 or later) or with
 `curl`. Then ask your agent for a new Gradle project.
 
 ## Status
 
-Early development, not yet deployed.
+Live at <https://gradle-new.nosphere.org>.
 
 ## Why
 

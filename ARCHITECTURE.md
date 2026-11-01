@@ -215,10 +215,10 @@ another.
 | Workflow | Runs | Does |
 |---|---|---|
 | CI | on every pull request | the full build with both acceptance journeys against the image |
-| Publish | on every push to main, except one changing only `status.json`, `README.md` or `ARCHITECTURE.md` | the full build, then the image pushed, attested and released |
-| Propose | hourly | the version proposals and the heartbeat |
+| Publish | on every push to main, except one changing only `status.json`, `README.md` or `ARCHITECTURE.md` | the full build, then the image pushed, attested and released, deployed, the live site smoke-tested, rolled back on failure |
+| Propose | hourly | the version proposals, the heartbeat, and the deployment's watchdog |
 | Update dependencies | weekly | the catalog and the wrapper at their latest releases, in one pull request merged by hand after review |
-| Cleanup | weekly | deletes the images older than the 10 most recent, with their attestations and releases |
+| Cleanup | weekly | deletes the images older than the 10 most recent, with their attestations and releases, except the deployed one and the one before it |
 | Dependabot | weekly | the actions' pinned SHAs and the base images' digests, each held a week after its release |
 
 - Each job gets only the permissions it needs. The token that opens pull
@@ -317,11 +317,28 @@ native image free of reflection configuration.
 
 ## Hosting
 
-- One Scaleway Serverless Container in Europe, scaling to zero, with the
-  platform's TLS certificate for the custom domain. Usage stays within the
-  free tier, with a billing alert as a safety net.
+- One Scaleway Serverless Container in Paris, `https://gradle-new.nosphere.org`,
+  with the platform's TLS certificate for the custom domain and HTTP
+  redirected to HTTPS.
+- Free by construction: the container is the smallest size (128 MB, 70
+  mvCPU) and scales between zero and one instance, and Serverless Containers
+  are billed only on memory and CPU time; one such instance running a whole
+  month stays within the monthly free tier, whatever the traffic.
+- Scaleway has no spending cap, so an hourly watchdog guards that: it puts
+  back the container's size and scale if they drift, switches the site to
+  maintenance as soon as anything is billed, and to private if the bill
+  still grows. A billing alert is the last net.
+- Maintenance mode is a setting of the server (`MAINTENANCE=on`): every
+  request answers 503 with `Retry-After`, browsers get a "come back later"
+  page, the API its error JSON. It serves planned takedowns as well as the
+  watchdog.
 - The image is pulled from the GitHub Container Registry by its unique tag;
-  there is one environment, and a push to main deploys it.
+  there is one environment, and a push to main deploys it after the smoke
+  test of the live site, or rolls back.
+- `deploy/provision.sh` creates the Scaleway resources once, from a
+  workstation, and switches maintenance mode or privacy; `deploy/deploy.sh`
+  and `deploy/watchdog.sh` run in CI with an API key limited to the
+  project's Serverless Containers and read-only billing.
 - The only state is the deployed image. Locally the same image runs with
   `docker run -p 8080:8080`, and only `deploy/` names the provider.
 
