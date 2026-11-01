@@ -180,6 +180,8 @@ system:
 - It shows the equivalent `gradle init` command and the API URL, with only
   the options that differ from Gradle's defaults, and explains every token in
   the style of explainshell.com. A third window installs the agent skill.
+  The footer names the image the site runs, from the image's own
+  `build.json`.
 - Native form controls restyled to the design system, so keyboard and label
   behaviour stay native. All assets are served from the image, listed with
   their sources in `ui/VENDORED.md`; the page makes no third-party request.
@@ -295,7 +297,8 @@ native image free of reflection configuration.
   builder stage, so no host needs GraalVM, and copies a mostly static binary
   onto a distroless runtime with no shell, running as a non-root user. Both
   base images are pinned by digest. Layers go from least to most frequently
-  changed: binary, templates, agent templates, site.
+  changed: binary, templates, agent templates, site, and the image's tag as
+  `build.json`.
 
 ## Testing
 
