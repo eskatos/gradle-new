@@ -280,6 +280,7 @@ input.switch:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 @keyframes reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
 .site-footer { background: var(--surface-dark); color: rgba(255, 255, 255, 0.7); font-size: var(--text-sm); padding: var(--space-7) 0; }
+.image-tag { margin-top: var(--space-2); font-family: var(--font-mono); font-size: var(--text-xs); }
 
 @media (min-width: 861px) {
   .snippet-body:has(.explanation:not([hidden])) { grid-template-columns: max-content 96px minmax(0, 1fr); align-items: start; }

@@ -43,6 +43,21 @@ class PageTest {
     }
 
     @TestFactory
+    fun showsTheImageTagInTheFooter(): List<DynamicTest> = onPage(build = """{"image": "9.8.2--8.14.6--abcdef123456"}""") { page, _ ->
+        page.waitForSelector("#image-tag:not([hidden])")
+        assertEquals("Image 9.8.2--8.14.6--abcdef123456", page.textContent("#image-tag")!!.trim())
+        assertTrue(page.locator("#image-tag").evaluate("element => getComputedStyle(element).fontFamily").toString().contains("JetBrains Mono"))
+    }
+
+    @TestFactory
+    fun showsNoImageTagWithoutOne(): List<DynamicTest> = onPage { page, server ->
+        page.waitForCondition { server.requests.any { it.startsWith("/build.json") } }
+        page.waitForFunction("() => performance.getEntriesByName(location.origin + '/build.json').some((entry) => entry.responseEnd > 0)")
+        page.evaluate("() => new Promise((resolve) => setTimeout(resolve, 100))")
+        assertTrue(!page.isVisible("#image-tag"))
+    }
+
+    @TestFactory
     fun rendersTheFormFromTheModel(): List<DynamicTest> = onPage { page, _ ->
         assertTrue(page.isVisible("#form-fields"))
         assertTrue(!page.isVisible("#form-loading"))
@@ -372,10 +387,10 @@ class PageTest {
 
     private fun commandText(page: Page): String = page.textContent("#command")!!.replace("\\\n", " ").replace(Regex("\\s+"), " ")
 
-    private fun onPage(versions: String = Fixtures.versions, test: (Page, SiteServer) -> Unit): List<DynamicTest> =
+    private fun onPage(versions: String = Fixtures.versions, build: String? = null, test: (Page, SiteServer) -> Unit): List<DynamicTest> =
         Browsers.engines.map { engine ->
             DynamicTest.dynamicTest(engine) {
-                SiteServer(SiteServer.siteDir, overrides(versions)).use { server ->
+                SiteServer(SiteServer.siteDir, overrides(versions, build)).use { server ->
                     val context = Browsers.browser(engine).newContext(Browser.NewContextOptions().setAcceptDownloads(true).setViewportSize(1280, 800))
                     try {
                         context.addInitScript("window.__copied = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: (text) => { window.__copied.push(text); return Promise.resolve(); } } });")
@@ -395,8 +410,9 @@ class PageTest {
             }
         }
 
-    private fun overrides(versions: String): Map<String, (HttpExchange) -> Unit> = mapOf(
+    private fun overrides(versions: String, build: String?): Map<String, (HttpExchange) -> Unit> = mapOf(
         "/api/versions" to { exchange -> SiteServer.respond(exchange, 200, "application/json", versions.toByteArray()) },
+        "/build.json" to { exchange -> if (build == null) exchange.sendResponseHeaders(204, -1) else SiteServer.respond(exchange, 200, "application/json", build.toByteArray()) },
         "/v/*" to { exchange -> serveFixture(exchange) },
         "/api/generate" to { exchange -> generate(exchange) },
     )

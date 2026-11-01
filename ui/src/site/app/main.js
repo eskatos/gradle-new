@@ -18,6 +18,7 @@ start().catch((error) => {
 });
 
 async function start() {
+  showImageTag().catch(() => {});
   bindSkill();
   state.versions = await json('/api/versions');
   await modelFor('stable');
@@ -30,6 +31,16 @@ async function start() {
   $('#form-fields').hidden = false;
   new ResizeObserver(() => drawAllConnectors()).observe(document.body);
   document.fonts?.ready.then(() => drawAllConnectors());
+}
+
+async function showImageTag() {
+  const response = await fetch('/build.json', { headers: { Accept: 'application/json' } });
+  if (response.status !== 200) return;
+  const { image } = await response.json();
+  if (!image) return;
+  const element = $('#image-tag');
+  element.textContent = `Image ${image}`;
+  element.hidden = false;
 }
 
 async function json(path) {
