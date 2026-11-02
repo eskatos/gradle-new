@@ -121,6 +121,85 @@ class SiteBundleTest {
     }
 
     @Test
+    void namesTheBundledAssetsByTheirContentAndRewritesEveryReference(@TempDir Path dir) throws IOException {
+        TestProject project = styledSiteProject(dir)
+            .file("src/site/maintenance.html", """
+                <!doctype html>
+                <link rel="icon" href="/assets/logo/icon.svg" type="image/svg+xml">
+                <link rel="stylesheet" href="/assets/tokens/fonts.css">
+                <link rel="stylesheet" href="/app/styles.css">
+                <meta property="og:image" content="https://example.com/assets/social/preview.png">
+                """)
+            .file("src/site/assets/social/preview.png", "png");
+
+        BuildResult result = project.run("assembleSite");
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":assembleSite").getOutcome());
+        Path site = project.path("build/site");
+        String stylesheet = single(site.resolve("assets"), "styles\\.[0-9a-f]{12}\\.css");
+        String sprite = single(site.resolve("assets"), "icons\\.[0-9a-f]{12}\\.svg");
+        String font = single(site.resolve("assets/fonts"), "lato\\.[0-9a-f]{12}\\.woff2");
+        String favicon = single(site.resolve("assets/logo"), "icon\\.[0-9a-f]{12}\\.svg");
+        for (String name : new String[] {stylesheet, sprite}) {
+            assertEquals(sha256(site.resolve("assets/" + name)).substring(0, 12), name.split("\\.")[1], name);
+        }
+        String css = Files.readString(site.resolve("assets/" + stylesheet));
+        assertTrue(css.contains("url(\"fonts/" + font + "\")") && css.contains("url(\"" + sprite + "#copy\")") && css.contains("url(\"" + sprite + "#check\")"), css);
+
+        String index = Files.readString(site.resolve("index.html"));
+        assertEquals(1, index.split("rel=\"stylesheet\"", -1).length - 1, index);
+        assertTrue(index.contains("<link rel=\"stylesheet\" href=\"assets/" + stylesheet + "\">"), index);
+        assertTrue(index.contains("<link rel=\"icon\" href=\"assets/logo/" + favicon + "\" type=\"image/svg+xml\">"), index);
+        assertTrue(index.contains("<link rel=\"modulepreload\" href=\"app/model.js\">") && index.contains("src=\"app/main.js\""), index);
+        String maintenance = Files.readString(site.resolve("maintenance.html"));
+        assertTrue(maintenance.contains("<link rel=\"stylesheet\" href=\"/assets/" + stylesheet + "\">"), maintenance);
+        assertTrue(maintenance.contains("href=\"/assets/logo/" + favicon + "\""), maintenance);
+        assertTrue(maintenance.contains("content=\"https://example.com/assets/social/preview.png\""), maintenance);
+
+        assertTrue(Files.exists(site.resolve("assets/social/preview.png")));
+        for (String gone : new String[] {"assets/icons", "assets/tokens", "app/styles.css", "assets/fonts/lato.woff2", "assets/logo/icon.svg"}) {
+            assertTrue(!Files.exists(site.resolve(gone)), gone);
+        }
+    }
+
+    @Test
+    void anotherCheckoutTakesTheAssembledSiteFromTheBuildCache(@TempDir Path dir) throws IOException {
+        Path first = dir.resolve("first");
+        styledSiteProject(first).run("assembleSite", "--build-cache");
+
+        Path second = dir.resolve("second");
+        try (var paths = Files.walk(first)) {
+            for (Path source : (Iterable<Path>) paths::iterator) {
+                Path relative = first.relativize(source);
+                if (relative.startsWith("build") || relative.startsWith(".gradle") || relative.startsWith(".kotlin")) continue;
+                Path target = second.resolve(relative);
+                if (Files.isDirectory(source)) Files.createDirectories(target); else Files.copy(source, target);
+            }
+        }
+        BuildResult elsewhere = new TestProject(second).run("assembleSite", "--build-cache");
+
+        for (String task : new String[] {":assembleIconSprite", ":assembleStylesheet", ":assembleSite"}) {
+            assertEquals(TaskOutcome.FROM_CACHE, elsewhere.task(task).getOutcome(), task);
+        }
+    }
+
+    private static String single(Path directory, String pattern) throws IOException {
+        try (var files = Files.list(directory)) {
+            var names = files.map(file -> file.getFileName().toString()).filter(name -> name.matches(pattern)).toList();
+            assertEquals(1, names.size(), directory + " " + pattern + " " + names);
+            return names.get(0);
+        }
+    }
+
+    private static String sha256(Path file) throws IOException {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    @Test
     void assemblesTheIconsIntoOneSpriteWithAViewPerIcon(@TempDir Path dir) throws IOException {
         TestProject project = siteProject(dir);
 

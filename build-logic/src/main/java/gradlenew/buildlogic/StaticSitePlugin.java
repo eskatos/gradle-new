@@ -39,6 +39,8 @@ public abstract class StaticSitePlugin implements Plugin<Project> {
             task.setGroup("build");
             task.setDescription("Assembles the static site tree, with the pages' SVG images inlined.");
             task.getSiteSources().set(siteSources);
+            task.getSprite().set(assembleIconSprite.flatMap(IconSpriteTask::getSprite));
+            task.getStylesheet().set(assembleStylesheet.flatMap(StylesheetBundleTask::getStylesheet));
             task.getDestination().set(siteDir);
         });
         TaskProvider<Sync> assembleAgent = project.getTasks().register("assembleAgent", Sync.class, task -> {

@@ -37,7 +37,8 @@ public abstract class StylesheetBundleTask extends DefaultTask {
     @TaskAction
     public void assemble() {
         File site = getSiteSources().get().getAsFile();
-        List<String> sources = stylesheets(IconSpriteTask.read(new File(site, PAGE)));
+        File index = new File(site, PAGE);
+        List<String> sources = stylesheets(index.isFile() ? IconSpriteTask.read(index) : "");
         List<String> parts = new ArrayList<>();
         for (String source : sources) {
             String path = sitePath(source, "");

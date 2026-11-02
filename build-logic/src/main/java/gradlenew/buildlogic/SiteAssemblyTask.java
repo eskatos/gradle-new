@@ -1,12 +1,21 @@
 package gradlenew.buildlogic;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.inject.Inject;
@@ -14,8 +23,10 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.FileSystemOperations;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.CacheableTask;
 import org.gradle.api.tasks.InputDirectory;
+import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
@@ -32,10 +43,23 @@ public abstract class SiteAssemblyTask extends DefaultTask {
     private static final Pattern RULE = Pattern.compile("\\.([\\w-]+)\\s*\\{([^}]*)\\}");
     private static final Pattern EMPTY_DEFS = Pattern.compile("<defs>\\s*</defs>");
     private static final Pattern TAG = Pattern.compile("<([a-zA-Z][\\w:-]*)((?:\\s+[\\w:-]+\\s*=\\s*\"[^\"]*\")*)\\s*(/?)>");
+    private static final Pattern STYLESHEET = Pattern.compile("[ \\t]*<link\\b[^>]*\\brel=\"stylesheet\"[^>]*>\\R?");
+    private static final Pattern REFERENCE = Pattern.compile("\\b(href|src)=\"(/?)(assets/[^\"#?]+)\"");
+    private static final Pattern URL = Pattern.compile("url\\(\"([^\"#]+)(#[^\"]*)?\"\\)");
+    private static final String STYLES = StylesheetBundleTask.BUNDLE_DIR + "/styles.css";
+    private static final String SPRITE = StylesheetBundleTask.BUNDLE_DIR + "/" + StylesheetBundleTask.SPRITE;
 
     @InputDirectory
     @PathSensitive(PathSensitivity.RELATIVE)
     public abstract DirectoryProperty getSiteSources();
+
+    @InputFile
+    @PathSensitive(PathSensitivity.NONE)
+    public abstract RegularFileProperty getSprite();
+
+    @InputFile
+    @PathSensitive(PathSensitivity.NONE)
+    public abstract RegularFileProperty getStylesheet();
 
     @OutputDirectory
     public abstract DirectoryProperty getDestination();
@@ -47,20 +71,126 @@ public abstract class SiteAssemblyTask extends DefaultTask {
     public void assemble() {
         File site = getSiteSources().get().getAsFile();
         File destination = getDestination().get().getAsFile();
+        File index = new File(site, StylesheetBundleTask.PAGE);
+        List<String> stylesheets = StylesheetBundleTask.stylesheets(index.isFile() ? IconSpriteTask.read(index) : "").stream()
+            .map(href -> StylesheetBundleTask.sitePath(href, "")).toList();
         getFileSystemOperations().sync(spec -> {
             spec.from(site);
             spec.into(destination);
+            spec.exclude("assets/icons/**");
+            spec.exclude(stylesheets);
+            spec.setIncludeEmptyDirs(false);
         });
-        File[] pages = destination.listFiles((dir, name) -> name.endsWith(".html"));
-        if (pages == null) {
-            return;
+        if (!stylesheets.isEmpty()) {
+            copy(getStylesheet().get().getAsFile(), new File(destination, STYLES));
+            copy(getSprite().get().getAsFile(), new File(destination, SPRITE));
         }
-        for (File page : pages) {
-            IconSpriteTask.write(page, inlineSvgImages(IconSpriteTask.read(page), site));
+        File[] pages = destination.listFiles((dir, name) -> name.endsWith(".html"));
+        Map<String, String> hashed = new HashMap<>();
+        Set<String> inlined = new LinkedHashSet<>();
+        if (!stylesheets.isEmpty()) {
+            String css = IconSpriteTask.read(new File(destination, STYLES));
+            css = hashUrls(css, destination, hashed);
+            IconSpriteTask.write(new File(destination, STYLES), css);
+            hashed.put(STYLES, hash(destination, STYLES));
+        }
+        for (File page : pages == null ? new File[0] : pages) {
+            String html = IconSpriteTask.read(page);
+            if (!stylesheets.isEmpty()) {
+                html = oneStylesheet(html, page.getName(), stylesheets, hashed.get(STYLES));
+            }
+            html = inlineSvgImages(html, site, inlined);
+            html = hashReferences(html, destination, hashed);
+            IconSpriteTask.write(page, html);
+        }
+        for (String path : inlined) {
+            if (!hashed.containsKey(path)) {
+                new File(destination, path).delete();
+            }
         }
     }
 
-    private static String inlineSvgImages(String html, File site) {
+    private static String oneStylesheet(String html, String page, List<String> bundled, String stylesheet) {
+        List<String> linked = StylesheetBundleTask.stylesheets(html);
+        if (!linked.stream().map(href -> StylesheetBundleTask.sitePath(href, "")).toList().equals(bundled)) {
+            throw new GradleException(page + " links " + linked + ", not the stylesheets of " + StylesheetBundleTask.PAGE + " that were bundled");
+        }
+        String prefix = linked.get(0).startsWith("/") ? "/" : "";
+        Matcher link = STYLESHEET.matcher(html);
+        StringBuilder result = new StringBuilder();
+        boolean first = true;
+        while (link.find()) {
+            link.appendReplacement(result, first ? Matcher.quoteReplacement("<link rel=\"stylesheet\" href=\"" + prefix + stylesheet + "\">\n") : "");
+            first = false;
+        }
+        link.appendTail(result);
+        return result.toString();
+    }
+
+    private static String hashUrls(String css, File destination, Map<String, String> hashed) {
+        Matcher url = URL.matcher(css);
+        StringBuilder result = new StringBuilder();
+        while (url.find()) {
+            if (url.group(1).startsWith("data:") || url.group(1).matches("[a-z]+://.*")) {
+                url.appendReplacement(result, Matcher.quoteReplacement(url.group()));
+                continue;
+            }
+            String path = StylesheetBundleTask.sitePath(url.group(1), StylesheetBundleTask.BUNDLE_DIR);
+            String name = hashed.computeIfAbsent(path, original -> hash(destination, original));
+            String fragment = url.group(2) == null ? "" : url.group(2);
+            url.appendReplacement(result, Matcher.quoteReplacement("url(\"" + StylesheetBundleTask.relativeToBundle(name) + fragment + "\")"));
+        }
+        url.appendTail(result);
+        return result.toString();
+    }
+
+    private static String hashReferences(String html, File destination, Map<String, String> hashed) {
+        Matcher reference = REFERENCE.matcher(html);
+        StringBuilder result = new StringBuilder();
+        while (reference.find()) {
+            String path = reference.group(3);
+            String replacement = reference.group();
+            if (!path.startsWith(StylesheetBundleTask.BUNDLE_DIR + "/social/") && (hashed.containsKey(path) || new File(destination, path).isFile())) {
+                String name = hashed.computeIfAbsent(path, original -> hash(destination, original));
+                replacement = reference.group(1) + "=\"" + reference.group(2) + name + "\"";
+            }
+            reference.appendReplacement(result, Matcher.quoteReplacement(replacement));
+        }
+        reference.appendTail(result);
+        return result.toString();
+    }
+
+    private static String hash(File destination, String path) {
+        if (path.matches(".*\\.[0-9a-f]{12}\\.[^./]+")) {
+            return path;
+        }
+        File file = new File(destination, path);
+        if (!file.isFile()) {
+            throw new GradleException("The site references " + path + ", which is not in the site");
+        }
+        try {
+            String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file.toPath()))).substring(0, 12);
+            int dot = path.lastIndexOf('.');
+            String name = path.substring(0, dot) + "." + digest + path.substring(dot);
+            Files.move(file.toPath(), new File(destination, name).toPath());
+            return name;
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static void copy(File from, File to) {
+        try {
+            Files.createDirectories(to.toPath().getParent());
+            Files.copy(from.toPath(), to.toPath());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static String inlineSvgImages(String html, File site, Set<String> inlined) {
         Matcher img = IMG.matcher(html);
         StringBuilder result = new StringBuilder();
         while (img.find()) {
@@ -72,7 +202,9 @@ public abstract class SiteAssemblyTask extends DefaultTask {
                 if (alt == null || alt.isBlank()) {
                     throw new GradleException("The image " + src + " has no alt text to become the inline SVG's accessible name");
                 }
-                File svg = new File(site, StylesheetBundleTask.sitePath(src, ""));
+                String path = StylesheetBundleTask.sitePath(src, "");
+                inlined.add(path);
+                File svg = new File(site, path);
                 replacement = inline(IconSpriteTask.read(svg), svg.getName().replaceFirst("\\.svg$", "") + "-", attributes);
             }
             img.appendReplacement(result, Matcher.quoteReplacement(replacement));

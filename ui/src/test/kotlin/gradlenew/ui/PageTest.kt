@@ -367,7 +367,7 @@ class PageTest {
     fun hasItsTitleDescriptionAndIconAndRespectsReducedMotion(): List<DynamicTest> = onPage { page, _ ->
         assertEquals("gradle-new: create a new Gradle project", page.title())
         assertTrue(page.getAttribute("meta[name=description]", "content")!!.contains("gradle init"))
-        assertEquals("assets/logo/gradle-icon-colour.svg", page.getAttribute("link[rel=icon]", "href"))
+        assertTrue(page.getAttribute("link[rel=icon]", "href")!!.matches(Regex("assets/logo/gradle-icon-colour\\.[0-9a-f]{12}\\.svg")), page.getAttribute("link[rel=icon]", "href"))
         assertEquals("Gradle", page.getAttribute(".site-logo", "aria-label"))
         assertTrue(page.textContent("h1")!!.contains("Gradle®"))
         assertTrue(page.textContent(".site-footer")!!.contains("This website is not affiliated with or endorsed by Gradle, Inc."))
