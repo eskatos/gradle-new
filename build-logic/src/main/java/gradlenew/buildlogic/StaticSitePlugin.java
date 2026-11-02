@@ -22,6 +22,13 @@ public abstract class StaticSitePlugin implements Plugin<Project> {
         project.getDependencies().addProvider("testImplementation", catalog.library("junit-jupiter"));
         PlaywrightBrowsers.wire(project, catalog);
 
+        Directory siteSources = project.getLayout().getProjectDirectory().dir("src/site");
+        Provider<Directory> bundleDir = project.getLayout().getBuildDirectory().dir("bundle");
+        TaskProvider<IconSpriteTask> assembleIconSprite = project.getTasks().register("assembleIconSprite", IconSpriteTask.class, task -> {
+            task.setDescription("Assembles the site's icons into one SVG sprite with a view per icon.");
+            task.getIcons().from(siteSources.dir("assets/icons").getAsFileTree().matching(pattern -> pattern.include("*.svg")));
+            task.getSprite().set(bundleDir.map(dir -> dir.file("assets/icons.svg")));
+        });
         Provider<Directory> siteDir = project.getLayout().getBuildDirectory().dir("site");
         TaskProvider<Sync> assembleSite = project.getTasks().register("assembleSite", Sync.class, task -> {
             task.setGroup("build");
