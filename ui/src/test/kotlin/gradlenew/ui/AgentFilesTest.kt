@@ -5,6 +5,7 @@ import gradlenew.domain.agent.DiscoveryIndex
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AgentFilesTest {
@@ -42,12 +43,18 @@ class AgentFilesTest {
     @Test
     fun bothFilesTellAgentsToAskRatherThanGuess() {
         val skill = rendered("SKILL.md")
-        assertTrue(skill.contains("Never guess the two required choices."), skill)
-        assertTrue(skill.contains("ask the user to pick one of the `buildTypes`"), skill)
-        assertTrue(skill.contains("If it gives no project name, ask for one"), skill)
+        assertTrue(skill.contains("Never guess the build type or the project name: ask, offering the `buildTypes` by component type then language, and the target directory's name."), skill)
         assertTrue(skill.contains("ask once whether Gradle's defaults are fine"), skill)
         val llms = rendered("llms.txt")
         assertTrue(llms.contains("When the request leaves the build type or the project name open, ask the user rather than guessing"), llms)
+    }
+
+    @Test
+    fun theSkillKeepsOnlyTheInstructionsTheEvaluationShowedToMatter() {
+        val skill = rendered("SKILL.md")
+        assertTrue(skill.contains("\ndescription: Create a new Gradle build with gradle-new instead of writing build files by hand.\n"), skill)
+        assertFalse(skill.contains("Do not write the build files of a new Gradle build from memory."), skill)
+        assertFalse(skill.contains("Send only the options whose value differs from the default."), skill)
     }
 
     @Test
