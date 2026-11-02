@@ -173,7 +173,9 @@ system:
 
 - Plain HTML and CSS, and one ES module script split into pure functions
   (`model.js`: form state, option dependencies, validation, the command line
-  and URL) and DOM code (`main.js`). No framework and no build step.
+  and URL) and DOM code (`main.js`). No framework, and only a small assembly
+  step in the Gradle build: one stylesheet, one icon sprite, inline logos and
+  assets named by their content.
 - Everything comes from `versions.json` and `model.json`: the channel choice,
   the form, its defaults and dependencies, the hints (Gradle's own
   descriptions) and client-side validation. The download calls
