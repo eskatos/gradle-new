@@ -70,10 +70,10 @@ private val TooManyBuildsBody = createApplicationPlugin("TooManyBuildsBody") {
 }
 
 internal fun clientOf(call: ApplicationCall): String =
-    call.request.headers.getAll(HttpHeaders.XForwardedFor).orEmpty()
-        .flatMap { it.split(',') }
-        .map { it.trim() }
-        .lastOrNull { it.isNotEmpty() }
+    call.request.headers["X-Real-IP"]
+        ?.substringBefore(',')
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
         ?: call.request.local.remoteAddress
 
 fun Application.gradleNew(siteDir: File, templatesDir: File, agentDir: File, limits: RateLimits = RateLimits.DEFAULT, maintenance: Boolean = false) {

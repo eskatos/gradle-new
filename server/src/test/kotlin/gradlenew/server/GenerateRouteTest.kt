@@ -204,26 +204,37 @@ class GenerateRouteTest {
         application { gradleNew(site, templates, agent, RateLimits(generatePerMinute = 3, overallPerMinute = 100)) }
         val url = "/api/generate?type=java-application&project-name=demo"
 
-        repeat(3) { assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Forwarded-For", "203.0.113.7") }.status) }
-        val limited = client.get(url) { header("X-Forwarded-For", "203.0.113.7") }
+        repeat(3) { assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Real-IP", "203.0.113.7") }.status) }
+        val limited = client.get(url) { header("X-Real-IP", "203.0.113.7") }
 
         assertEquals(HttpStatusCode.TooManyRequests, limited.status)
         val retryAfter = assertNotNull(limited.headers[HttpHeaders.RetryAfter]).toLong()
         assertTrue(retryAfter in 1..60, "Retry-After $retryAfter")
         assertEquals(ContentType.Application.Json, limited.contentType()?.withoutParameters())
         assertEquals("Too many builds were requested from your address in a short time. Try again in $retryAfter seconds.", ErrorJson.decode(limited.bodyAsText()))
-        assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Forwarded-For", "198.51.100.4") }.status, "another client has its own limit")
+        assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Real-IP", "198.51.100.4") }.status, "another client has its own limit")
     }
 
     @Test
-    fun theClientIsTheRightmostForwardedForEntrySoSpoofedEntriesDoNotHelp() = testApplication {
+    fun theClientIsTheFirstXRealIpEntrySoForwardedForEntriesDoNotHelp() = testApplication {
         application { gradleNew(site, templates, agent, RateLimits(generatePerMinute = 2, overallPerMinute = 100)) }
         val url = "/api/generate?type=java-application&project-name=demo"
 
-        assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Forwarded-For", "10.0.0.1, 203.0.113.7") }.status)
-        assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Forwarded-For", "10.0.0.2, 203.0.113.7") }.status)
+        assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Real-IP", "203.0.113.7"); header("X-Forwarded-For", "10.0.0.1") }.status)
+        assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Real-IP", "203.0.113.7, 10.0.0.9"); header("X-Forwarded-For", "10.0.0.2") }.status)
 
-        assertEquals(HttpStatusCode.TooManyRequests, client.get(url) { header("X-Forwarded-For", "10.0.0.3,203.0.113.7") }.status)
+        assertEquals(HttpStatusCode.TooManyRequests, client.get(url) { header("X-Real-IP", " 203.0.113.7 "); header("X-Forwarded-For", "10.0.0.3") }.status)
+    }
+
+    @Test
+    fun withoutXRealIpTheClientIsTheConnectionSoForwardedForDoesNotHelp() = testApplication {
+        application { gradleNew(site, templates, agent, RateLimits(generatePerMinute = 2, overallPerMinute = 100)) }
+        val url = "/api/generate?type=java-application&project-name=demo"
+
+        assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Forwarded-For", "203.0.113.1") }.status)
+        assertEquals(HttpStatusCode.OK, client.get(url) { header("X-Forwarded-For", "203.0.113.2") }.status)
+
+        assertEquals(HttpStatusCode.TooManyRequests, client.get(url) { header("X-Forwarded-For", "203.0.113.3") }.status)
     }
 
     @Test
