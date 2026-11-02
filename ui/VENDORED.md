@@ -38,3 +38,7 @@ Written here, not vendored: `tokens/fonts.css`, the `@font-face` rules for the
 fonts above, replacing the design system's `fonts.css` (which imports Google
 Fonts). Its `unicode-range` values are Fontsource's Latin and Latin Extended
 subsets.
+
+Ours, not vendored: `social/preview.png`, the 1200 by 630 link preview image,
+rendered from `src/preview/preview.html` by `./gradlew :ui:renderPreviewImage`
+and committed by hand. It shows the Gradle and Develocity logos listed above.
