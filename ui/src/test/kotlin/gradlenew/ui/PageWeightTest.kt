@@ -17,6 +17,17 @@ class PageWeightTest {
         "chevron-down" to "icon-chevron", "terminal" to "icon-terminal", "link" to "icon-link",
     )
 
+    private val usedFonts = setOf(
+        "lato-latin-400-normal", "lato-latin-ext-400-normal", "lato-latin-700-normal", "lato-latin-ext-700-normal",
+        "jetbrains-mono-latin-400-normal", "jetbrains-mono-latin-ext-400-normal",
+    )
+
+    @TestFactory
+    fun theBundleShipsOnlyTheFontsThePageUses(): List<DynamicTest> = listOf(DynamicTest.dynamicTest("bundle") {
+        val shipped = File(SiteServer.siteDir, "assets/fonts").list()!!.map { it.substringBefore('.') }.toSet()
+        kotlin.test.assertEquals(usedFonts, shipped)
+    })
+
     @TestFactory
     fun aFirstVisitMakesAtMostTwelveRequests(): List<DynamicTest> = Browsers.engines.map { engine ->
         DynamicTest.dynamicTest(engine) {
@@ -32,6 +43,8 @@ class PageWeightTest {
                     page.waitForFunction("() => document.fonts.status === 'loaded'")
                     page.waitForLoadState(LoadState.NETWORKIDLE)
                     assertTrue(requests.size <= 12, "$engine made ${requests.size} requests on a first visit: $requests")
+                    val fonts = requests.filter { it.endsWith(".woff2") }.map { it.substringAfterLast('/').substringBefore('.') }.toSet()
+                    assertTrue(fonts.all { it in usedFonts }, "$engine loads only Lato 400 and 700 and JetBrains Mono 400: $fonts")
                 } finally {
                     context.close()
                 }

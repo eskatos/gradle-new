@@ -15,14 +15,10 @@ replacing the files and their checksums here.
 | `logo/gradle-icon-colour.svg` | Gradle Build Tool design system, `assets/gradle-icon-colour.svg` | export 1793173655-cf42 (2026-10-27) | Gradle, Inc. trademark, see ARCHITECTURE.md | `c70e82beebe3d33a27e47608ca06c03e56e66d54306de5a5dedddab1ea751401` |
 | `fonts/lato-latin-400-normal.woff2` | https://cdn.jsdelivr.net/npm/@fontsource/lato@5.3.0/files/lato-latin-400-normal.woff2 | @fontsource/lato 5.3.0 | SIL Open Font License 1.1 | `918b7dc3e2e2d015c16ce08b57bcb64d2253bafc1707658f361e72865498e537` |
 | `fonts/lato-latin-700-normal.woff2` | https://cdn.jsdelivr.net/npm/@fontsource/lato@5.3.0/files/lato-latin-700-normal.woff2 | @fontsource/lato 5.3.0 | SIL Open Font License 1.1 | `c447dd7677b419db7b21dbdfc6277c7816a913ffda76fd2e52702df538de0e49` |
-| `fonts/lato-latin-900-normal.woff2` | https://cdn.jsdelivr.net/npm/@fontsource/lato@5.3.0/files/lato-latin-900-normal.woff2 | @fontsource/lato 5.3.0 | SIL Open Font License 1.1 | `08664859baab5ed98f0bf818ed77e38464ff1826dc6406d5ecbd651409afbd92` |
 | `fonts/lato-latin-ext-400-normal.woff2` | https://cdn.jsdelivr.net/npm/@fontsource/lato@5.3.0/files/lato-latin-ext-400-normal.woff2 | @fontsource/lato 5.3.0 | SIL Open Font License 1.1 | `8b9fc9737043f88c1a9a7195c27a239bd329cc33d928ffb67736c61ae7a1dbbd` |
 | `fonts/lato-latin-ext-700-normal.woff2` | https://cdn.jsdelivr.net/npm/@fontsource/lato@5.3.0/files/lato-latin-ext-700-normal.woff2 | @fontsource/lato 5.3.0 | SIL Open Font License 1.1 | `3a5797f440bc67b59830cad81e59a71011e35cb45ed7f747b61a69b0a9b0d6ae` |
-| `fonts/lato-latin-ext-900-normal.woff2` | https://cdn.jsdelivr.net/npm/@fontsource/lato@5.3.0/files/lato-latin-ext-900-normal.woff2 | @fontsource/lato 5.3.0 | SIL Open Font License 1.1 | `e266d64fae0958748c289b2288e29991b4b8386eb4935517c4544a2478cfb703` |
 | `fonts/jetbrains-mono-latin-400-normal.woff2` | https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.3.0/files/jetbrains-mono-latin-400-normal.woff2 | @fontsource/jetbrains-mono 5.3.0 | SIL Open Font License 1.1 | `14425ba9c695763c1547f48a206b7aa60350a33ae23de09f0407877f3fcd89eb` |
-| `fonts/jetbrains-mono-latin-700-normal.woff2` | https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.3.0/files/jetbrains-mono-latin-700-normal.woff2 | @fontsource/jetbrains-mono 5.3.0 | SIL Open Font License 1.1 | `d0d4e818808f2a0ba39b2b09d1989366f63494e295f003c7ef436697378507e8` |
 | `fonts/jetbrains-mono-latin-ext-400-normal.woff2` | https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.3.0/files/jetbrains-mono-latin-ext-400-normal.woff2 | @fontsource/jetbrains-mono 5.3.0 | SIL Open Font License 1.1 | `505dfba8ecbe77e82765f36d317ed7ef4ac42719dc5f4ae68d1c483fd22d0d14` |
-| `fonts/jetbrains-mono-latin-ext-700-normal.woff2` | https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.3.0/files/jetbrains-mono-latin-ext-700-normal.woff2 | @fontsource/jetbrains-mono 5.3.0 | SIL Open Font License 1.1 | `45a606d88f72bc0afae4d1a6988e3dba3a5e77ee51aa3b550e37c31c728f4d2d` |
 | `icons/check.svg` | https://cdn.jsdelivr.net/npm/lucide-static@0.383.0/icons/check.svg | lucide-static 0.383.0 | ISC | `43233b052ef65504d7439f849884bacfeb4a5796881631af44decdb24a2e083a` |
 | `icons/chevron-down.svg` | https://cdn.jsdelivr.net/npm/lucide-static@0.383.0/icons/chevron-down.svg | lucide-static 0.383.0 | ISC | `b161fba443d77d65279da89c751806504475ba06d1af2b714dcd5f5d154c9c3b` |
 | `icons/circle-alert.svg` | https://cdn.jsdelivr.net/npm/lucide-static@0.383.0/icons/circle-alert.svg | lucide-static 0.383.0 | ISC | `83973efffea2a5ffad29b5a6059576d3c13678385d7c7882924843d465c8a537` |
@@ -37,7 +33,9 @@ replacing the files and their checksums here.
 Written here, not vendored: `tokens/fonts.css`, the `@font-face` rules for the
 fonts above, replacing the design system's `fonts.css` (which imports Google
 Fonts). Its `unicode-range` values are Fontsource's Latin and Latin Extended
-subsets.
+subsets. Only the weights the page uses are shipped: Lato 400 and 700,
+JetBrains Mono 400 (Lato 900 and JetBrains Mono 700 removed on 2026-11-02, to
+spare two requests).
 
 Ours, not vendored: `social/preview.png`, the 1200 by 630 link preview image,
 rendered from `src/preview/preview.html` by `./gradlew :ui:renderPreviewImage`
