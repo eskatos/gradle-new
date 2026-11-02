@@ -370,7 +370,7 @@ class PageTest {
 
     @TestFactory
     fun hasItsTitleDescriptionAndIconAndRespectsReducedMotion(): List<DynamicTest> = onPage { page, _ ->
-        assertEquals("gradle-new: create a new Gradle build", page.title())
+        assertEquals("gradle-new: create a new Gradle project", page.title())
         assertTrue(page.getAttribute("meta[name=description]", "content")!!.contains("gradle init"))
         assertEquals("assets/logo/gradle-icon-colour.svg", page.getAttribute("link[rel=icon]", "href"))
         assertEquals("Gradle", page.getAttribute(".site-logo", "alt"))
@@ -381,6 +381,41 @@ class PageTest {
         page.emulateMedia(Page.EmulateMediaOptions().setReducedMotion(com.microsoft.playwright.options.ReducedMotion.REDUCE))
         val reduced = page.evaluate("() => parseFloat(getComputedStyle(document.querySelector('.explain-toggle .icon')).transitionDuration)") as Number
         assertTrue(reduced.toDouble() < 0.01, "reduced motion, got ${reduced}s")
+    }
+
+    @TestFactory
+    fun describesItselfToSearchEnginesAndLinkPreviews(): List<DynamicTest> = onPage { page, _ ->
+        val site = "https://gradle-new.nosphere.org/"
+        val description = "Create a new Gradle project in your browser, with one HTTP request or from your coding agent. Built by the real gradle init of the latest Gradle release."
+        assertEquals(description, page.getAttribute("meta[name=description]", "content"))
+        assertTrue(description.length <= 160, "${description.length} characters")
+        assertEquals(site, page.getAttribute("link[rel=canonical]", "href"))
+        assertEquals(
+            mapOf(
+                "og:type" to "website",
+                "og:url" to site,
+                "og:title" to page.title(),
+                "og:description" to description,
+                "og:image" to "${site}assets/social/preview.png",
+                "og:image:width" to "1200",
+                "og:image:height" to "630",
+            ),
+            listOf("og:type", "og:url", "og:title", "og:description", "og:image", "og:image:width", "og:image:height")
+                .associateWith { page.getAttribute("meta[property='$it']", "content") },
+        )
+        assertTrue(!page.getAttribute("meta[property='og:image:alt']", "content").isNullOrBlank())
+        assertEquals("summary_large_image", page.getAttribute("meta[name='twitter:card']", "content"))
+        @Suppress("UNCHECKED_CAST")
+        val data = page.evaluate("() => JSON.parse(document.querySelector('script[type=\"application/ld+json\"]').textContent)") as Map<String, Any?>
+        assertEquals("https://schema.org", data["@context"])
+        assertEquals("WebApplication", data["@type"])
+        assertEquals("gradle-new", data["name"])
+        assertEquals(site, data["url"])
+        assertEquals("DeveloperApplication", data["applicationCategory"])
+        assertEquals(description, data["description"])
+        @Suppress("UNCHECKED_CAST")
+        val offer = data["offers"] as Map<String, Any?>
+        assertEquals("0", offer["price"])
     }
 
     private fun values(page: Page, selector: String): List<String?> = page.locator(selector).all().map { it.getAttribute("value") }
