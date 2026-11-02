@@ -29,6 +29,11 @@ public abstract class StaticSitePlugin implements Plugin<Project> {
             task.getIcons().from(siteSources.dir("assets/icons").getAsFileTree().matching(pattern -> pattern.include("*.svg")));
             task.getSprite().set(bundleDir.map(dir -> dir.file("assets/icons.svg")));
         });
+        TaskProvider<StylesheetBundleTask> assembleStylesheet = project.getTasks().register("assembleStylesheet", StylesheetBundleTask.class, task -> {
+            task.setDescription("Concatenates the stylesheets index.html links into one, with their url()s rewritten for its place.");
+            task.getSiteSources().set(siteSources);
+            task.getStylesheet().set(bundleDir.map(dir -> dir.file("assets/styles.css")));
+        });
         Provider<Directory> siteDir = project.getLayout().getBuildDirectory().dir("site");
         TaskProvider<Sync> assembleSite = project.getTasks().register("assembleSite", Sync.class, task -> {
             task.setGroup("build");
