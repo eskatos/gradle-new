@@ -34,6 +34,9 @@ class ServerTest {
         resolve("app/main.js").writeText("export {}")
         resolve("assets/fonts").mkdirs()
         resolve("assets/fonts/lato-latin-400-normal.woff2").writeBytes(byteArrayOf(0x77, 0x4f, 0x46, 0x32))
+        resolve("assets/social").mkdirs()
+        resolve("assets/social/preview.png").writeBytes(byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47))
+        resolve("robots.txt").writeText("User-agent: *\nAllow: /\n")
     }
 
     private val templates: File = Files.createTempDirectory("templates").toFile()
@@ -202,6 +205,22 @@ class ServerTest {
             assertEquals("default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'", response.headers["Content-Security-Policy"], path)
             assertEquals("nosniff", response.headers["X-Content-Type-Options"], path)
         }
+    }
+
+    @Test
+    fun servesRobotsTxtAsTextAndThePreviewImageAsAPngCachedLikeTheAssets() = testApplication {
+        application { gradleNew(site, templates, agent) }
+
+        val robots = client.get("/robots.txt")
+        assertEquals(HttpStatusCode.OK, robots.status)
+        assertEquals(ContentType.Text.Plain, robots.contentType()?.withoutParameters())
+        assertEquals("no-cache", robots.headers[HttpHeaders.CacheControl])
+        assertEquals("User-agent: *\nAllow: /\n", robots.bodyAsText())
+
+        val preview = client.get("/assets/social/preview.png")
+        assertEquals(HttpStatusCode.OK, preview.status)
+        assertEquals(ContentType.Image.PNG, preview.contentType()?.withoutParameters())
+        assertEquals("public, max-age=86400", preview.headers[HttpHeaders.CacheControl])
     }
 
     @Test
