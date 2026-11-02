@@ -35,11 +35,11 @@ public abstract class StaticSitePlugin implements Plugin<Project> {
             task.getStylesheet().set(bundleDir.map(dir -> dir.file("assets/styles.css")));
         });
         Provider<Directory> siteDir = project.getLayout().getBuildDirectory().dir("site");
-        TaskProvider<Sync> assembleSite = project.getTasks().register("assembleSite", Sync.class, task -> {
+        TaskProvider<SiteAssemblyTask> assembleSite = project.getTasks().register("assembleSite", SiteAssemblyTask.class, task -> {
             task.setGroup("build");
-            task.setDescription("Assembles the static site tree.");
-            task.from(project.getLayout().getProjectDirectory().dir("src/site"));
-            task.into(siteDir);
+            task.setDescription("Assembles the static site tree, with the pages' SVG images inlined.");
+            task.getSiteSources().set(siteSources);
+            task.getDestination().set(siteDir);
         });
         TaskProvider<Sync> assembleAgent = project.getTasks().register("assembleAgent", Sync.class, task -> {
             task.setGroup("build");
@@ -72,7 +72,7 @@ public abstract class StaticSitePlugin implements Plugin<Project> {
 
         project.getConfigurations().consumable("siteElements", configuration -> {
             ContainerImageAttributes.site(configuration.getAttributes());
-            configuration.getOutgoing().artifact(assembleSite.map(Sync::getDestinationDir));
+            configuration.getOutgoing().artifact(assembleSite.flatMap(SiteAssemblyTask::getDestination));
         });
         project.getConfigurations().consumable("agentElements", configuration -> {
             ContainerImageAttributes.agent(configuration.getAttributes());
@@ -82,7 +82,7 @@ public abstract class StaticSitePlugin implements Plugin<Project> {
         project.getTasks().named("test", Test.class, test -> {
             DirectoryArgumentProvider site = project.getObjects().newInstance(DirectoryArgumentProvider.class);
             site.getSystemProperty().set(SITE_DIR_PROPERTY);
-            site.getDirectory().set(project.getLayout().dir(assembleSite.map(Sync::getDestinationDir)));
+            site.getDirectory().set(assembleSite.flatMap(SiteAssemblyTask::getDestination));
             test.getJvmArgumentProviders().add(site);
             DirectoryArgumentProvider agent = project.getObjects().newInstance(DirectoryArgumentProvider.class);
             agent.getSystemProperty().set(AGENT_DIR_PROPERTY);

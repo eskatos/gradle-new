@@ -26,7 +26,8 @@ class AccessibilityTest {
             val described = page.getAttribute("#$id", "aria-describedby")!!.split(' ').first()
             assertTrue(page.textContent("#$described")!!.isNotBlank(), "#$id is described by #$described")
         }
-        assertEquals("Gradle", page.getAttribute(".site-logo", "alt"))
+        assertEquals("img", page.getAttribute(".site-logo", "role"))
+        assertEquals("Gradle", page.getAttribute(".site-logo", "aria-label"))
     }
 
     @TestFactory

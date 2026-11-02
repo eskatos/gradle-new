@@ -73,6 +73,54 @@ class SiteBundleTest {
     }
 
     @Test
+    void inlinesTheSvgImagesOfThePagesWithTheirAccessibleNameAndNoStyleElement(@TempDir Path dir) throws IOException {
+        TestProject project = styledSiteProject(dir)
+            .file("src/site/assets/logo/brand.svg", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <!-- a logo -->
+                <svg id="a" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50">
+                  <defs>
+                    <style>
+                      .b {
+                        fill: #2ca7be;
+                      }
+
+                      .c {
+                        fill: #fff;
+                      }
+                    </style>
+                    <linearGradient id="g"><stop offset="0"/></linearGradient>
+                  </defs>
+                  <rect class="c" x="0" y="0" width="16" height="16"/>
+                  <path class="b" d="M0 0h10"/>
+                  <path class="st0" fill="url(#g)" d="M1 1h10"/>
+                </svg>
+                """)
+            .file("src/site/index.html", """
+                <!doctype html>
+                <a id="home" href="https://example.com/"><img class="site-logo" src="assets/logo/brand.svg" alt="Brand" height="20"></a>
+                """)
+            .file("src/site/maintenance.html", """
+                <!doctype html>
+                <a id="home" href="https://example.com/"><img class="site-logo" src="/assets/logo/brand.svg" alt="Brand" height="20"></a>
+                """);
+
+        BuildResult result = project.run("assembleSite");
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":assembleSite").getOutcome());
+        for (String page : new String[] {"index.html", "maintenance.html"}) {
+            String html = Files.readString(project.path("build/site/" + page));
+            assertTrue(!html.contains("<img"), html);
+            assertTrue(html.contains("<svg class=\"site-logo\" role=\"img\" aria-label=\"Brand\" width=\"80\" height=\"20\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 50\" id=\"brand-a\">"), html);
+            assertTrue(html.contains("<rect x=\"0\" y=\"0\" width=\"16\" height=\"16\" fill=\"#fff\"/>"), html);
+            assertTrue(html.contains("<path d=\"M0 0h10\" fill=\"#2ca7be\"/>"), html);
+            assertTrue(html.contains("<linearGradient id=\"brand-g\">"), html);
+            assertTrue(html.contains("fill=\"url(#brand-g)\""), html);
+            assertTrue(!html.contains("<style") && !html.contains("class=\"b\"") && !html.contains("class=\"st0\"") && !html.contains("<?xml") && !html.contains("data-name"), html);
+        }
+    }
+
+    @Test
     void assemblesTheIconsIntoOneSpriteWithAViewPerIcon(@TempDir Path dir) throws IOException {
         TestProject project = siteProject(dir);
 

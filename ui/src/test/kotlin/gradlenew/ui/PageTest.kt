@@ -16,30 +16,25 @@ class PageTest {
     @TestFactory
     fun showsGradleByDevelocityInTheHeader(): List<DynamicTest> = onPage { page, _ ->
         assertEquals("https://gradle.org/", page.getAttribute("#gradle-home", "href"))
-        assertEquals("Gradle", page.getAttribute("#gradle-home img", "alt"))
+        assertEquals("img", page.getAttribute("#gradle-home svg", "role"))
+        assertEquals("Gradle", page.getAttribute("#gradle-home svg", "aria-label"))
         assertEquals("by", page.textContent(".site-header .brand-by")!!.trim())
         assertEquals("https://develocity.ai/", page.getAttribute("#develocity-home", "href"))
-        assertEquals("Develocity", page.getAttribute("#develocity-home img", "alt"))
-        assertEquals("by", page.evaluate("() => [...document.querySelector('.site-header .brand-lockup').childNodes].map((n) => n.textContent.trim()).filter(Boolean).join(' ')"))
-        assertEquals("Gradle by Develocity", page.locator(".site-header .brand-lockup").evaluate("e => [...e.querySelectorAll('img, .brand-by')].map((n) => n.alt || n.textContent.trim()).join(' ')"))
-        page.waitForFunction("() => [...document.querySelectorAll('.site-header img')].every((i) => i.complete && i.naturalWidth > 0)")
-        @Suppress("UNCHECKED_CAST")
-        val whiteShare = page.evaluate("""() => {
-            const image = document.querySelector('#develocity-home img');
-            const canvas = document.createElement('canvas');
-            canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
-            const context = canvas.getContext('2d');
-            context.drawImage(image, 0, 0);
-            const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-            let opaque = 0, light = 0;
-            for (let i = 0; i < pixels.length; i += 4) {
-                if (pixels[i + 3] < 128) continue;
-                opaque++;
-                if (pixels[i] > 200 && pixels[i + 1] > 200 && pixels[i + 2] > 200) light++;
-            }
-            return opaque === 0 ? 0 : light / opaque;
-        }""") as Number
-        assertTrue(whiteShare.toDouble() > 0.3, "the Develocity wordmark renders white on the dark header, share of light pixels: $whiteShare")
+        assertEquals("img", page.getAttribute("#develocity-home svg", "role"))
+        assertEquals("Develocity", page.getAttribute("#develocity-home svg", "aria-label"))
+        assertEquals(0, page.locator(".site-header img").count(), "the logos are inline, no image request")
+        assertEquals("Gradle by Develocity", page.locator(".site-header .brand-lockup").evaluate("e => [...e.querySelectorAll('svg[role=img], .brand-by')].map((n) => n.getAttribute('aria-label') || n.textContent.trim()).join(' ')"))
+        val gradle = page.locator("#gradle-home svg").boundingBox()!!
+        assertEquals(28.0, gradle.height, 0.5)
+        assertEquals(28.0 * 882.6 / 182, gradle.width, 1.0)
+        val develocity = page.locator("#develocity-home svg").boundingBox()!!
+        assertEquals(18.0, develocity.height, 0.5)
+        assertEquals(18.0 * 803.35 / 151.93, develocity.width, 1.0)
+        val whiteShare = (page.evaluate("""() => {
+            const shapes = [...document.querySelectorAll('#develocity-home svg :is(path, rect, polygon)')];
+            return shapes.filter((s) => getComputedStyle(s).fill === 'rgb(255, 255, 255)').length / shapes.length;
+        }""") as Number).toDouble()
+        assertTrue(whiteShare > 0.3, "the Develocity wordmark renders white on the dark header, share of white shapes: $whiteShare")
     }
 
     @TestFactory
@@ -373,7 +368,7 @@ class PageTest {
         assertEquals("gradle-new: create a new Gradle project", page.title())
         assertTrue(page.getAttribute("meta[name=description]", "content")!!.contains("gradle init"))
         assertEquals("assets/logo/gradle-icon-colour.svg", page.getAttribute("link[rel=icon]", "href"))
-        assertEquals("Gradle", page.getAttribute(".site-logo", "alt"))
+        assertEquals("Gradle", page.getAttribute(".site-logo", "aria-label"))
         assertTrue(page.textContent("h1")!!.contains("Gradle®"))
         assertTrue(page.textContent(".site-footer")!!.contains("This website is not affiliated with or endorsed by Gradle, Inc."))
         val normal = page.evaluate("() => parseFloat(getComputedStyle(document.querySelector('.explain-toggle .icon')).transitionDuration)") as Number
