@@ -39,6 +39,7 @@ class UiJourneyTest {
             page.navigate(target.baseUrl + "/")
             page.waitForSelector("#command .token")
 
+            searchAndLinkPreviews(page, target)
             channels(page, offered)
             imageTagInTheFooter(page, target)
             previousMajorChoice(page, offered.previous)
@@ -65,6 +66,46 @@ class UiJourneyTest {
         offered.rc?.let { assertEquals(it, page.textContent("[data-channel=rc] .channel-version")!!.trim()) }
         assertTrue(!hasVersionParameter(apiUrl(page)), "the stable channel is the API's default: ${apiUrl(page)}")
     }
+
+    private fun searchAndLinkPreviews(page: Page, target: Target) {
+        val site = "https://gradle-new.nosphere.org/"
+        val title = "gradle-new: create a new Gradle project"
+        val description = "Create a new Gradle project in your browser, with one HTTP request or from your coding agent. Built by the real gradle init of the latest Gradle release."
+        assertEquals(title, page.title())
+        assertEquals(description, page.getAttribute("meta[name=description]", "content"))
+        assertEquals(site, page.getAttribute("link[rel=canonical]", "href"))
+        assertEquals("website", page.getAttribute("meta[property='og:type']", "content"))
+        assertEquals(site, page.getAttribute("meta[property='og:url']", "content"))
+        assertEquals(title, page.getAttribute("meta[property='og:title']", "content"))
+        assertEquals(description, page.getAttribute("meta[property='og:description']", "content"))
+        val image = page.getAttribute("meta[property='og:image']", "content")!!
+        assertTrue(image.startsWith(site), image)
+        assertEquals("1200", page.getAttribute("meta[property='og:image:width']", "content"))
+        assertEquals("630", page.getAttribute("meta[property='og:image:height']", "content"))
+        assertTrue(!page.getAttribute("meta[property='og:image:alt']", "content").isNullOrBlank())
+        assertEquals("summary_large_image", page.getAttribute("meta[name='twitter:card']", "content"))
+
+        val png = target.getBytes("/" + image.removePrefix(site))
+        assertEquals(200, png.statusCode(), image)
+        assertEquals("image/png", png.headers().firstValue("content-type").orElse("").substringBefore(';'))
+        val bytes = png.body()
+        assertEquals(listOf(0x89, 0x50, 0x4e, 0x47), bytes.take(4).map { it.toInt() and 0xff })
+        assertEquals(1200 to 630, bigEndian(bytes, 16) to bigEndian(bytes, 20))
+
+        @Suppress("UNCHECKED_CAST")
+        val data = page.evaluate("() => JSON.parse(document.querySelector('script[type=\"application/ld+json\"]').textContent)") as Map<String, Any?>
+        assertEquals("WebApplication", data["@type"])
+        assertEquals("gradle-new", data["name"])
+        assertEquals(site, data["url"])
+
+        val robots = target.get("/robots.txt")
+        assertEquals(200, robots.statusCode())
+        assertEquals("text/plain", robots.headers().firstValue("content-type").orElse("").substringBefore(';'))
+        assertEquals(listOf("User-agent: *", "Allow: /"), robots.body().lines().filter { it.isNotBlank() })
+    }
+
+    private fun bigEndian(bytes: ByteArray, offset: Int): Int =
+        (0 until 4).fold(0) { value, i -> (value shl 8) or (bytes[offset + i].toInt() and 0xff) }
 
     private fun imageTagInTheFooter(page: Page, target: Target) {
         page.waitForSelector("#image-tag:not([hidden])")
