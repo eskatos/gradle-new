@@ -37,6 +37,7 @@ private const val IMMUTABLE = "public, max-age=31536000, immutable"
 private const val SHORT_LIVED = "public, max-age=60"
 private const val VENDORED = "public, max-age=86400"
 private const val REVALIDATE = "no-cache"
+private val CONTENT_HASHED = Regex("""\.[0-9a-f]{12}\.\w+$""")
 private const val CONTENT_SECURITY_POLICY = "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 private const val STRICT_TRANSPORT_SECURITY = "max-age=31536000"
 private const val GENERATE_PATH = "/api/generate"
@@ -144,7 +145,7 @@ fun Application.gradleNew(siteDir: File, templatesDir: File, agentDir: File, lim
             contentType { file -> contentTypeOf(file) }
             modify { file, call ->
                 val vendored = file.relativeTo(siteDir).invariantSeparatorsPath.startsWith("assets/")
-                call.response.header(HttpHeaders.CacheControl, if (vendored) VENDORED else REVALIDATE)
+                call.response.header(HttpHeaders.CacheControl, if (contentHashed(file)) IMMUTABLE else if (vendored) VENDORED else REVALIDATE)
             }
         }
     }
@@ -153,11 +154,7 @@ fun Application.gradleNew(siteDir: File, templatesDir: File, agentDir: File, lim
 private fun Route.maintenance(siteDir: File) {
     staticFiles("/assets", File(siteDir, "assets")) {
         contentType { file -> contentTypeOf(file) }
-        modify { _, call -> call.response.header(HttpHeaders.CacheControl, VENDORED) }
-    }
-    get("/app/styles.css") {
-        call.response.header(HttpHeaders.CacheControl, REVALIDATE)
-        call.respondFile(File(siteDir, "app/styles.css"))
+        modify { file, call -> call.response.header(HttpHeaders.CacheControl, if (contentHashed(file)) IMMUTABLE else VENDORED) }
     }
     route("{...}") {
         handle {
@@ -185,6 +182,8 @@ private suspend fun respondForOrigin(call: ApplicationCall, contentType: Content
         call.respondBytes(body(origin), contentType)
     }
 }
+
+private fun contentHashed(file: File): Boolean = CONTENT_HASHED.containsMatchIn(file.name)
 
 private fun contentTypeOf(file: File): ContentType? = when (file.extension) {
     "json" -> ContentType.Application.Json

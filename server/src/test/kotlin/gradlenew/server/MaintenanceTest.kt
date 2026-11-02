@@ -28,7 +28,6 @@ class MaintenanceTest {
         resolve("v/9.8.2/model.json").writeText("""{"gradleVersion":"9.8.2"}""")
         resolve("app").mkdirs()
         resolve("app/main.js").writeText("export {}")
-        resolve("app/styles.css").writeText("body {}")
         resolve("assets/fonts").mkdirs()
         resolve("assets/fonts/lato-latin-400-normal.woff2").writeBytes(byteArrayOf(0x77, 0x4f, 0x46, 0x32))
         resolve("assets/styles.0123456789ab.css").writeText("body {}")
@@ -82,7 +81,6 @@ class MaintenanceTest {
         application { gradleNew(site, templates, agent, maintenance = true) }
 
         assertEquals(HttpStatusCode.OK, client.get("/assets/fonts/lato-latin-400-normal.woff2").status)
-        assertEquals(HttpStatusCode.OK, client.get("/app/styles.css").status)
         val stylesheet = client.get("/assets/styles.0123456789ab.css")
         assertEquals(HttpStatusCode.OK, stylesheet.status)
         assertEquals("public, max-age=31536000, immutable", stylesheet.headers[HttpHeaders.CacheControl])
