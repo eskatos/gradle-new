@@ -162,8 +162,9 @@ validated strictly before it reaches any served text.
   cached briefly, since the channel moves with each release. Zips carry an
   ETag.
 - Every response carries a self-only Content Security Policy, `nosniff` and
-  HSTS. Requests are rate-limited per client, with a JSON 429 and
-  `Retry-After` for builds.
+  HSTS. Requests are rate-limited per client, the client being the address
+  in `X-Real-IP`, which the hosting platform sets, or else the connection's,
+  with a JSON 429 and `Retry-After` for builds.
 
 ## Web UI
 
