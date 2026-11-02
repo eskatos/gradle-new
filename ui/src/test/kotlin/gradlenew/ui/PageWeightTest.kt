@@ -36,12 +36,11 @@ class PageWeightTest {
                 try {
                     val page = context.newPage()
                     page.setDefaultTimeout(WAIT_TIMEOUT)
-                    val requests = mutableListOf<String>()
-                    page.onRequest { requests.add(it.url().removePrefix(server.url)) }
                     page.navigate(server.url + "/")
                     page.waitForSelector("#command .token")
                     page.waitForFunction("() => document.fonts.status === 'loaded'")
                     page.waitForLoadState(LoadState.NETWORKIDLE)
+                    val requests = server.requests.toList()
                     assertTrue(requests.size <= 12, "$engine made ${requests.size} requests on a first visit: $requests")
                     val fonts = requests.filter { it.endsWith(".woff2") }.map { it.substringAfterLast('/').substringBefore('.') }.toSet()
                     assertTrue(fonts.all { it in usedFonts }, "$engine loads only Lato 400 and 700 and JetBrains Mono 400: $fonts")

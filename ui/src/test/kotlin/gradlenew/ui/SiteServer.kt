@@ -36,6 +36,7 @@ class SiteServer(private val siteDir: File, private val overrides: Map<String, (
         }
         exchange.responseHeaders.add("Content-Type", contentType(file.name))
         exchange.responseHeaders.add("Content-Security-Policy", "default-src 'self'")
+        if (HASHED.containsMatchIn(file.name)) exchange.responseHeaders.add("Cache-Control", "public, max-age=31536000, immutable")
         val bytes = file.readBytes()
         exchange.sendResponseHeaders(200, bytes.size.toLong())
         exchange.responseBody.write(bytes)
@@ -46,6 +47,8 @@ class SiteServer(private val siteDir: File, private val overrides: Map<String, (
     }
 
     companion object {
+        private val HASHED = Regex("""\.[0-9a-f]{12}\.\w+$""")
+
         fun contentType(name: String): String = when (name.substringAfterLast('.')) {
             "html" -> "text/html; charset=utf-8"
             "css" -> "text/css; charset=utf-8"
