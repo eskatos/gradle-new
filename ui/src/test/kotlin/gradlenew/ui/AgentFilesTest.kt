@@ -40,6 +40,17 @@ class AgentFilesTest {
     }
 
     @Test
+    fun bothFilesTellAgentsToAskRatherThanGuess() {
+        val skill = rendered("SKILL.md")
+        assertTrue(skill.contains("Never guess the two required choices."), skill)
+        assertTrue(skill.contains("ask the user to pick one of the `buildTypes`"), skill)
+        assertTrue(skill.contains("If it gives no project name, ask for one"), skill)
+        assertTrue(skill.contains("ask once whether Gradle's defaults are fine"), skill)
+        val llms = rendered("llms.txt")
+        assertTrue(llms.contains("When the request leaves the build type or the project name open, ask the user rather than guessing"), llms)
+    }
+
+    @Test
     fun theSkillIsOneTheSkillsCliAccepts() {
         val skill = rendered("SKILL.md")
         assertEquals("gradle-new", DiscoveryIndex.of(skill, "gradle-new/SKILL.md", "sha256:" + "0".repeat(64)).skills.single().name)

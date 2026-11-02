@@ -4,7 +4,7 @@
 
 Use it instead of writing build files from memory: the options, defaults and descriptions come from Gradle itself and follow each release.
 
-To create a build, read the options model, pick a build type and the options that matter for the request, then download the zip. Send only the options whose value differs from the default; omitted options take Gradle's defaults. `type` and `project-name` are required. Parameter names are the `gradle init` option names, and boolean options take `true` or `false`.
+To create a build, read the options model, pick a build type and the options that matter for the request, then download the zip. When the request leaves the build type or the project name open, ask the user rather than guessing; for the other options, ask whether the defaults are fine. Send only the options whose value differs from the default; omitted options take Gradle's defaults. `type` and `project-name` are required. Parameter names are the `gradle init` option names, and boolean options take `true` or `false`.
 
 Use the stable version unless asked otherwise. Use `previous` when the user asks for the previous major version of Gradle, or when the project cannot move to the current major yet, for example because the JDK that will run Gradle is too old for it.
 
