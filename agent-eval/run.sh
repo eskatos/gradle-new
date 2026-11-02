@@ -23,7 +23,5 @@ host="${host%%[:/]*}"
 exec claude plugin eval "$plugin" --trust-plugin --no-publish \
   --model "${EVAL_MODEL:-sonnet}" --judge-model "${EVAL_JUDGE_MODEL:-haiku}" \
   --max-cost-usd "${EVAL_MAX_COST_USD:-10}" \
-  --allow-tools Bash \
-    "WebFetch(domain:$host)" "WebFetch(domain:services.gradle.org)" "WebFetch(domain:downloads.gradle.org)" \
-    "WebFetch(domain:repo.maven.apache.org)" "WebFetch(domain:plugins.gradle.org)" "WebFetch(domain:plugins-artifacts.gradle.org)" \
+  --allow-tools Bash "WebFetch(domain:$host)" \
   "$@"
