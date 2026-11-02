@@ -1,9 +1,11 @@
 package gradlenew.buildlogic;
 
+import java.util.List;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.file.Directory;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.JavaExec;
 import org.gradle.api.tasks.Sync;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.testing.Test;
@@ -34,6 +36,27 @@ public abstract class StaticSitePlugin implements Plugin<Project> {
             task.into(project.getLayout().getBuildDirectory().dir("agent"));
         });
         project.getTasks().named("assemble", task -> task.dependsOn(assembleSite, assembleAgent));
+
+        Provider<Directory> previewDir = project.getLayout().getBuildDirectory().dir("preview");
+        TaskProvider<Sync> assemblePreviewPage = project.getTasks().register("assemblePreviewPage", Sync.class, task -> {
+            task.setDescription("Assembles the link preview's source page with the site's assets.");
+            task.from(project.getLayout().getProjectDirectory().dir("src/preview"));
+            task.from(project.getLayout().getProjectDirectory().dir("src/site/assets"), spec -> spec.into("assets"));
+            task.into(previewDir.map(dir -> dir.dir("page")));
+        });
+        project.getTasks().register("renderPreviewImage", JavaExec.class, task -> {
+            task.setGroup("documentation");
+            task.setDescription("Renders src/preview/preview.html to the 1200 by 630 link preview image build/preview/preview.png, to review and commit by hand.");
+            task.dependsOn(assemblePreviewPage, PlaywrightBrowsers.INSTALL_TASK);
+            task.setClasspath(project.getConfigurations().getByName("testRuntimeClasspath"));
+            task.getMainClass().set("com.microsoft.playwright.CLI");
+            task.environment(PlaywrightBrowsers.SKIP_DOWNLOAD, "1");
+            task.getArgumentProviders().add(() -> List.of(
+                "screenshot", "--browser", "chromium", "--viewport-size", "1200,630", "--wait-for-timeout", "1000",
+                previewDir.get().file("page/preview.html").getAsFile().toPath().toUri().toString(),
+                previewDir.get().file("preview.png").getAsFile().getPath()));
+            task.doNotTrackState("Renders on demand, for a person to review");
+        });
 
         project.getConfigurations().consumable("siteElements", configuration -> {
             ContainerImageAttributes.site(configuration.getAttributes());

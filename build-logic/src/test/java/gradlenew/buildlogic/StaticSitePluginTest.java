@@ -33,6 +33,35 @@ class StaticSitePluginTest {
     }
 
     @Test
+    void rendersThePreviewImageOnlyWhenAsked(@TempDir Path dir) throws IOException {
+        TestProject project = TestProject.in(dir)
+            .buildScript("""
+                plugins { id("gradlenew.static-site") }
+
+                tasks.named<JavaExec>("renderPreviewImage") {
+                    classpath = files(sourceSets.test.map { it.output }) + configurations.testRuntimeClasspath.get()
+                    mainClass = "PrintArgumentsKt"
+                    dependsOn("testClasses")
+                }
+                """)
+            .file("src/site/index.html", "<!doctype html><title>site</title>")
+            .file("src/site/assets/logo/logo.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\"/>")
+            .file("src/preview/preview.html", "<!doctype html><title>preview</title>")
+            .file("src/test/kotlin/PrintArguments.kt", """
+                fun main(arguments: Array<String>) = println("playwright " + arguments.joinToString(" "))
+                """);
+
+        BuildResult planned = project.run("build", "--dry-run");
+        assertFalse(planned.getOutput().contains(":renderPreviewImage"), planned.getOutput());
+
+        BuildResult rendered = project.run("renderPreviewImage", "-x", "installPlaywrightBrowsers");
+        Path preview = project.path("build/preview").toRealPath();
+        assertTrue(rendered.getOutput().contains("playwright screenshot --browser chromium --viewport-size 1200,630 --wait-for-timeout 1000 "
+            + preview.resolve("page/preview.html").toUri() + " " + preview.resolve("preview.png") + "\n"), rendered.getOutput());
+        assertTrue(Files.exists(project.path("build/preview/page/assets/logo/logo.svg")));
+    }
+
+    @Test
     void testsReceiveTheAssembledSiteTheAgentFilesAndInstalledBrowsers(@TempDir Path dir) throws IOException {
         TestProject project = TestProject.in(dir)
             .buildScript("plugins { id(\"gradlenew.static-site\") }")
