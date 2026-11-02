@@ -318,6 +318,10 @@ native image free of reflection configuration.
   smoke-tested.
 - Tests that need a specific Gradle version name it; the others follow the
   pin.
+- The agent skill is evaluated by hand, when it or `llms.txt` changes, with
+  Claude Code's `claude plugin eval` (`agent-eval/run.sh`): a few requests,
+  each run with and without the skill, graded on whether the skill is used,
+  what the agent asks, and the generate URL it requests.
 
 ## Hosting
 
@@ -385,7 +389,8 @@ recorded here.
   `actions/attest-build-provenance`, `actions/cache`; setup-gradle's
   enhanced cache provider, a proprietary component free for public
   repositories.
-- Tools: Docker or Podman, the Scaleway CLI, the GitHub CLI.
+- Tools: Docker or Podman, the Scaleway CLI, the GitHub CLI, Claude Code (for
+  the skill evaluation).
 - Vendored in `ui`, each with its source and version in `ui/VENDORED.md`:
   the Gradle Build Tool design system's tokens and the Gradle logos,
   Develocity's logo, Lato and JetBrains Mono (SIL Open Font License), and
