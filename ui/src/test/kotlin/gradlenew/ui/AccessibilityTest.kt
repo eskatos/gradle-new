@@ -81,9 +81,9 @@ class AccessibilityTest {
                     val context = Browsers.browser(engine).newContext(Browser.NewContextOptions().setViewportSize(1280, 900))
                     try {
                         val page = context.newPage()
-                        page.setDefaultTimeout(5_000.0)
-                        page.navigate(server.url + "/", Page.NavigateOptions().setTimeout(FIRST_LOAD_TIMEOUT))
-                        page.waitForSelector("#command .token", Page.WaitForSelectorOptions().setTimeout(FIRST_LOAD_TIMEOUT))
+                        page.setDefaultTimeout(WAIT_TIMEOUT)
+                        page.navigate(server.url + "/")
+                        page.waitForSelector("#command .token")
                         test(page, engine)
                     } finally {
                         context.close()

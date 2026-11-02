@@ -17,7 +17,7 @@ class MaintenancePageTest {
                         val problems = mutableListOf<String>()
                         page.onResponse { if (it.status() >= 400) problems.add("${it.status()} ${it.url()}") }
                         page.onConsoleMessage { if (it.type() == "error") problems.add(it.text()) }
-                        page.setDefaultTimeout(FIRST_LOAD_TIMEOUT)
+                        page.setDefaultTimeout(WAIT_TIMEOUT)
 
                         assertEquals(200, page.navigate(server.url + "/maintenance.html")!!.status())
                         page.waitForFunction("() => document.fonts.status === 'loaded' && [...document.images].every((i) => i.complete && i.naturalWidth > 0)")

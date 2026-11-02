@@ -322,7 +322,7 @@ class PageTest {
     @TestFactory
     fun downloadsTheBuildOrPlacesTheRejection(): List<DynamicTest> = onPage { page, server ->
         page.fill("#project-name", "demo-app")
-        val download = page.waitForDownload(Page.WaitForDownloadOptions().setTimeout(FIRST_LOAD_TIMEOUT)) { page.click("#download") }
+        val download = page.waitForDownload { page.click("#download") }
         assertEquals("demo-app.zip", download.suggestedFilename())
         assertTrue(java.nio.file.Files.readAllBytes(download.path()).contentEquals(zip))
         assertTrue(server.requests.any { it.startsWith("/api/generate?type=java-application") })
@@ -430,12 +430,12 @@ class PageTest {
                     try {
                         context.addInitScript("window.__copied = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: (text) => { window.__copied.push(text); return Promise.resolve(); } } });")
                         val page = context.newPage()
-                        page.setDefaultTimeout(5_000.0)
+                        page.setDefaultTimeout(WAIT_TIMEOUT)
                         val problems = mutableListOf<String>()
                         page.onConsoleMessage { if (it.type() == "error") problems.add(it.text()) }
                         page.onPageError { problems.add(it) }
-                        page.navigate(server.url + "/", Page.NavigateOptions().setTimeout(FIRST_LOAD_TIMEOUT))
-                        page.waitForSelector("#command .token", Page.WaitForSelectorOptions().setTimeout(FIRST_LOAD_TIMEOUT))
+                        page.navigate(server.url + "/")
+                        page.waitForSelector("#command .token")
                         test(page, server)
                         assertEquals(emptyList(), problems.filterNot { it.contains("status of 400") || it.contains("status of 500") || it.contains("400 (Bad Request)") || it.contains("500 (Internal Server Error)") || it.contains("status of 429") || it.contains("429 (Too Many Requests)") }, "console errors in $engine")
                     } finally {
