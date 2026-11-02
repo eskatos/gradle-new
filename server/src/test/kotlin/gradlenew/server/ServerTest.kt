@@ -34,6 +34,9 @@ class ServerTest {
         resolve("app/main.js").writeText("export {}")
         resolve("assets/fonts").mkdirs()
         resolve("assets/fonts/lato-latin-400-normal.woff2").writeBytes(byteArrayOf(0x77, 0x4f, 0x46, 0x32))
+        resolve("assets/fonts/lato-latin-400-normal.0123456789ab.woff2").writeBytes(byteArrayOf(0x77, 0x4f, 0x46, 0x32))
+        resolve("assets/styles.0123456789ab.css").writeText("body {}")
+        resolve("assets/icons.0123456789ab.svg").writeText("<svg xmlns=\"http://www.w3.org/2000/svg\"/>")
         resolve("assets/social").mkdirs()
         resolve("assets/social/preview.png").writeBytes(byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47))
         resolve("robots.txt").writeText("User-agent: *\nAllow: /\n")
@@ -221,6 +224,19 @@ class ServerTest {
         assertEquals(HttpStatusCode.OK, preview.status)
         assertEquals(ContentType.Image.PNG, preview.contentType()?.withoutParameters())
         assertEquals("public, max-age=86400", preview.headers[HttpHeaders.CacheControl])
+    }
+
+    @Test
+    fun servesAssetsWithAContentHashInTheirNameAsImmutableForAYear() = testApplication {
+        application { gradleNew(site, templates, agent) }
+
+        for (path in listOf("/assets/styles.0123456789ab.css", "/assets/icons.0123456789ab.svg", "/assets/fonts/lato-latin-400-normal.0123456789ab.woff2")) {
+            val response = client.get(path)
+            assertEquals(HttpStatusCode.OK, response.status, path)
+            assertEquals("public, max-age=31536000, immutable", response.headers[HttpHeaders.CacheControl], path)
+        }
+        assertEquals("text/css", client.get("/assets/styles.0123456789ab.css").contentType()?.withoutParameters()?.toString())
+        assertEquals("public, max-age=86400", client.get("/assets/social/preview.png").headers[HttpHeaders.CacheControl])
     }
 
     @Test

@@ -31,6 +31,7 @@ class MaintenanceTest {
         resolve("app/styles.css").writeText("body {}")
         resolve("assets/fonts").mkdirs()
         resolve("assets/fonts/lato-latin-400-normal.woff2").writeBytes(byteArrayOf(0x77, 0x4f, 0x46, 0x32))
+        resolve("assets/styles.0123456789ab.css").writeText("body {}")
     }
 
     private val templates: File = Files.createTempDirectory("templates").toFile()
@@ -82,6 +83,9 @@ class MaintenanceTest {
 
         assertEquals(HttpStatusCode.OK, client.get("/assets/fonts/lato-latin-400-normal.woff2").status)
         assertEquals(HttpStatusCode.OK, client.get("/app/styles.css").status)
+        val stylesheet = client.get("/assets/styles.0123456789ab.css")
+        assertEquals(HttpStatusCode.OK, stylesheet.status)
+        assertEquals("public, max-age=31536000, immutable", stylesheet.headers[HttpHeaders.CacheControl])
         assertEquals("max-age=31536000", client.get("/").headers["Strict-Transport-Security"])
         assertEquals("nosniff", client.get("/api/versions").headers["X-Content-Type-Options"])
     }
