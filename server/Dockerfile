@@ -8,7 +8,7 @@ RUN ldd server | tee ldd.txt && ! grep -vE 'linux-vdso|libc\.so|ld-linux' ldd.tx
 ARG IMAGE_TAG
 RUN printf '{"image": "%s"}\n' "$IMAGE_TAG" > build.json
 
-FROM gcr.io/distroless/base-nossl-debian13:nonroot@sha256:e6b0f82595aa1edde72c8054de7a9dca30f0f8f54820c37a167c0ddfc21c5c67
+FROM gcr.io/distroless/base-nossl-debian13:nonroot@sha256:89815d620ac01d8de13cdaf04d19ed874447ca2296d4985b14b818f6e5e47854
 ENV PORT=8080 SITE_DIR=/site TEMPLATES_DIR=/templates AGENT_DIR=/agent
 EXPOSE 8080
 ENTRYPOINT ["/server"]
